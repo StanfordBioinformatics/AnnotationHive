@@ -1,24 +1,19 @@
-# Getting started in Java
+# README #
 
-1. If you have not already done so, follow the Google Genomics [sign up instructions](https://cloud.google.com/genomics/install-genomics-tools#authenticate) to generate and download a valid ``client_secrets.json`` file.  
+### Cloud-based Annotation Engine ###
 
-2. Copy the client_secrets.json file into this directory.
+* Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be automatically derived  from diverse genomes (e.g., ANNOVAR, SnpEff). The first problem using the existing tools is about downloading the software and the large build files. The second problem is scalability. Because current tools are sequential, the annotation of large numbers of patients is tedious and takes a significant amount of time. 
 
-3. [Install maven](http://maven.apache.org/download.cgi)
+* The pay-as-you-go model of cloud computing, which removes the maintenance effort required for a high performance computing (HPC) facility while simultaneously offering elastic scalability, is well suited for genomic analysis.
 
-4. Build and run the code:
+* In this project, we developed a cloud-based annotation engine that automatically annotate the user’s input datasets (e.g., VCF, avinput files) in the cloud.
 
-    ```
-    mvn assembly:assembly
-    java -jar target/getting-started-java-v1-jar-with-dependencies.jar
-    ```
+* Version 1.0
 
-# More information
+### How do I get set up? ###
 
-* [Google Genomics client library](https://cloud.google.com/genomics/v1/libraries)
-* [JavaDoc reference for the Genomics API](https://developers.google.com/resources/api-libraries/documentation/genomics/v1/java/latest/)
-
-# Troubleshooting
-
-[File an issue](https://github.com/googlegenomics/getting-started-with-the-api/issues/new)
-if you run into problems and we'll do our best to help!
+* Install Apache Maven 3.3.3 
+* cd cloud-based-annotation/java
+* mvn javadoc:javadoc
+* mvn assembly:assembly
+* java -jar target/cba-v1-jar-with-dependencies.jar <ReferenceSetId> <DatasetId> <API_KEY> <Input_bucket_name and input_filename> <Input_bucket_name and output_filename>
