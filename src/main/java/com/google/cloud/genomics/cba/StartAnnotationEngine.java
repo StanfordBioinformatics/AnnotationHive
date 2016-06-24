@@ -36,7 +36,7 @@ import org.apache.http.util.EntityUtils;
 
 
 /**
- * Main Class
+ * Main Class: Start Annotation Engine!
  */
 
 public class StartAnnotationEngine {
@@ -48,25 +48,43 @@ public class StartAnnotationEngine {
 
 	public static void main(String[] args) throws IOException {
 		
-		if (args.length != 5) {
+		if (args.length != 6) {
 	      System.err.println("Usage:");
-      	  System.err.println("\t <Cloud Project ID> <ReferenceSetId> <DatasetId> <Input_bucket_name and input_filename> <Input_bucket_name and output_filename>");
+      	  System.err.println("\t <Cloud Project ID> <ReferenceSetId> <DatasetId> "
+      			+ "<Google Dataflow Staging Path (e.g., gs://myBucketName/staging)> "
+      	  		+ "<Address of Input Object (e.g., gs://myBucketName"
+      	  		+ "/myObject.txt)> <Address of Output Object>");
 	      System.exit(1);
 	    } 
 
 
 		try {
+			
+			String projectId = args[0];
+			String referenceSetId = args[1];
+			String datasetId = args [2];
+			String stagingPath = args[3];
+			String inputObjectAddr= args[4];
+			String outputObjectAddr= args[5];
+			
+			System.out.println("Project ID: " +  projectId);
+			System.out.println("Reference Set ID: " +  referenceSetId);
+			System.out.println("Dataset ID: " +  datasetId );
+			System.out.println("Staging Path: " +  stagingPath);
+			System.out.println("Address of Input Object: " +  inputObjectAddr);
+			System.out.println("Address of Output Object: " +  outputObjectAddr);
+	
+			//To-DO
+				// STEP 0: initialize annotation header => Matching Engine provides
+				// annotation header list
 
-			// STEP 0: initialize annotation header => Matching Engine provides
-			// annotation header list
-
-			/*
-			 * Automatic Mapping
-			 * 
-			 * annotationSetId referenceName start end info name referenceId
-			 * reverseStrand transcript variant
-			 * 
-			 */
+				/*
+				 * Automatic Schema Mapping
+				 * 
+				 * annotationSetId referenceName start end info name referenceId
+				 * reverseStrand transcript variant
+				 * 
+				 */
 		
 			// STEP 1: authentication - login credentials
 			CurlHttpRequests.command("gcloud auth login");
@@ -79,8 +97,8 @@ public class StartAnnotationEngine {
 			AnnotationSet newAnnotationSet = new AnnotationSet();
 			
 			newAnnotationSet.setAnnotaionSetName("");
-			newAnnotationSet.setReferenceSetId (args[0]); 
-			newAnnotationSet.setDatasetId(args[1]); 
+			newAnnotationSet.setReferenceSetId (referenceSetId); 
+			newAnnotationSet.setDatasetId(datasetId); 
 			newAnnotationSet.setAnnotationSetSourceUri("");
 			newAnnotationSet.setTOKEN(TOKEN);
 			newAnnotationSet.setAnnotationSetType("");
@@ -96,69 +114,11 @@ public class StartAnnotationEngine {
 				System.exit(0);
 			}
 
-			// STEP 4: creating annotations using a Google Dataflow pipeline
-			
-			/*My cloud project*/
-//			 Dataflow.runPipeline(TOKEN, annotationSetId, "midyear-pattern-133519", 
-//					 "gs://cloud-annotation", //storage path 
-//					 "gs://cloud-annotation/hg19_EUR.sites.2015_08.txt", // Bucket address of the input Text file  
-//					 "gs://cloud-annotation/hg19_EUR.sites.2015_08.json"); // Bucket address of the output JSON file
-			
-			 Dataflow.runPipeline(TOKEN, annotationSetId, "gbsc-gcp-project-cba", 
-			 "gs://gbsc-gcp-project-cba-user-abahman",		 
-			 "gs://gbsc-gcp-project-cba-user-abahman/annotation/hg19_EUR.sites.2015_08.txt", // Bucket address of the input Text file  
-			 "gs://gbsc-gcp-project-cba-user-abahman/annotation/hg19_EUR.sites.2015_08.json"); // Bucket address of the output JSON file			
-			
+			// STEP 4: creating annotations using a Google Dataflow pipeline						
+			 Dataflow.runPipeline(TOKEN, annotationSetId, projectId, 
+					 stagingPath, inputObjectAddr, outputObjectAddr);
 
-//			// STEP 4: creating annotations (Submitting one annotation or a batch of annotations)
-//
-//			 // The name of the file to open.
-//			 String fileName = "hg19_EUR.sites.2015_08.txt";
-//			
-//			 // This will reference one line at a time
-//			 String line = null;
-//
-//			try {
-//				// FileReader reads text files in the default encoding.
-//				FileReader fileReader = new FileReader(fileName);
-//
-//				// Always wrap FileReader in BufferedReader.
-//				BufferedReader bufferedReader = new BufferedReader(fileReader);
-//				int index = 0;
-//				int indexName = 0;
-//				JsonArray datasets = new JsonArray();
-//
-//				while ((line = bufferedReader.readLine()) != null) {
-//					String[] words = line.split("\t");
-//					//indexName++;
-//					/* line by line annotation */
-//					HG19_EUR.createdbSNPAnnotation(TOKEN, annotationSetId, words); //, indexName);
-//					HG19_EUR.getAnnotation(TOKEN, annotationSetId, words);
-//
-//					/* batch annotation */
-////					JsonObject newAnnotation = HG19_EUR.createAnnotationJSON(annotationSetId, words);
-////					datasets.add(newAnnotation);
-////
-////					index++;
-////					if (index % 10 == 0) {
-////						JsonObject annotations = new JsonObject();
-////						annotations.add("annotations", datasets);
-////						System.out.println(annotations.toString());
-////						datasets = new JsonArray();
-////						Annotation.batchCreateAnnotation(TOKEN, annotations.toString());
-////					}
-//			 }
-//
-//				// Always close files.
-//				bufferedReader.close();
-//			} catch (FileNotFoundException ex) {
-//				System.out.println("Unable to open file '" + fileName + "'");
-//			} catch (IOException ex) {
-//				ex.printStackTrace();
-//			}
 
-			//CloudStorage.runUpload("abahman@stanford.edu", "gbsc-gcp-project-cba-user-abahman", "pom.xml" , "pom2.xml" );
-			//CloudStorage.runDownload("abahman@stanford.edu", "cloud-annotation", "cloud_pom.xml", "cloud_pom.xml");
 			System.out.println("Done");
 
 		} catch (IllegalStateException e) {
