@@ -1,11 +1,9 @@
-package com.google.cloud.genomics.cba;
+package com.google.cloud.genomics.cba.httpRequests;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.google.cloud.genomics.cba.StartAnnotationEngine;
 import com.google.gson.JsonObject;
-
-import javafx.util.Pair;
 
 
 /**

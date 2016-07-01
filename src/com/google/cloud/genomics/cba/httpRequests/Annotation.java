@@ -1,20 +1,15 @@
-package com.google.cloud.genomics.cba;
+package com.google.cloud.genomics.cba.httpRequests;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 
-import com.google.api.client.http.HttpResponse;
+import com.google.cloud.genomics.cba.StartAnnotationEngine;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import javafx.util.Pair;
 
 
 /**

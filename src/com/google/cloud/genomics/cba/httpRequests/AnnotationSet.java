@@ -1,4 +1,4 @@
-package com.google.cloud.genomics.cba;
+package com.google.cloud.genomics.cba.httpRequests;
 
 import java.util.ArrayList;
 import com.google.gson.JsonObject;

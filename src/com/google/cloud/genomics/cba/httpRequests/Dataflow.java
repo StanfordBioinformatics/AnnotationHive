@@ -1,12 +1,5 @@
-package com.google.cloud.genomics.cba;
+package com.google.cloud.genomics.cba.httpRequests;
 
-import java.io.FileReader;
-import java.util.Collections;
-
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
@@ -14,11 +7,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import com.google.cloud.dataflow.sdk.transforms.Count;
-import com.google.cloud.dataflow.sdk.values.KV;
 
 /**
  * <h1>Dataflow APIs</h1> This class uses the Google Dataflow functionalities to

@@ -1,4 +1,4 @@
-package com.google.cloud.genomics.cba;
+package com.google.cloud.genomics.cba.httpRequests;
 
 import java.io.BufferedReader;
 import java.io.File;
