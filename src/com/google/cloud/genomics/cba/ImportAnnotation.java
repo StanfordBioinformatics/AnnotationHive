@@ -254,7 +254,8 @@ public class ImportAnnotation {
 			this.write = write;
 		}
 
-		
+		private static long waitingTime = 0;
+
 		// VariantAnnotation
 		@Override
 		public void processElement(ProcessContext c) throws GeneralSecurityException, IOException {
@@ -428,22 +429,14 @@ public class ImportAnnotation {
 		 */
 		private void batchCreateAnnotations() throws IOException, GeneralSecurityException {
 	
-			try{
 				Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
 				Genomics.Annotations.BatchCreate aRequest = genomics.annotations()
 						.batchCreate(new BatchCreateAnnotationsRequest().setAnnotations(currAnnotations));
 				RetryPolicy retryP = RetryPolicy.nAttempts(4);
 				retryP.execute(aRequest);
 				currAnnotations.clear();
-			}
-			catch (Exception e){
-				LOG.warning("Error:" + currAnnotations.toString());
-				LOG.warning("Error (maxMemory):" + Runtime.getRuntime().maxMemory());
-				LOG.warning("Error (totalMemory):" + Runtime.getRuntime().totalMemory());
-				LOG.warning("Error (freeMemory):" + Runtime.getRuntime().freeMemory());
-			}
 
-//			
+			
 //		    ExponentialBackOff backoff = new ExponentialBackOff.Builder().build();
 //		    while (true) {
 //		          try {
