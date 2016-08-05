@@ -33,7 +33,7 @@ import com.google.api.services.genomics.Genomics.Variantsets;
  * @since 2016-07-01
  */
 
-public class ImportVCF {
+final class ImportVCF {
 
 	private static Options options;
 	private static OfflineAuth auth;
@@ -60,7 +60,7 @@ public class ImportVCF {
 	}
 
 	/**
-	 * This method is the main point of entry in this class; it creates a
+	 * <h1> This method is the main point of entry in this class; it creates a
 	 * variantSet, and import VCF files
 	 */
 
@@ -97,11 +97,22 @@ public class ImportVCF {
 
 		// TODO: Wait till the job is completed (Track the job)
 		retryP.execute(genomics.variants().genomicsImport(IVReq));
+		
+		
+		System.out.println("");
+		System.out.println("");
+		System.out.println("[INFO] ------------------------------------------------------------------------");
+		System.out.println("[INFO] To check the current status of your job, use the following command:");
+		System.out.println("\t ~: gcloud alpha genomics operations describe $YOUR_OPERATION-ID$");
+		System.out.println("[INFO] ------------------------------------------------------------------------");
+		System.out.println("");
+		System.out.println("");
+		
 
 	}
 
 	/**
-	 * This method creates a new variant set using the given datasetId.
+	 * <h1> This method creates a new variant set using the given datasetId.
 	 */
 
 	private static VariantSet createVariantSet() throws GeneralSecurityException, IOException {
