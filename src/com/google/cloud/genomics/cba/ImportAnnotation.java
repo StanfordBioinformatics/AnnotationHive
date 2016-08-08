@@ -35,6 +35,7 @@ import com.google.api.services.genomics.Genomics.Annotationsets;
 import com.google.api.services.genomics.model.Annotation;
 import com.google.api.services.genomics.model.AnnotationSet;
 import com.google.api.services.genomics.model.BatchCreateAnnotationsRequest;
+import com.google.api.services.genomics.model.BatchCreateAnnotationsResponse;
 import com.google.api.services.genomics.model.Transcript;
 import com.google.api.services.genomics.model.Variant;
 import com.google.api.services.genomics.model.VariantAnnotation;
@@ -295,7 +296,7 @@ public class ImportAnnotation {
 						if(words[4]==null || words[4].isEmpty())
 							va.setAlternateBases("");
 						else //Add alternateBases
-							va.setAlternateBases(canonicalizeBases(words[4]));
+							va.setAlternateBases(checkBases(words[4], Long.parseLong(words[1]), Long.parseLong(words[2])));
 						
 						a.setType("VARIANT")
 						.setAnnotationSetId(asId)
@@ -362,7 +363,7 @@ public class ImportAnnotation {
 
 					if (write) {
 						currAnnotations.add(a);
-						if (currAnnotations.size() == 2048) {
+						if (currAnnotations.size() == 2048 || (currAnnotations.size()>2048 && currAnnotations.size()%100 ==0)) {
 							// Batch create annotations once we hit the max
 							// amount for a batch
 							batchCreateAnnotations();
@@ -374,31 +375,27 @@ public class ImportAnnotation {
 
 		}	
 	
-		/** Canonicalize alteranteBases; e.g., 032CA to CA
-		 * @param alternateBases
-		 * @return List<String>
-		 */
-		private static List<String> canonicalizeBasesList(String alternateBases) {
 
-			alternateBases = alternateBases.replaceAll("[^A-Za-z]","");
-			List<String> list= new ArrayList<String>();;
-			
-	        for (int index = 0; index < alternateBases.length(); index++){
-	        	list.add(String.valueOf(alternateBases.charAt(index)));
-	        }
-			
-	        return list;
-		}
-	
 		//TODO: Add more QC conditions here 
-		/** Canonicalize alteranteBases; e.g., 032CA to CA
+		/** Check alteranteBases; e.g., 032CA -> Report Error; 
 		 * @param alternateBases
-		 * @return List<String>
+		 * @param start
+		 * @param end 
+		 * @return String
 		 */
-		private static String canonicalizeBases(String bases) {
-
-			return bases.replaceAll("[^A-Za-z]","");
-
+		private static String checkBases(String bases, long start, long end ) {
+			char[] c_arr = bases.toCharArray();
+			for(char c : c_arr){
+				if(c!='A' && c!='T' && c!='C' && c!='G' && c!=' ')
+				{
+					LOG.warning("Error: Alternate bases must be T, C, G, A; Bases for (" + start + "," + end + ") is: " + bases);
+					throw new IllegalArgumentException("Alternate bases must be a sequence of TCGA!  "
+							+ "Wrong Alternate Bases for (" + start + "," + end + ") is: " + bases);
+				}
+				
+			}
+		
+			return bases;
 		}
 		
 		/**
@@ -422,45 +419,52 @@ public class ImportAnnotation {
 			if (write && !currAnnotations.isEmpty()) {
 				batchCreateAnnotations();
 			}
+			LOG.warning("Waiting Time: " + waitingTime);
 		}
 		
 		/**
 		 * <h1>This method creates and post a batch of annotations to Google Genomics.
+		 * It also uses exponential backoff.
+		 * 
 		 */
 		private void batchCreateAnnotations() throws IOException, GeneralSecurityException {
-	
-				Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
-				Genomics.Annotations.BatchCreate aRequest = genomics.annotations()
-						.batchCreate(new BatchCreateAnnotationsRequest().setAnnotations(currAnnotations));
-				RetryPolicy retryP = RetryPolicy.nAttempts(4);
-				retryP.execute(aRequest);
-				currAnnotations.clear();
 
-			
-//		    ExponentialBackOff backoff = new ExponentialBackOff.Builder().build();
-//		    while (true) {
-//		          try {
-//						Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
-//						Genomics.Annotations.BatchCreate aRequest = genomics.annotations()
-//								.batchCreate(new BatchCreateAnnotationsRequest().setAnnotations(currAnnotations));
-//						RetryPolicy retryP = RetryPolicy.nAttempts(4);
-//						retryP.execute(aRequest);
-//						currAnnotations.clear();
-//		          } catch (Exception e) {
-//		              if (e.getMessage().startsWith("429 Too Many Requests")) {
-//		                LOG.warning("Backing-off per: " + e.toString());
-//		                long backOffMillis = backoff.nextBackOffMillis();
-//		                if (backOffMillis == BackOff.STOP) {
-//		                  throw e;
-//		                }
-//		                Thread.sleep(backOffMillis);
-//		              } else {
-//		                throw e;
-//		              }
-//		            }
-//		    }
-			
-		
+			ExponentialBackOff backoff = new ExponentialBackOff.Builder().build();
+      		/** The default maximum elapsed time in milliseconds (15 minutes). */
+			/** The default maximum back off time in milliseconds (1 minute). */
+
+			while (true) {
+				try {
+					Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
+					Genomics.Annotations.BatchCreate aRequest = genomics.annotations()
+							.batchCreate(new BatchCreateAnnotationsRequest().setAnnotations(currAnnotations));
+					RetryPolicy retryP = RetryPolicy.nAttempts(4);
+					BatchCreateAnnotationsResponse responseA = retryP.execute(aRequest);
+					LOG.warning(responseA.toPrettyString());
+					currAnnotations.clear();
+					return;
+				} catch (Exception e) {
+					if (e instanceof java.net.SocketTimeoutException 
+							|| e instanceof  com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+						// if (e.getMessage().startsWith("exception thrown while
+						// executing request")) {
+						LOG.warning("Backing-off per: " + e.toString());
+						long backOffMillis = backoff.nextBackOffMillis();
+						if (backOffMillis == BackOff.STOP) {
+							throw e;
+						}
+						try {
+							Thread.sleep(backOffMillis);
+							waitingTime += backOffMillis;
+						} catch (InterruptedException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
+					} else {
+						throw e;
+					}
+				}
+			}
 		}
 	}
 
