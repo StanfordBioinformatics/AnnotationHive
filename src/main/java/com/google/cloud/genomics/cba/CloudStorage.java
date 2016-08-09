@@ -122,7 +122,7 @@ public class CloudStorage {
 	 * 
 	 * @param username
 	 *            the cloud username.	
-	 * @param cloudFileName
+	 * @param cloudFilename
 	 *            the name of the object on the cloud.
 	 * @param localFilename
 	 *            the name of the source file.
@@ -130,19 +130,19 @@ public class CloudStorage {
 	 *            the name of the bucket to create the object in.
 	 *     
 	 */
-	public static void runUpload(String username, String bucketName, String localFileName, 
-			String cloudFileName) {
+	public static void runUpload(String username, String bucketName, String localFilename, 
+			String cloudFilename) {
 
-		if (!Strings.isNullOrEmpty(bucketName) && !Strings.isNullOrEmpty(localFileName )
-				&& !Strings.isNullOrEmpty(cloudFileName))  {
+		if (!Strings.isNullOrEmpty(bucketName) && !Strings.isNullOrEmpty(localFilename )
+				&& !Strings.isNullOrEmpty(cloudFilename))  {
 			try {
 				// Create a temp file to upload
-				Path tempPath = Files.createTempFile(localFileName, "txt");
+				Path tempPath = Files.createTempFile(localFilename, "txt");
 				Files.write(tempPath, "Sample file".getBytes());
 				File tempFile = tempPath.toFile();
 				tempFile.deleteOnExit();
 				// Upload it
-				uploadFile(cloudFileName, "text/plain", tempFile, bucketName, username);
+				uploadFile(cloudFilename, "text/plain", tempFile, bucketName, username);
 
 			} catch (IOException e) {
 				System.err.println(e.getMessage());
@@ -163,7 +163,7 @@ public class CloudStorage {
 	 * Checks input variables and call download function.
 	 * 
 	 * @param username
-	 * @param cloudFileName
+	 * @param cloudFilename
 	 *            the name of the source object.
 	 * @param localFilename
 	 *            the name of the source file.

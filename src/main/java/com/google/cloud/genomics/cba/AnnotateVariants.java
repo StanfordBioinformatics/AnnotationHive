@@ -668,7 +668,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 
 
 	/**
-	 * <h1> This method prepares the Header of the output VCF file
+	 * <h1> This method prepares the header for the output VCF file
 	 * 
 	 * @param	genomics
 	 * @param	annosetIds
