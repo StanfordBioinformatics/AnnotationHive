@@ -17,7 +17,6 @@ import com.google.api.client.util.Strings;
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.Annotation;
 import com.google.api.services.genomics.model.AnnotationSet;
-import com.google.api.services.genomics.model.ListBasesResponse;
 import com.google.api.services.genomics.model.SearchAnnotationsRequest;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -46,29 +45,22 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
 import com.google.genomics.v1.VariantCall;
-import com.google.protobuf.ProtocolStringList;
 
 import htsjdk.samtools.util.IntervalTree;
-//import htsjdk.samtools.util.IntervalTree.Node;
 import htsjdk.samtools.util.IntervalTree.Node;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -562,7 +554,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 			throw new IllegalArgumentException("CallSetNames must be specified (e.g., HG00261 for 1000 Genomes.)");
 		}
 		
-		//Add genotype into the VCF HEADER! 
+		//Add Genotype field to the VCF HEADER! 
 		String callSetNames="genotype(s):";
 		for(String name:options.getCallSetNames().split(","))
 		{

@@ -24,6 +24,7 @@ package com.google.cloud.genomics.cba;
  */
 
 import com.google.api.client.http.InputStreamContent;
+import com.google.api.client.util.Strings;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.ObjectAccessControl;
 import com.google.api.services.storage.model.StorageObject;
@@ -93,8 +94,8 @@ public class CloudStorage {
 	 *            the file to upload.
 	 * @param bucketName
 	 *            the name of the bucket to create the object in.
-	 * @param username
-	 *            the cloud username.	 
+	 * @param userAccount
+	 *            the cloud userAccount.	 
 	 */
 	public static void uploadFile(String name, String contentType, File file, String bucketName, String userAccount)
 			throws IOException, GeneralSecurityException {
@@ -121,8 +122,8 @@ public class CloudStorage {
 	 * 
 	 * @param username
 	 *            the cloud username.	
-	 * @param objectName
-	 *            the name of the source object.
+	 * @param cloudFileName
+	 *            the name of the object on the cloud.
 	 * @param localFilename
 	 *            the name of the source file.
 	 * @param bucketName
@@ -132,8 +133,8 @@ public class CloudStorage {
 	public static void runUpload(String username, String bucketName, String localFileName, 
 			String cloudFileName) {
 
-		if ((bucketName != null && !bucketName.isEmpty()) && (localFileName != null && !localFileName.isEmpty())
-				&& (cloudFileName != null && !cloudFileName.isEmpty())) {
+		if (!Strings.isNullOrEmpty(bucketName) && !Strings.isNullOrEmpty(localFileName )
+				&& !Strings.isNullOrEmpty(cloudFileName))  {
 			try {
 				// Create a temp file to upload
 				Path tempPath = Files.createTempFile(localFileName, "txt");
@@ -162,8 +163,7 @@ public class CloudStorage {
 	 * Checks input variables and call download function.
 	 * 
 	 * @param username
-	 *            the cloud username.	
-	 * @param objectName
+	 * @param cloudFileName
 	 *            the name of the source object.
 	 * @param localFilename
 	 *            the name of the source file.
@@ -172,13 +172,13 @@ public class CloudStorage {
 	 *     
 	 */
 	
-	public static void runDownload (String username, String bucketName, String localFileName, 
-			String cloudFileName) {
-
-		if ((bucketName != null && !bucketName.isEmpty()) && (localFileName != null && !localFileName.isEmpty())
-				&& (cloudFileName != null && !cloudFileName.isEmpty())) {
+	public static void runDownload (String username, String bucketName, String localFilename, 
+			String cloudFilename) {
+		
+		if (!Strings.isNullOrEmpty(bucketName) && !Strings.isNullOrEmpty(localFilename )
+				&& !Strings.isNullOrEmpty(cloudFilename)) {
 			try {
-				downloadFile(cloudFileName, localFileName, bucketName,  username);
+				downloadFile(cloudFilename, localFilename, bucketName,  username);
 
 			} catch (IOException e) {
 				System.err.println(e.getMessage());

@@ -1,8 +1,5 @@
 package com.google.cloud.genomics.cba;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-
 /*
  * Copyright (C) 2015 Google Inc.
  *
@@ -19,13 +16,10 @@ import java.io.FileReader;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import com.google.api.client.util.BackOff;
@@ -37,7 +31,6 @@ import com.google.api.services.genomics.model.AnnotationSet;
 import com.google.api.services.genomics.model.BatchCreateAnnotationsRequest;
 import com.google.api.services.genomics.model.BatchCreateAnnotationsResponse;
 import com.google.api.services.genomics.model.Transcript;
-import com.google.api.services.genomics.model.Variant;
 import com.google.api.services.genomics.model.VariantAnnotation;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -47,7 +40,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.genomics.dataflow.coders.GenericJsonCoder;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 import com.google.cloud.genomics.dataflow.utils.ShardOptions;
@@ -61,30 +53,29 @@ import com.google.common.collect.Lists;
  * <h1>Import Annotation Files (Reference Annotation Datasets)</h1> This class creates an annotationSet, and imports annotations.
  * It prepares and converts Annotation fields to the corresponding fields in the
  * Google Genomics annotation set APIs.
- * 
- * @param outputDatasetId
- *            The ID of the Google Genomics Dataset that the output AnnotationSet will be posted.
- * @param annotationSetName
- *            This provides the name for the AnnotationSet.
- * @param annotationReferenceSetId
- *            This provides the refernceSetId for the AnnotationSet.
- * @param annotationOutputJSONBucketAddr          
- * 			  This provides the URI of output Json file [This input is optional].
- * @param annotationInputTextBucketAddr          
- * 			  This provides the URI of inputfile which contains annotations.
- * @param type
- * 			  This provides the type of reference annotation dataset
- * @param base0
- * 			  This provides whether the reference annotations are 0-Based or 1-Based. 	
+ * 	
  * @version 1.0
  * @since 2016-07-01
  */
 
 public class ImportAnnotation {
 
-	/**
+	/*
 	 * Options required to run this pipeline.
-	 *
+	 * @param outputDatasetId
+	 *            The ID of the Google Genomics Dataset that the output AnnotationSet will be posted.
+	 * @param annotationSetName
+	 *            This provides the name for the AnnotationSet.
+	 * @param annotationReferenceSetId
+	 *            This provides the refernceSetId for the AnnotationSet.
+	 * @param annotationOutputJSONBucketAddr          
+	 * 			  This provides the URI of output Json file [This input is optional].
+	 * @param annotationInputTextBucketAddr          
+	 * 			  This provides the URI of inputfile which contains annotations.
+	 * @param type
+	 * 			  This provides the type of reference annotation dataset
+	 * @param base0
+	 * 			  This provides whether the reference annotations are 0-Based or 1-Based. 
 	 */
 	public static interface Options extends ShardOptions {
 

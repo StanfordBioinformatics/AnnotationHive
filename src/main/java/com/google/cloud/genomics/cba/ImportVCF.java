@@ -33,7 +33,7 @@ import com.google.api.services.genomics.Genomics.Variantsets;
  * @since 2016-07-01
  */
 
-final class ImportVCF {
+public class ImportVCF {
 
 	private static Options options;
 	private static OfflineAuth auth;

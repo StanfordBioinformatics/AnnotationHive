@@ -308,7 +308,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>com.google.cloud.genomics.cba.StartAnnotationEngine</mainClass>
+              <mainClass>com.google.cloud.genomics.cba.</mainClass>
             </manifest>
           </archive>
           <descriptorRefs>
