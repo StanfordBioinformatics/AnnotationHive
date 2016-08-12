@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import com.google.api.client.util.BackOff;
@@ -83,8 +84,8 @@ public class ImportAnnotation {
 		@Validation.Required
 		@Description("The ID of the Google Genomics Dataset that the output AnnotationSet will be posted to.")
 		@Default.String("")
-		String getOutputDatasetId();
-		void setOutputDatasetId(String outputDatasetId);
+		String getDatasetId();
+		void setDatasetId(String datasetId);
 
 		@Description("This provides the name for the AnnotationSet. Default (empty) will set the "
 				+ "name to the input References. For more information on AnnotationSets, please visit: "
@@ -145,16 +146,16 @@ public class ImportAnnotation {
 		p = Pipeline.create(options);
 		p.getCoderRegistry().setFallbackCoderProvider(GenericJsonCoder.PROVIDER);
 
-		if (options.getOutputDatasetId().isEmpty()) {
-			throw new IllegalArgumentException("InputDatasetId must be specified");
+		if (options.getDatasetId().isEmpty()) {
+			throw new IllegalArgumentException("datasetId must be specified");
 		}
 
 		if (options.getAnnotationReferenceSetId().isEmpty()) {
-			throw new IllegalArgumentException("ReferenceSetId must be specified");
+			throw new IllegalArgumentException("referenceSetId must be specified");
 		}
 		
 		if (options.getAnnotationInputTextBucketAddr().isEmpty()) {
-			throw new IllegalArgumentException("AnnotationInputTextBucketAddr must be specified");
+			throw new IllegalArgumentException("annotationInputTextBucketAddr must be specified");
 		}
 
 //		if (options.getAnnotationOutputJSONBucketAddr().isEmpty()) {
@@ -344,9 +345,9 @@ public class ImportAnnotation {
 				
 					
 					/* Adding Info <Keys, Values>*/				
-					Iterator it = mapInfo.entrySet().iterator();
+					Iterator<Entry<String, String>> it = mapInfo.entrySet().iterator();
 					while (it.hasNext()) {
-						Map.Entry pair = (Map.Entry)it.next();
+						Entry<String, String> pair = it.next();
 						List<Object> output = Lists.newArrayList();
 						output.add(pair.getValue());
 						a.getInfo().put(pair.getKey().toString(), output);
@@ -354,7 +355,7 @@ public class ImportAnnotation {
 
 					if (write) {
 						currAnnotations.add(a);
-						if (currAnnotations.size() == 2048 || (currAnnotations.size()>2048 && currAnnotations.size()%100 ==0)) {
+						if (currAnnotations.size() == 2048 ) {
 							// Batch create annotations once we hit the max
 							// amount for a batch
 							batchCreateAnnotations();
@@ -466,7 +467,7 @@ public class ImportAnnotation {
 	private static AnnotationSet createAnnotationSet() throws GeneralSecurityException, IOException {
 
 		AnnotationSet as = new AnnotationSet();
-		as.setDatasetId(options.getOutputDatasetId());
+		as.setDatasetId(options.getDatasetId());
 
 		if (!"".equals(options.getAnnotationSetName())) {
 			as.setName(options.getAnnotationSetName());
@@ -492,9 +493,9 @@ public class ImportAnnotation {
 		mapInfo.put("header", options.getHeader()); 		
 		
 		/* Adding Info <Keys, Values>*/				
-		Iterator it = mapInfo.entrySet().iterator();
+		Iterator<Entry<String, String>> it = mapInfo.entrySet().iterator();
 		while (it.hasNext()) {
-			Map.Entry pair = (Map.Entry)it.next();
+			Entry<String, String> pair = it.next();
 			List<Object> output = Lists.newArrayList();
 			output.add(pair.getValue());
 			as.getInfo().put(pair.getKey().toString(), output);

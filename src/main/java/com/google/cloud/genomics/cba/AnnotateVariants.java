@@ -191,10 +191,10 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 			return;
 		}
 		
-		Iterator<StreamVariantsResponse> iter = VariantStreamIterator.enforceShardBoundary(auth, request,
+		Iterator<StreamVariantsResponse> streamVariantIter = VariantStreamIterator.enforceShardBoundary(auth, request,
 				ShardBoundary.Requirement.STRICT, VARIANT_FIELDS);
 
-		if (!iter.hasNext()) {
+		if (!streamVariantIter.hasNext()) {
 			LOG.info("region has no variants, skipping");
 			return;
 		}
@@ -209,13 +209,13 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		IntervalTree<Annotation> transcripts = null;
 		if (this.transcriptSetIds != null)
 			transcripts = retrieveTranscripts(genomics, request);
-
-		while (iter.hasNext()) {
+		
+		while (streamVariantIter.hasNext()) {
 			Iterable<Variant> varIter;
 			if(onlySNP)
-				varIter = FluentIterable.from(iter.next().getVariantsList()).filter(VariantUtils.IS_SNP);
+				varIter = FluentIterable.from(streamVariantIter.next().getVariantsList()).filter(VariantUtils.IS_SNP);
 			else
-			    varIter = FluentIterable.from(iter.next().getVariantsList());
+			    varIter = FluentIterable.from(streamVariantIter.next().getVariantsList());
 	
 			for (Variant variant : varIter) {
 				Range<Long> pos = Range.closedOpen(variant.getStart(), variant.getEnd());
@@ -336,7 +336,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 							}
 						}
 					}
-					VariantGenotype += ";";
+					VariantGenotype += "\t";
 				}
 				
 				
@@ -555,12 +555,8 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		}
 		
 		//Add Genotype field to the VCF HEADER! 
-		String callSetNames="genotype(s):";
-		for(String name:options.getCallSetNames().split(","))
-		{
-				callSetNames += name + ";";
-		}
-		HEADER += "\t" + callSetNames;
+		addGenotypetoHeader(options.getCallSetNames());
+
 		
 		
 		if (options.getVariantAnnotationSetIds().isEmpty() && options.getTranscriptSetIds().isEmpty()) {
@@ -600,7 +596,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 				: ShardUtils.getVariantRequests(prototype, options.getBasesPerShard(), options.getReferences());
 
 				
-		System.out.println("Max Num of Extensible Columns: " + getNumCols());
+		System.out.println("The Num of Extensible Columns: " + getNumCols());
 		System.out.println("ChrM: " + options.getSupportChrM());
 		
 		
@@ -657,6 +653,15 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		//TODO:Sort Output Files Using Dataflow
 
 		
+	}
+
+	private static void addGenotypetoHeader(String optionCallSetNames) {
+		String callSetNames="";
+		for(String name:callSetNames.split(","))
+		{
+				callSetNames += name + "\t";
+		}
+		HEADER += "\t" + callSetNames;		
 	}
 
 	private static String formatTabs(int num) {

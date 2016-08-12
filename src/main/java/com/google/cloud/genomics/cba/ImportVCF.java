@@ -16,6 +16,7 @@ import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.cloud.genomics.utils.RetryPolicy;
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.ImportVariantsRequest;
+import com.google.api.services.genomics.model.Operation;
 import com.google.api.services.genomics.model.VariantSet;
 import com.google.api.services.genomics.Genomics.Variantsets;
 
@@ -43,19 +44,16 @@ public class ImportVCF {
 		@Description("The ID of the Google Genomics Dataset")
 		@Default.String("")
 		String getDatasetId();
-
 		void setDatasetId(String datasetId);
 
 		@Description("This provides the input of VCF source URIs. This is a required field.")
 		@Default.String("")
 		String getURIs();
-
 		void setURIs(String uri);
 
 		@Description("This provides the name of variantSet. This is a required field.")
 		@Default.String("")
 		String getVariantSetName();
-
 		void setVariantSetName(String name);
 	}
 
@@ -72,7 +70,7 @@ public class ImportVCF {
 		auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
 		if (options.getDatasetId().isEmpty()) {
-			throw new IllegalArgumentException("InputDatasetId must be specified");
+			throw new IllegalArgumentException("datasetId must be specified");
 		}
 
 		if (options.getURIs().isEmpty()) {
@@ -81,33 +79,38 @@ public class ImportVCF {
 		}
 
 		if (options.getVariantSetName().isEmpty()) {
-			throw new IllegalArgumentException("Name of the variantSet must be specified");
+			throw new IllegalArgumentException("--variantSetName = Name of the variantSet must be specified");
 		}
-
-		VariantSet variantSet = createVariantSet();
-
-		ImportVariantsRequest IVReq = new ImportVariantsRequest();
-		List<String> URIs = new ArrayList<String>(Arrays.asList(options.getURIs().split(",")));
-
-		IVReq.setSourceUris(URIs);
-		IVReq.setVariantSetId(variantSet.getId());
-
-		Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
-		RetryPolicy retryP = RetryPolicy.nAttempts(4);
-
-		// TODO: Wait till the job is completed (Track the job)
-		retryP.execute(genomics.variants().genomicsImport(IVReq));
-		
-		
-		System.out.println("");
-		System.out.println("");
-		System.out.println("[INFO] ------------------------------------------------------------------------");
-		System.out.println("[INFO] To check the current status of your job, use the following command:");
-		System.out.println("\t ~: gcloud alpha genomics operations describe $YOUR_OPERATION-ID$");
-		System.out.println("[INFO] ------------------------------------------------------------------------");
-		System.out.println("");
-		System.out.println("");
-		
+		try{
+			VariantSet variantSet = createVariantSet();
+	
+			ImportVariantsRequest IVReq = new ImportVariantsRequest();
+			List<String> URIs = new ArrayList<String>(Arrays.asList(options.getURIs().split(",")));
+	
+			IVReq.setSourceUris(URIs);
+			IVReq.setVariantSetId(variantSet.getId());
+	
+			Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
+			RetryPolicy retryP = RetryPolicy.nAttempts(4);
+	
+			// TODO: Wait till the job is completed (Track the job)
+			Operation response = retryP.execute(genomics.variants().genomicsImport(IVReq));
+			
+			
+			System.out.println("");
+			System.out.println("");
+			System.out.println("[INFO] ------------------------------------------------------------------------");
+			System.out.println("[INFO] Opertaion INFO:");
+			System.out.println(response.toPrettyString());
+			System.out.println("[INFO] To check the current status of your job, use the following command:");
+			System.out.println("\t ~: gcloud alpha genomics operations describe $operation-id$");
+			System.out.println("[INFO] ------------------------------------------------------------------------");
+			System.out.println("");
+			System.out.println("");
+		}
+		catch(Exception e){
+			throw e;
+		}
 
 	}
 

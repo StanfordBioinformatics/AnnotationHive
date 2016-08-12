@@ -28,6 +28,10 @@ import com.google.api.client.util.Strings;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.ObjectAccessControl;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.cloud.dataflow.sdk.options.Default;
+import com.google.cloud.dataflow.sdk.options.Description;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.genomics.dataflow.utils.ShardOptions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -35,8 +39,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 
@@ -44,6 +48,77 @@ public class CloudStorage {
 
 	private static final boolean IS_APP_ENGINE = false;
 
+	private static Options options;
+
+	public static interface Options extends ShardOptions {
+
+		@Description("This provides bucketName. This is a required field.")
+		@Default.String("")
+		String getBucketName();
+		void setbucketName(String bucketName);
+		
+		@Description("This provides the name of file on the cloud. This is a required field.")
+		@Default.String("")
+		String getCloudObjectName();
+		void setCloudObjectName(String cloudObjectName);
+
+		@Description("This provides username. This is a required field.")
+		@Default.String("")
+		String getUsername();
+		void setUsername(String username);
+
+		@Description("This provides contentType. This is a required field.")
+		@Default.String("text/plain")
+		String getContentType();
+		void setContentType(String contentType);
+
+		@Description("This provides LocalFilenameAddr. This is a required field.")
+		@Default.String("")
+		String getLocalFilenameAddr();
+		void setLocalFilenameAddr(String localFilenameAddr);
+		
+	}
+	
+	
+	public static void run(String[] args) throws GeneralSecurityException, IOException {
+
+		PipelineOptionsFactory.register(Options.class);
+		options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+		if (options.getUsername().isEmpty()) {
+			throw new IllegalArgumentException("username must be specified");
+		}
+		
+		if (options.getBucketName().isEmpty()) {
+			throw new IllegalArgumentException("bucketName must be specified");
+		}
+		
+		if (options.getLocalFilenameAddr().isEmpty()) {
+			throw new IllegalArgumentException("localFilenameAddr must be specified");
+		}
+		
+		if (options.getCloudObjectName().isEmpty()) {
+			throw new IllegalArgumentException("cloudObjectName must be specified (i.e., the name of the file on the cloud)");
+		}
+				
+		try{
+			runUpload(options.getUsername(), options.getBucketName(), options.getLocalFilenameAddr(), 
+					options.getCloudObjectName());
+		}
+		catch (Exception e){
+			throw e;
+		}
+		
+//		System.out.println("");
+//		System.out.println("");
+//		System.out.println("[INFO] ------------------------------------------------------------------------");
+//		System.out.println("[INFO] To check the current status of your job, use the following command:");
+//		System.out.println("\t ~: gcloud alpha genomics operations describe $YOUR_OPERATION-ID$");
+//		System.out.println("[INFO] ------------------------------------------------------------------------");
+//		System.out.println("");
+//		System.out.println("");
+		
+	}
 
 	/**
 	 * Downloads data from an object in a bucket to a local file.
@@ -130,18 +205,14 @@ public class CloudStorage {
 	 *            the name of the bucket to create the object in.
 	 *     
 	 */
-	public static void runUpload(String username, String bucketName, String localFilename, 
+	public static void runUpload(String username, String bucketName, String localFilenameAddr, 
 			String cloudFilename) {
 
-		if (!Strings.isNullOrEmpty(bucketName) && !Strings.isNullOrEmpty(localFilename )
+		if (!Strings.isNullOrEmpty(bucketName) && !Strings.isNullOrEmpty(localFilenameAddr )
 				&& !Strings.isNullOrEmpty(cloudFilename))  {
 			try {
-				// Create a temp file to upload
-				Path tempPath = Files.createTempFile(localFilename, "txt");
-				Files.write(tempPath, "Sample file".getBytes());
-				File tempFile = tempPath.toFile();
-				tempFile.deleteOnExit();
-				// Upload it
+				Path p = Paths.get(localFilenameAddr);
+				File tempFile = p.toFile();
 				uploadFile(cloudFilename, "text/plain", tempFile, bucketName, username);
 
 			} catch (IOException e) {
@@ -151,6 +222,15 @@ public class CloudStorage {
 				t.printStackTrace();
 				System.exit(1);
 			}
+			
+			System.out.println("");
+			System.out.println("");
+			System.out.println("[INFO] ------------------------------------------------------------------------");
+			System.out.println("[INFO] Successfully Uploaded " + localFilenameAddr);
+			System.out.println("[INFO] Address: " + "gs://" + bucketName + "/" + cloudFilename);
+			System.out.println("[INFO] ------------------------------------------------------------------------");
+			System.out.println("");
+			System.out.println("");
 
 		} else {
 			System.out.println("Usage: StorageSample <user-acccount> <bucket-name> <Local FileName> <Cloud Filename>");
