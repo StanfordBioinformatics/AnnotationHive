@@ -10,15 +10,6 @@
 
 * Version 1.0
 
-### How do I get set up? ###
-
-* Install Apache Maven 3.3.3 
-* cd cloud-based-annotation/java
-* mvn javadoc:javadoc
-* mvn assembly:assembly
-* java -jar target/cba-v1-jar-with-dependencies.jar <Cloud Project ID> <ReferenceSetId> <DatasetId> <Google Dataflow Staging Path (e.g., gs://myBucketName/staging)> <Address of Input Object (e.g., gs://myBucketName/myObject.txt)> <Address of Output Object>
-
-
 ## Quickstart
 
 1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/), including the [gcloud tool](https://cloud.google.com/sdk/gcloud/).
@@ -67,7 +58,7 @@
  java -Xbootclasspath/p:alpn-boot.jar   -cp target/cba-v1-jar-with-dependencies.jar   com.google.cloud.genomics.cba.StartAnnotationEngine ImportVCF --datasetId=<Your_Google_GEnomics_DatasetId> --URIs=gs://<YOUR_Google_Bucket_Name>/NA12877-chr17.vcf --variantSetName=NA12877-chr17
 ``` 
 
-* Import annotation files
+* Import annotation files into Google Genomics
 
  ```
  java -Xbootclasspath/p:alpn-boot.jar -cp target/cba-v1-jar-with-dependencies.jar com.google.cloud.genomics.cba.StartAnnotationEngine ImportAnnotation --datasetId=<Google_Genomics_DatasetId> --annotationSetName=sample_variant_annotation_chr17  --annotationReferenceSetId=EMWV_ZfLxrDY-wE --annotationInputTextBucketAddr=gs://gbsc-gcp-project-cba-user-abahman/annotation/sample_variant_annotation_chr17.bed   --runner=DataflowPipelineRunner --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --numWorkers=4 --type=VARIANT --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no
@@ -76,3 +67,10 @@
  ```
  java -Xbootclasspath/p:alpn-boot.jar -cp target/cba-v1-jar-with-dependencies.jar com.google.cloud.genomics.cba.StartAnnotationEngine ImportAnnotation  --datasetId=<Your_Google_Genomics_DatasetId> --annotationSetName=sample_transcript_annotation_chr17 --annotationReferenceSetId=EMWV_ZfLxrDY-wE --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_transcript_annotation_chr17.bed  --runner=DataflowPipelineRunner --project=gbsc-gcp-project-cba --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --numWorkers=4 --type=Generic --base0=no --header=chrom,txStart,txEnd,bin,name,strand,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds,score,name2,cdsStartStat,cdsEndStat,exonFrames
 ```
+
+* Annotate Variants
+
+ ```
+ java -Xbootclasspath/p:alpn-boot.jar   -cp target/cba-v1-jar-with-dependencies.jar   com.google.cloud.genomics.cba.StartAnnotationEngine AnnotateVariant --references=chr17:40700000:40800000  --variantSetId=<Your_VariantSetId> --callSetNames=NA12877  --output=gs://<Your_Google_Cloud_Bucket_Name>/dataflow-output/platinum-genomes-Variant-annotation-17.vcf   --runner=DataflowPipelineRunner   --project=<Your_Google_cloud_Project>   --stagingLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --numWorkers=4 --transcriptSetIds=<Your_Transcript_AnnotationSetId> --variantAnnotationSetIds=<Your_Variant_AnnotationSetId>
+```
+
