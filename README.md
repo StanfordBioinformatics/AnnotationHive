@@ -17,3 +17,23 @@
 * mvn javadoc:javadoc
 * mvn assembly:assembly
 * java -jar target/cba-v1-jar-with-dependencies.jar <Cloud Project ID> <ReferenceSetId> <DatasetId> <Google Dataflow Staging Path (e.g., gs://myBucketName/staging)> <Address of Input Object (e.g., gs://myBucketName/myObject.txt)> <Address of Output Object>
+
+
+## Quickstart
+
+1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/), including the [gcloud tool](https://cloud.google.com/sdk/gcloud/).
+
+1. Setup the gcloud tool.
+
+   ```
+   gcloud init
+   ```
+
+1. Clone this repo.
+
+   ```
+   git clone https://github.com/GoogleCloudPlatform/java-docs-samples.git
+   ```
+
+1. Install [Maven](http://maven.apache.org/).
+
