@@ -32,8 +32,14 @@
 1. Clone this repo.
 
    ```
-   git clone https://github.com/GoogleCloudPlatform/java-docs-samples.git
+   git clone https://github.com/StanfordBioinformatics/cloud-based-annotation.git
    ```
 
 1. Install [Maven](http://maven.apache.org/).
+
+1. Build this project:
+
+   ```
+   mvn clean compile assembly:single
+   ```
 
