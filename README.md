@@ -48,7 +48,7 @@
 
 1. To run:
 
-* Upload the sample transcript (Samples/sample_transcript_annotation_chr17.bed)
+* Upload the sample transcript annotation (Samples/sample_transcript_annotation_chr17.bed)
  
  ```
   java -Xbootclasspath/p:alpn-boot.jar -cp target/cba-v1-jar-with-dependencies.jar com.google.cloud.genomics.cba.StartAnnotationEngine UploadFile --username=<YOUR_Google_Cloud_Registered_Email> --bucketName=<Your_Google_Cloud_Bucket_Name> --localFilenameAddr=Samples/sample_transcript_annotation_chr17.bed --cloudObjectName=sample_transcript_annotation_chr17.bed
