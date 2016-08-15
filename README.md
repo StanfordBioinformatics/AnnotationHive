@@ -33,6 +33,19 @@
    ```
    mvn clean compile assembly:single
    ```
+1. [Reference Sets](https://cloud.google.com/genomics/v1/reference-sets) with Google Genomics
+
+   ```
+   $ java -jar genomics-tools-client-java-v1beta2.jar searchreferencesets \
+     --fields 'referenceSets(id,assemblyId)'
+   {"assemblyId":"GRCh37lite","id":"EJjur6DxjIa6KQ"}
+   {"assemblyId":"GRCh38","id":"EMud_c37lKPXTQ"}
+   {"assemblyId":"hs37d5","id":"EOSt9JOVhp3jkwE"}
+   {"assemblyId":"GRCh37","id":"EOSsjdnTicvzwAE"}
+   {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
+   ``` 
+1. To create and managing datasets click [here](https://cloud.google.com/genomics/v1/managing-datasets)
+
 1. To run:
 
 * Upload the sample transcript (Samples/sample_transcript_annotation_chr17.bed)
@@ -63,7 +76,7 @@
 * Import annotation files into Google Genomics
 
  ```
- java -Xbootclasspath/p:alpn-boot.jar -cp target/cba-v1-jar-with-dependencies.jar com.google.cloud.genomics.cba.StartAnnotationEngine ImportAnnotation --datasetId=<Google_Genomics_DatasetId> --annotationSetName=sample_variant_annotation_chr17 --annotationReferenceSetId=EMWV_ZfLxrDY-wE --annotationInputTextBucketAddr=gs://gbsc-gcp-project-cba-user-abahman/annotation/sample_variant_annotation_chr17.bed --runner=DataflowPipelineRunner --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --numWorkers=4 --type=VARIANT --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no
+ java -Xbootclasspath/p:alpn-boot.jar -cp target/cba-v1-jar-with-dependencies.jar com.google.cloud.genomics.cba.StartAnnotationEngine ImportAnnotation --datasetId=<Google_Genomics_DatasetId> --annotationSetName=sample_variant_annotation_chr17 --annotationReferenceSetId=EMWV_ZfLxrDY-wE --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --runner=DataflowPipelineRunner --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --numWorkers=4 --type=VARIANT --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no
 ```
 
  ```
