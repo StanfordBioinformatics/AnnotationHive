@@ -432,6 +432,15 @@ public class ImportAnnotation {
 							.batchCreate(new BatchCreateAnnotationsRequest().setAnnotations(currAnnotations));
 					RetryPolicy retryP = RetryPolicy.nAttempts(4);
 					BatchCreateAnnotationsResponse responseA = retryP.execute(aRequest);
+					/*TODO: To keep track of batch requests, and remove the possibility of duplications, 
+					 * Google Genomics added "requestId": string". 
+					 * The request id is not yet in the Java client. 
+					 * It will be in the next release of utils-java.
+					 * Genomics.Annotations.BatchCreate aRequest = genomics.annotations()
+						.batchCreate(new BatchCreateAnnotationsRequest()
+						.setAnnotations(currAnnotations), Integer.toString(Objects.hash(currAnnotations)));
+					*/
+					
 					LOG.warning(responseA.toPrettyString());
 					currAnnotations.clear();
 					return;
