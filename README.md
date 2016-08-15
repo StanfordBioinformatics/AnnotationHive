@@ -71,7 +71,7 @@
  java -Xbootclasspath/p:alpn-boot.jar -cp target/cba-v1-jar-with-dependencies.jar com.google.cloud.genomics.cba.StartAnnotationEngine ImportVCF --datasetId=<Your_Google_GEnomics_DatasetId> --URIs=gs://<YOUR_Google_Bucket_Name>/NA12877-chr17.vcf --variantSetName=NA12877-chr17
 ``` 
 
-* Note: Before running any of the below dataflow jobs, make sure that your files in the cloud bucket have the reqired access permissions (i.e., cloudservices.gserviceaccount.com, and compute@developer.gserviceaccount.com)
+* Note: Before running any of the below dataflow jobs, make sure that your files in the cloud bucket have the reqired access permissions (i.e., cloudservices.gserviceaccount.com, and compute@developer.gserviceaccount.com). Also, make sure the the Genomics API has been enabled in the Google API Manager Dashboard: https://console.developers.google.com/apis/api/genomics/.
 
 * Import annotation files into Google Genomics
 
