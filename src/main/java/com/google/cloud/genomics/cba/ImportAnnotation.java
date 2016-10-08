@@ -63,7 +63,7 @@ public class ImportAnnotation {
 
 	/*
 	 * Options required to run this pipeline.
-	 * @param outputDatasetId
+	 * @param datasetId
 	 *            The ID of the Google Genomics Dataset that the output AnnotationSet will be posted.
 	 * @param annotationSetName
 	 *            This provides the name for the AnnotationSet.
