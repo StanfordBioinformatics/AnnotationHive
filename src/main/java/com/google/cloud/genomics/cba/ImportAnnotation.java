@@ -355,7 +355,7 @@ public class ImportAnnotation {
 
 					if (write) {
 						currAnnotations.add(a);
-						if (currAnnotations.size() == 2048 ) {
+						if (currAnnotations.size() == 512 ) {
 							// Batch create annotations once we hit the max
 							// amount for a batch
 							batchCreateAnnotations();
