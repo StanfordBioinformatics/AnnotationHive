@@ -459,6 +459,7 @@ public class ImportAnnotation {
 							waitingTime += backOffMillis;
 						} catch (InterruptedException e1) {
 							// TODO Auto-generated catch block
+							LOG.warning("Annotations: " + currAnnotations.toString());
 							e1.printStackTrace();
 						}
 					} else {
