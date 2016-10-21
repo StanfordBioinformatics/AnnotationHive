@@ -2,8 +2,12 @@
 
 ### Importing Annotation References ###
 
-Using UCSC_Browser_v37_RefSeqGenes Transcript: 
-![Annotating NA12877 Genome Using UCSC_Browser_v37_RefSeqGenes Transcript](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Annotating_Transcript.png "Annotating NA12877 Genome Using UCSC_Browser_v37_RefSeqGenes Transcript")
+UCSC Browser v37 Mappability Source: 
+![Importing UCSC Browser v37 Mappability Source](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_UCSC_Browser_v37_Mappability.png "Importing UCSC Browser v37 Mappability Source")
+
+hg19_dbnsfp30a Source: 
+![Annotating NA12877 Genome Using UCSC_Browser_v37_Mappability Transcript](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_hg19_dbnsfp30a.png "Importing hg19_dbnsfp30a Source")
+
 
 
 ### Annotating NA12877 Genome ###
