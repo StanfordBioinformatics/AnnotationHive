@@ -6,7 +6,7 @@
 
 ***
 
-### Importing Annotation Source Files (hg19_dbnsfp30a Source) ### 
+### Importing Annotation Source Files (hg19_dbnsfp30a Source)  ### 
 ![Annotating NA12877 Genome Using UCSC_Browser_v37_Mappability Transcript](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_hg19_dbnsfp30a.png "Importing hg19_dbnsfp30a Source")
 
 ---
