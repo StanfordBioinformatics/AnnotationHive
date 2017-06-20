@@ -44,7 +44,7 @@
    {"assemblyId":"GRCh37","id":"EOSsjdnTicvzwAE"}
    {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
    ``` 
-1. To create and managing datasets click [here](https://cloud.google.com/genomics/v1/managing-datasets)
+1. To create and manage datasets click [here](https://cloud.google.com/genomics/v1/managing-datasets)
 
 1. To run:
 
