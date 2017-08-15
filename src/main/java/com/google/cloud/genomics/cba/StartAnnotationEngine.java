@@ -3,17 +3,12 @@ package com.google.cloud.genomics.cba;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Logger;
-import com.google.api.services.dataflow.Dataflow;
 
 /**
  * Main Class: Start Annotation Engine!
  */
 
 public class StartAnnotationEngine {
-
-	public static final Logger LOG = Logger.getLogger(Dataflow.class.getName());
-//	static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
-//	static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
 	public static void main(String[] args) throws IOException {
 

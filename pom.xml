@@ -18,6 +18,18 @@
 
   <dependencies>
     <!-- Remove this later https://github.com/googlegenomics/dataflow-java/issues/197 -->
+
+<dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-oauth2-http</artifactId>
+      <version>0.6.1</version>
+     </dependency>
+     <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-credentials</artifactId>
+      <version>0.6.1</version>
+    </dependency>
+
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-codec-http2</artifactId>
@@ -38,6 +50,12 @@
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
       <version>${google.dataflow.version}</version>
+      <exclusions>
+            <exclusion>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-oauth2-http</artifactId>
+            </exclusion>
+        </exclusions>
     </dependency>
     <dependency>
       <groupId>com.google.api-client</groupId>
@@ -81,6 +99,11 @@
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-genomics</artifactId>
       <version>${google.api.genomics.version}</version>
+    </dependency>
+        <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-bigquery</artifactId>
+      <version>v2-rev354-1.22.0</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.genomics</groupId>
@@ -179,7 +202,7 @@
 <!--     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>[1.6.0, 2.0.0)</version>
+      <version>[1.6.1, 2.0.0)</version>
     </dependency> -->
 
 <!--     <dependency>
@@ -202,7 +225,7 @@
 	<dependency>
 	    <groupId>commons-cli</groupId>
 	    <artifactId>commons-cli</artifactId>
-	    <version>1.2</version>
+	    <version>1.4</version>
 	</dependency>
 
 <!-- 	<dependency>
@@ -225,7 +248,7 @@
 	<dependency>
 	    <groupId>org.apache.httpcomponents</groupId>
 	    <artifactId>httpclient</artifactId>
-	    <version>4.5.1</version>
+	    <version>4.2.2</version>
 	</dependency>
 
      <dependency>
@@ -245,7 +268,7 @@
 <!--     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>[1.6.0, 2.0.0)</version>
+      <version>[1.6.1, 2.0.0)</version>
     </dependency> -->
 
     <!-- slf4j API frontend binding with JUL backend -->
@@ -286,6 +309,11 @@
       <version>1.35</version>
     </dependency>
 
+    <dependency>
+    <groupId>com.google.cloud</groupId>
+    <artifactId>google-cloud-bigquery</artifactId>
+    <version>0.21.1-beta</version>
+	</dependency>
 
   </dependencies>
 
@@ -329,7 +357,7 @@
     <additionalparam>-Xdoclint:none</additionalparam>
     <!-- Work around dataflow, grpc, and protobuf version issues
          http://stackoverflow.com/questions/36257708/java-lang-noclassdeffounderror-while-deserializing-protobuf-messages -->
-    <google.dataflow.version>1.6.0</google.dataflow.version>
+    <google.dataflow.version>1.6.1</google.dataflow.version>
     <io.grpc.version>0.14.0</io.grpc.version>
     <protobuf.java.version>3.0.0-beta-1</protobuf.java.version>
 
@@ -338,7 +366,7 @@
     <junit.version>4.11</junit.version>
     <google.api.version>1.22.0</google.api.version>
     <google.api.genomics.version>v1-rev79-1.22.0</google.api.genomics.version>
-    <google.guava.version>19.0</google.guava.version>
+    <google.guava.version>22.0</google.guava.version>
     <jackson.version>2.4.2</jackson.version>
     <maven.enforcer.jdk-version>[1.7,)</maven.enforcer.jdk-version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

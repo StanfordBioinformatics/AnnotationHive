@@ -1,5 +1,6 @@
 package com.google.cloud.genomics.cba;
 
+import com.google.api.client.auth.oauth2.Credential;
 /*
  * Copyright (C) 2015 Google Inc.
  *
@@ -18,8 +19,15 @@ import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.Annotation;
 import com.google.api.services.genomics.model.AnnotationSet;
 import com.google.api.services.genomics.model.SearchAnnotationsRequest;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryFactory;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+//import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -46,10 +54,19 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Range;
+import com.google.common.primitives.Chars;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
 import com.google.genomics.v1.VariantCall;
+import com.google.protobuf.ListValue;
+import com.google.protobuf.Value;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.IntervalTree.Node;
@@ -57,12 +74,16 @@ import htsjdk.samtools.util.IntervalTree.Node;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -81,12 +102,18 @@ import java.util.logging.Logger;
  * @param variantAnnotationSetIds
  *            The IDs of the Google Genomics variant annotation sets.
  * @param supportChrM
- *         Some annotation reference datasets do not provide information about ChrM; therefore, before
- *         searching for chrM, user must set this variable TRUE. NOTE: All annotation sets in the query must support chrM. 
- *         Otherwise, the query will be failed due to "error 404: Not Found". Default value is FALSE.
+ *            Some annotation reference datasets do not provide information
+ *            about ChrM; therefore, before searching for chrM, user must set
+ *            this variable TRUE. NOTE: All annotation sets in the query must
+ *            support chrM. Otherwise, the query will be failed due to
+ *            "error 404: Not Found". Default value is FALSE.
  * @param onlySNP
- * 			By setting this value to TRUE, the software only annotate SNPs. Default value is FALSE.            
- *            
+ *            By setting this value to TRUE, the software only annotate SNPs.
+ *            Default value is FALSE.
+ * @param printVCFInfo
+ *            By setting this value to TRUE, the software prints out Info
+ *            section of the VCF file. Default value is FALSE.
+ * 
  * @version 1.0
  * @since 2016-07-01
  */
@@ -96,10 +123,10 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	public static boolean DEBUG = false;
 	private static HashMap<String, Integer> ColInfoTranscript = new HashMap<String, Integer>();
 	private static HashMap<String, Integer> ColInfoVariantAnnotation = new HashMap<String, Integer>();
-	private static String HEADER="#referenceName	start	end	referenceBases	alternateBases	quality";
+	// private static String HEADER="#referenceName start end referenceBases
+	// alternateBases info genotype";
+	private static String HEADER = "#referenceName	start	end	referenceBases	alternateBases";
 
-	
-	
 	public static interface Options extends
 			// Options for call set names.
 			CallSetNamesOptions,
@@ -130,31 +157,62 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 				+ "with, comma delimited.")
 		@Default.String("")
 		String getVariantAnnotationSetIds();
+
 		void setVariantAnnotationSetIds(String variantAnnotationSetIds);
 
 		@Description("This provides whether all the annotation sets support Chromosome M or not. Default is false. ")
 		boolean getSupportChrM();
+
 		void setSupportChrM(boolean supportChrM);
-		
+
 		@Description("If you want to only annotate SNPs, set this value true. Default is false. ")
 		boolean getOnlySNP();
+
 		void setOnlySNP(boolean onlySNP);
+
+		@Description("If you want to print out VCF info column, set this value true. Default is false. ")
+		boolean getPrintVCFInfo();
+
+		void setPrintVCFInfo(boolean printVCFInfo);
+
+		@Description("This provides the path to the local output file.")
+		@Default.String("")
+		String getLocalOutputFilePath();
+
+		void setLocalOutputFilePath(String LocalOutputFilePath);
 		
+		
+		@Description("This provides BigQuery Dataset ID.")
+		@Default.String("")
+		String getBigQueryDataset();
+
+		void setBigQueryDataset(String BigQueryDataset);
+
+		@Description("This provides BigQuery Table.")
+		@Default.String("")
+		String getBigQueryTable();
+
+		void setBigQueryTable(String BigQueryTable);
+
 		public static class Methods {
 			public static void validateOptions(Options options) {
 				GCSOutputOptions.Methods.validateOptions(options);
 			}
 		}
+
 	}
 
 	private static final Logger LOG = Logger.getLogger(AnnotateVariants.class.getName());
 
 	/*
-	 * To visit variants efficiently, the program creates "VariantStreamIterator" by considering "VARIANT_FIELDS". 
-	 * VARIANT_FIELDS represents the structure of response. By specifying VARIANT_FIELDS, we can avoid loading extra information.
-	 * Tip: Use the API explorer to test which fields to include in partial responses.
-	 * https://developers.google.com/apis-explorer/#p/genomics/v1/genomics.variants.stream 
-	*/ 
+	 * To visit variants efficiently, the program creates
+	 * "VariantStreamIterator" by considering "VARIANT_FIELDS". VARIANT_FIELDS
+	 * represents the structure of response. By specifying VARIANT_FIELDS, we
+	 * can avoid loading extra information. Tip: Use the API explorer to test
+	 * which fields to include in partial responses.
+	 * https://developers.google.com/apis-explorer/#p/genomics/v1/genomics.
+	 * variants.stream
+	 */
 	private static final String VARIANT_FIELDS = "variants(id,referenceName,start,end,alternateBases,referenceBases,calls,quality)";
 
 	private final OfflineAuth auth;
@@ -165,7 +223,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	private final boolean onlySNP;
 
 	public AnnotateVariants(OfflineAuth auth, List<String> callSetIds, List<String> transcriptSetIds,
-			List<String> variantAnnotationSetIds, HashMap<String, Integer> _VariantColInfo, 
+			List<String> variantAnnotationSetIds, HashMap<String, Integer> _VariantColInfo,
 			HashMap<String, Integer> _TranscriptColInfo, boolean _supportChrM, boolean _onlySNP) {
 		this.auth = auth;
 		this.callSetIds = callSetIds;
@@ -174,23 +232,23 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		this.VariantColInfo = _VariantColInfo;
 		this.TranscriptColInfo = _TranscriptColInfo;
 		this.supportChrM = _supportChrM;
-		this.onlySNP=_onlySNP;
+		this.onlySNP = _onlySNP;
 	}
 
 	@Override
 	public void processElement(DoFn<StreamVariantsRequest, KV<String, String>>.ProcessContext c) throws Exception {
-		
+
 		Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
 
 		StreamVariantsRequest request = StreamVariantsRequest.newBuilder(c.element()).addAllCallSetIds(callSetIds)
 				.build();
-		
-		//TODO: It would be better to exclude chrM from the variantStream  
+
+		// TODO: It would be better to exclude chrM from the variantStream
 		if (canonicalizeRefName(request.getReferenceName()).equals("M") && supportChrM == false) {
 			LOG.info("There is no information about Chr M in the provided AnnotationSet!");
 			return;
 		}
-		
+
 		Iterator<StreamVariantsResponse> streamVariantIter = VariantStreamIterator.enforceShardBoundary(auth, request,
 				ShardBoundary.Requirement.STRICT, VARIANT_FIELDS);
 
@@ -202,82 +260,108 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		int varCount = 0;
 
-		ListMultimap<Range<Long>, Annotation> variantAnnotations = null;
+		ListMultimap<Range<Long>, Annotation> variantAnnotationSetList = null;
 		if (this.variantAnnotationSetIds != null)
-			variantAnnotations = retrieveVariantAnnotations(genomics, request);
+			variantAnnotationSetList = retrieveVariantAnnotations(genomics, request);
 
 		IntervalTree<Annotation> transcripts = null;
 		if (this.transcriptSetIds != null)
 			transcripts = retrieveTranscripts(genomics, request);
-		
+
 		while (streamVariantIter.hasNext()) {
 			Iterable<Variant> varIter;
-			if(onlySNP)
+			if (onlySNP)
 				varIter = FluentIterable.from(streamVariantIter.next().getVariantsList()).filter(VariantUtils.IS_SNP);
 			else
-			    varIter = FluentIterable.from(streamVariantIter.next().getVariantsList());
-	
+				varIter = FluentIterable.from(streamVariantIter.next().getVariantsList());
+
 			for (Variant variant : varIter) {
 				Range<Long> pos = Range.closedOpen(variant.getStart(), variant.getEnd());
 
 				// This variable helps to keep track of alignment
 				String VCFOutput = "";
 
+				// Keep track of Empty VCF records
+				boolean EmptyVCF = false;
+
 				// Variant Annotation Section
-				if (variantAnnotations != null) {
-		
+				if (variantAnnotationSetList != null) {
+
 					// Sort the list of matched annotations
 					SortedSet<String> VariantAnnotationKeys = new TreeSet<String>(VariantColInfo.keySet());
-		
-					// Retrieve a list of matched variant annotations
-					List<Annotation> listMatchedAnnotations = variantAnnotations.get(pos);
 
-					// Visit overlapped annotations in order, and the matches in order (First convert to VCF format, and then add it to VCFOutput);
-					int index=0;
+					// Retrieve a list of matched variant annotations
+					List<Annotation> listMatchedAnnotations = variantAnnotationSetList.get(pos);
+
+					// Visit overlapped annotations in order, and the matches in
+					// order (First convert to VCF format, and then add it to
+					// VCFOutput);
+					int index = 0;
 					for (String key : VariantAnnotationKeys) {
-						//The following variables help to put a semicolon between multiple matches from the same annotationSet 
+						// The following variables help to put a semicolon
+						// between multiple matches from the same annotationSet
 						// e.g., allele_freq1;allele_freq2;...;allele_freqn;
-						boolean SemiColon=false;
+						boolean SemiColon = false;
+
 						for (Annotation match : listMatchedAnnotations) {
 							if (match.getAnnotationSetId().compareTo(key) == 0) {
-								if ((match.getVariant().getAlternateBases() != null
-										&& variant.getAlternateBasesList() != null)) {
+								// if (match.getVariant().getAlternateBases() !=
+								// null
+								// && variant.getAlternateBasesList() != null)
+								{
 									// check if Variant's alternate bases are
 									// the same as the matched annotation's
 									// alternate bases
+
 									if (compareAlternateBases(match.getVariant().getAlternateBases(),
-											variant.getAlternateBasesList())) {
-	
+											variant.getAlternateBasesList(), variant.getReferenceBases())) {
+
+										EmptyVCF = true;
+
 										if (DEBUG)
-											LOG.info("MATCHED: variant: (" + variant.getStart()  + ", Annotation: " + match.getStart() + ") ");
-										
-										if(!SemiColon){
+											LOG.info("MATCHED: variant: (" + variant.getStart() + ", Annotation: "
+													+ match.getStart() + ") ");
+
+										if (!SemiColon) {
 											VCFOutput += createVCFFormat(variant, match);
-											SemiColon=true;
-											//Activate it for the next matched element
-										}
-										else{
+											SemiColon = true;
+											// Activate it for the next matched
+											// element
+
+											// TESTING
+											VCFOutput += "ALT:" + match.getVariant().getAlternateBases();
+										} else {
 											VCFOutput += ";" + createVCFFormat(variant, match);
+
+											// TESTING
+											VCFOutput += "ALT:" + match.getVariant().getAlternateBases();
 										}
 									}
 								}
 							}
 						}
 						index++;
-						/* formatTabs function helps to keep track of alignment in the
-						 * VCF format (e.g., if there is no match for Variant X in AnnotationSet Y then add spaces
-						 * equals to the number of AnnotationSet Y's columns in the VCF file)
+						/*
+						 * formatTabs function helps to keep track of alignment
+						 * in the VCF format (e.g., if there is no match for
+						 * Variant X in AnnotationSet Y then add spaces equals
+						 * to the number of AnnotationSet Y's columns in the VCF
+						 * file)
 						 */
-						if (VCFOutput.isEmpty() && (VariantAnnotationKeys.size() > index || TranscriptColInfo.size() > 0)) {
+						if (VCFOutput.isEmpty()
+								&& (VariantAnnotationKeys.size() > index || TranscriptColInfo.size() > 0)) {
 							VCFOutput += formatTabs(VariantColInfo.get(key));
 						}
-					}// end of keys
-				} //End of Variant Annotation
+					} // end of keys
+					if (!EmptyVCF)
+						VCFOutput = "";
+				} // End of Variant Annotation
 
 				// Transcript Annotation Section
 				if (transcripts != null) {
 
-					// Find all the overlapped matches and create an interval tree
+					// Find all the overlapped matches and create an interval
+					// tree
 					Iterator<Node<Annotation>> transcriptIter = transcripts.overlappers(pos.lowerEndpoint().intValue(),
 							pos.upperEndpoint().intValue() - 1); // Inclusive.
 
@@ -285,25 +369,25 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 					if (transcriptIter != null) {
 						// Sort the list of matched annotations
 						SortedSet<String> transcriptKeys = new TreeSet<String>(TranscriptColInfo.keySet());
-						int index=0;
-						// Check annotations in order, and in the case of match convert the matches to VCF format
+						int index = 0;
+						// Check annotations in order, and in the case of match
+						// convert the matches to VCF format
 						for (String key : transcriptKeys) {
 							transcriptIter = StartPoint;
-							boolean SemiColon=false;
+							boolean SemiColon = false;
 							while (transcriptIter.hasNext()) {
 								Annotation transcript = transcriptIter.next().getValue();
 								if (transcript.getAnnotationSetId().compareTo(key) == 0) {
-									if(!SemiColon){
+									if (!SemiColon) {
 										VCFOutput += createVCFFormat(variant, transcript);
-										SemiColon=true;
-									}
-									else
+										SemiColon = true;
+									} else
 										VCFOutput += ";" + createVCFFormat(variant, transcript);
 								}
 							}
 							index++;
 
-							if (VCFOutput.isEmpty() && transcriptKeys.size()>index) {
+							if (VCFOutput.isEmpty() && transcriptKeys.size() > index) {
 								VCFOutput += formatTabs(TranscriptColInfo.get(key));
 							}
 						}
@@ -311,56 +395,73 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 					}
 				} // End of Transcripts
 
-				
-				String ALTs = "";
-				for (int index = 0; index < variant.getAlternateBasesCount(); index++)
-					ALTs += variant.getAlternateBases(index);
-
-				
-				//The following section helps to add genotypes 
-				String VariantGenotype="";
-				List<VariantCall> Genotypes = variant.getCallsList(); 
-				
-				for(String CId: callSetIds){
-					for(VariantCall VC:Genotypes){
-						if(VC.getCallSetId().equals(CId)){
-							
-							List<Integer> GentotypeList = VC.getGenotypeList();
-							for(int index=0; index < GentotypeList.size(); index++){
-								int Genotype = GentotypeList.get(index);
-		
-								if(index>0)
-									VariantGenotype += "/";
-								
-								VariantGenotype += Genotype;
-							}
-						}
-					}
-					VariantGenotype += "\t";
+				String varintALTs = "";
+				for (int index = 0; index < variant.getAlternateBasesCount(); index++) {
+					if (index > 0)
+						varintALTs += ",";
+					varintALTs += variant.getAlternateBases(index);
 				}
-				
-				
-				/*Emit the information in the form of <Key, Value> 
-				 * Print out the variant w/ or w/o any matched annotations
-				 * Key: (ChromId, Start, End) 
-				 * Value:(variant's <referenceName	start	end	referenceBases	alternateBases	quality>, 
-				 * + The content of "VCFOutput" OR Annotation's fields
+
+				// The following section helps to add genotypes
+				/*
+				 * String VariantGenotype=""; List<VariantCall> Genotypes =
+				 * variant.getCallsList();
+				 * 
+				 * for(String CId: callSetIds){ for(VariantCall VC:Genotypes){
+				 * if(VC.getCallSetId().equals(CId)){
+				 * 
+				 * List<Integer> GentotypeList = VC.getGenotypeList(); for(int
+				 * index=0; index < GentotypeList.size(); index++){ int Genotype
+				 * = GentotypeList.get(index);
+				 * 
+				 * if(index>0) VariantGenotype += "/";
+				 * 
+				 * VariantGenotype += Genotype; } } } VariantGenotype += "\t"; }
 				 */
-				c.output(KV.of(
-						variant.getReferenceName() + ";" + Long.toString(variant.getStart()) + ";"
-								+ Long.toString(variant.getEnd()),
-								//Value
-								variant.getReferenceName() 
-								// <-- increment by 1 => convert to 1-based -->
-								+ "\t" + (variant.getStart() + 1) 
-								+ "\t" + variant.getEnd() 
-								+ "\t" + variant.getReferenceBases() 
-								+ "\t" + ALTs 
-								+ "\t" + variant.getQuality()
-								+ "\t" + VariantGenotype 
-								+ "\t" + VCFOutput));
-				
-				
+				// Map<String, ListValue> VariantInfoMap = variant.getInfo();
+				/*
+				 * String VariantInfo=""; List<VariantCall> VariantCall =
+				 * variant.getCallsList(); for (Iterator<VariantCall> iter =
+				 * VariantCall.iterator(); iter.hasNext(); ) { VariantCall
+				 * element = iter.next(); Map<String, ListValue> VariantCallInfo
+				 * = element.getInfo(); for (Map.Entry<String, ListValue> entry
+				 * : VariantCallInfo.entrySet()) { VariantInfo +=entry.getKey()
+				 * + ":" +
+				 * entry.getValue().getValuesList().get(0).getStringValue() +
+				 * ";"; } }
+				 * 
+				 * 
+				 * 
+				 * /* for (Map.Entry<String, ListValue> entry :
+				 * VariantInfoMap.entrySet()) { //System.out.println("Key = " +
+				 * entry.getKey() + ", Value = " + entry.getValue());
+				 * VariantInfo += entry.getKey() + ":" + entry.getValue() + ";";
+				 * }
+				 */
+
+				/*
+				 * Emit the information in the form of <Key, Value> Print out
+				 * the variant w/ or w/o any matched annotations Key: (ChromId,
+				 * Start, End) Value:(variant's <referenceName start end
+				 * referenceBases alternateBases quality>, + The content of
+				 * "VCFOutput" OR Annotation's fields
+				 */
+				if (!VCFOutput.isEmpty()) {
+					c.output(KV.of(
+							variant.getReferenceName() + ";" + Long.toString(variant.getStart()) + ";"
+									+ Long.toString(variant.getEnd()),
+							// Value
+							variant.getReferenceName()
+									// <-- increment by 1 => convert to 1-based
+									// -->
+									+ "\t" + (variant.getStart() + 1) + "\t" + variant.getEnd() + "\t"
+									+ variant.getReferenceBases() + "\t" + varintALTs
+									// + "\t" + VariantInfo
+									// + "\t" + variant.getQuality()
+									// + "\t" + VariantGenotype
+									+ "\t" + VCFOutput));
+				}
+
 				varCount++;
 				if (varCount % 1e3 == 0) {
 					LOG.info(String.format("read %d variants (%.2f / s)", varCount,
@@ -374,47 +475,75 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	}
 
 	/**
-	 * <h1>This function compares Variant's alternateBases with the potential matched annotation.
-	 * @param	alternateBases  
-	 *				The potential matched annotation's alternateBases
-	 * @param 	variantAlternateBasesList
-	 * 				The variant's alternate bases   
-	 * @return     
+	 * <h1>This function compares Variant's alternateBases with the potential
+	 * matched annotation.
+	 * 
+	 * @param alternateBases
+	 *            The potential matched annotation's alternateBases
+	 * @param variantAlternateBasesList
+	 *            The variant's alternate bases
+	 * @return
 	 */
-	private boolean compareAlternateBases(String alternateBases, List<String> variantAlternateBasesList) {
+	private boolean compareAlternateBases(String annotationAlternateBases, List<String> variantAlternateBasesList,
+			String variantReferenceBases) {
 
-		
-		if (alternateBases.isEmpty() && variantAlternateBasesList.isEmpty())
-		{
+		if ((annotationAlternateBases.isEmpty() && variantAlternateBasesList.isEmpty())
+				|| (variantAlternateBasesList.isEmpty() && annotationAlternateBases.equals(" "))) {
 			LOG.info("Empty Matched!");
 			return true;
 		}
-		
-		String vString = "";
-		for (String s : variantAlternateBasesList)
-			vString += s;
-		
-		if (alternateBases.equals(vString))
-		{
-			LOG.info("Matched: Variant Alt: " + vString + ", Annotation Alt:" + alternateBases);
 
-			return true;
+		// String variantString = "";
+
+		for (String variantAlternateBases : variantAlternateBasesList) {
+
+			if (variantAlternateBases.equals(annotationAlternateBases))
+				return true;
+
+			if (variantReferenceBases.concat(annotationAlternateBases).equals(variantAlternateBases))
+				return true;
+			/*
+			 * // Variant is a part of the annotation // Annotation A->AC //
+			 * Variant A->C else
+			 * if(annotationAlternateBases.contains(variantReferenceBases))
+			 * return true; ///String p1 = variantReferenceBases.substring(1,
+			 * variantReferenceBases.length()); String p2 =
+			 * variantAlternateBases.substring(1,
+			 * variantAlternateBases.length()); String p3 =
+			 * variantAlternateBases.substring(0, 1); if(p1.equals(p2) &&
+			 * p3.equals(annotationAlternateBases)) { return true; }
+			 * 
+			 * // Annotation is a part of the variant else
+			 * if(variantReferenceBases.contains(annotationAlternateBases))
+			 * 
+			 * return true;
+			 */
 		}
 
-		LOG.info("Not Matched: Variant Alt: " + vString + ", Annotation Alt:" + alternateBases);
-
 		return false;
+
+		/*
+		 * if (alternateBases.equals(vString)) { LOG.info(
+		 * "Matched: Variant Alt: " + vString + ", Annotation Alt:" +
+		 * alternateBases);
+		 * 
+		 * return true; }
+		 * 
+		 * LOG.info("Not Matched: Variant Alt: " + vString + ", Annotation Alt:"
+		 * + alternateBases);
+		 * 
+		 * return false;
+		 */
 	}
 
-	
-	
 	/**
-	 * <h1>This function prepares the matched annotation's information in the form of VCF (extended column).
-	 * @param	variant  
-	 * @param 	match
-	 * 				The matched annotation   
-	 * @return  AnnotationMap
-	 * 			VCFFormat of annotation	   
+	 * <h1>This function prepares the matched annotation's information in the
+	 * form of VCF (extended column).
+	 * 
+	 * @param variant
+	 * @param match
+	 *            The matched annotation
+	 * @return AnnotationMap VCFFormat of annotation
 	 */
 	private String createVCFFormat(Variant variant, Annotation match) {
 		/*
@@ -433,8 +562,9 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 				stringValues += value.toString();
 			// AnnotationMap += key + "=" + stringValues + ";"; //INFO Field in
 			// VCF
-			if(DEBUG)
-				AnnotationMap += key + "=" + stringValues + "\t"; // Extended Column
+			if (DEBUG)
+				AnnotationMap += key + "=" + stringValues + "\t"; // Extended
+																	// Column
 			else
 				AnnotationMap += stringValues + "\t"; // Extended Column
 		}
@@ -450,85 +580,91 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 
 		return AnnotationMap;
 	}
-	
-	
+
 	/**
-	 * <h1>This function first send a request to Google Genomics to receive all Generic/Transcript annotations (transcriptSetIds), 
-	 * 		and  after receiving the information, it creates and return back an interval tree of all the overlapped annotations.
-	 * @param	genomics 
-	 * 				Genomics 
-	 * @param 	request
-	 * 				StreamVariantsRequest  
-	 * @return  transcripts
-	 * 				IntervalTree<Annotation>	   
+	 * <h1>This function first send a request to Google Genomics to receive all
+	 * Generic/Transcript annotations (transcriptSetIds), and after receiving
+	 * the information, it creates and return back an interval tree of all the
+	 * overlapped annotations.
+	 * 
+	 * @param genomics
+	 *            Genomics
+	 * @param request
+	 *            StreamVariantsRequest
+	 * @return transcripts IntervalTree<Annotation>
 	 */
 
 	private IntervalTree<Annotation> retrieveTranscripts(Genomics genomics, StreamVariantsRequest request) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		IntervalTree<Annotation> transcripts = new IntervalTree<>();
-			Iterable<Annotation> transcriptIter = Paginator.Annotations.create(genomics, ShardBoundary.Requirement.OVERLAPS)
-					.search(new SearchAnnotationsRequest().setAnnotationSetIds(transcriptSetIds)
-							.setReferenceName(canonicalizeRefName(request.getReferenceName())).setStart(request.getStart())
-							.setEnd(request.getEnd()));
-			for (Annotation annotation : transcriptIter) {
-				transcripts.put(annotation.getStart().intValue(), annotation.getEnd().intValue(), annotation);
-			}
-			LOG.info(String.format("read %d transcripts in %s (%.2f / s)", transcripts.size(), stopwatch,
-					(double) transcripts.size() / stopwatch.elapsed(TimeUnit.SECONDS)));
+		Iterable<Annotation> transcriptIter = Paginator.Annotations.create(genomics, ShardBoundary.Requirement.OVERLAPS)
+				.search(new SearchAnnotationsRequest().setAnnotationSetIds(transcriptSetIds)
+						.setReferenceName(canonicalizeRefName(request.getReferenceName())).setStart(request.getStart())
+						.setEnd(request.getEnd()));
+		for (Annotation annotation : transcriptIter) {
+			transcripts.put(annotation.getStart().intValue(), annotation.getEnd().intValue(), annotation);
+		}
+		LOG.info(String.format("read %d transcripts in %s (%.2f / s)", transcripts.size(), stopwatch,
+				(double) transcripts.size() / stopwatch.elapsed(TimeUnit.SECONDS)));
 		return transcripts;
 	}
 
 	/**
-	 * <h1>This function first send a request to Google Genomics to receive all variant annotations (variantAnnotationSetIds), 
-	 * 		and after receiving the information, it creates and return back a ListMultimap that 
-	 * 		contains all the overlapped annotations plus their positions.
-	 * @param	genomics 
-	 * 				Genomics 
-	 * @param 	request
-	 * 				StreamVariantsRequest  
-	 * @return  annotationMap
-	 * 				ListMultimap<Range<Long>, Annotation>	   
+	 * <h1>This function first send a request to Google Genomics to receive all
+	 * variant annotations (variantAnnotationSetIds), and after receiving the
+	 * information, it creates and return back a ListMultimap that contains all
+	 * the overlapped annotations plus their positions.
+	 * 
+	 * @param genomics
+	 *            Genomics
+	 * @param request
+	 *            StreamVariantsRequest
+	 * @return annotationMap ListMultimap<Range<Long>, Annotation>
 	 */
-	
+
 	private ListMultimap<Range<Long>, Annotation> retrieveVariantAnnotations(Genomics genomics,
 			StreamVariantsRequest request) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		ListMultimap<Range<Long>, Annotation> annotationMap = ArrayListMultimap.create();
-			Iterable<Annotation> annotationIter = Paginator.Annotations
-					.create(genomics, ShardBoundary.Requirement.OVERLAPS)
-					.search(new SearchAnnotationsRequest().setAnnotationSetIds(variantAnnotationSetIds)
-							.setReferenceName(canonicalizeRefName(request.getReferenceName()))
-							.setStart(request.getStart()).setEnd(request.getEnd()));
+		Iterable<Annotation> annotationIter = Paginator.Annotations.create(genomics, ShardBoundary.Requirement.OVERLAPS)
+				.search(new SearchAnnotationsRequest().setAnnotationSetIds(variantAnnotationSetIds)
+						.setReferenceName(canonicalizeRefName(request.getReferenceName())).setStart(request.getStart())
+						.setEnd(request.getEnd()));
 
-			for (Annotation annotation : annotationIter) {
-				long start = 0;
-				if (annotation.getStart() != null) {
-					start = annotation.getStart();
-				}
-				annotationMap.put(Range.closedOpen(start, annotation.getEnd()), annotation);
+		for (Annotation annotation : annotationIter) {
+			long start = 0;
+			if (annotation.getStart() != null) {
+				start = annotation.getStart();
+
+				if (annotation.getStart() == 126310)
+					LOG.info("HERE is the annotation: " + annotation.toString() + ") ");
+
 			}
+			annotationMap.put(Range.closedOpen(start, annotation.getEnd()), annotation);
+		}
 
-			LOG.info(String.format("read %d variant annotations in %s (%.2f / s)", annotationMap.size(), stopwatch,
-					(double) annotationMap.size() / stopwatch.elapsed(TimeUnit.SECONDS)));
+		LOG.info(String.format("read %d variant annotations in %s (%.2f / s)", annotationMap.size(), stopwatch,
+				(double) annotationMap.size() / stopwatch.elapsed(TimeUnit.SECONDS)));
 
 		return annotationMap;
 	}
 
 	/**
-	 * <h1>This function remove "chr" from the beginning of referenceName (e.g, --references=chr17:1:81000000, chr17 becomes 17)
-	 * @param	refName 
-	 * 				Reference Name 
-	 * @return  refName
-	 * 				Reference Name  w/o "chr"	   
+	 * <h1>This function remove "chr" from the beginning of referenceName (e.g,
+	 * --references=chr17:1:81000000, chr17 becomes 17)
+	 * 
+	 * @param refName
+	 *            Reference Name
+	 * @return refName Reference Name w/o "chr"
 	 */
-	
+
 	private static String canonicalizeRefName(String refName) {
 		return refName.replace("chr", "");
 	}
 
-	
 	/**
-	 * <h1>This function is the main function that creates and calls dataflow pipeline 
+	 * <h1>This function is the main function that creates and calls dataflow
+	 * pipeline
 	 */
 	public static void run(String[] args) throws Exception {
 		// Register the options so that they show up via --help
@@ -543,28 +679,40 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 		Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
 
-		//check whether user provided VariantSetId 
+		// check whether user provided VariantSetId
 		if (options.getVariantSetId().isEmpty()) {
 			throw new IllegalArgumentException(
 					"VaraiantSetIds must be specified (e.g., 10473108253681171589 for 1000 Genomes.)");
 		}
 
-		//check whether user provided CallSetNames 
+		// check whether user provided CallSetNames
 		if (options.getCallSetNames().isEmpty()) {
 			throw new IllegalArgumentException("CallSetNames must be specified (e.g., HG00261 for 1000 Genomes.)");
 		}
-		
-		//Add Genotype field to the VCF HEADER! 
+
+		// check whether user provided BigQueryDatasetID
+		if (options.getBigQueryDataset().isEmpty()) {
+			throw new IllegalArgumentException("BigQueryDataset must be specified (e.g., my_dataset)");
+		}
+
+		// check whether user provided BigQueryTable
+		if (options.getBigQueryTable().isEmpty()) {
+			throw new IllegalArgumentException("BigQuery Table must be specified (e.g., my_table)");
+		}
+		else{
+			// check whether user provided the Path to the local output file 
+			if (options.getLocalOutputFilePath().isEmpty()) {
+				throw new IllegalArgumentException("e.g., /home/user/output.vcf");
+			}
+		}
+		// Add Genotype field to the VCF HEADER!
 		addGenotypetoHeader(options.getCallSetNames());
 
-		
-		
 		if (options.getVariantAnnotationSetIds().isEmpty() && options.getTranscriptSetIds().isEmpty()) {
 			throw new IllegalArgumentException(
 					"Both VaraiantAnnotationSetIds/TranscriptSetIds are empty! At least one of them must be specified."
 							+ "(e.g., CIjfoPXj9LqPlAEQ5vnql4KewYuSAQ for UCSC refGene (hg19) and CILSqfjtlY6tHxC0nNH-4cu-xlQ for ClinVar (GRCh37))");
 		}
-
 
 		List<String> callSetIds = CallSetNamesOptions.Methods.getCallSetIds(options);
 
@@ -572,22 +720,22 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		if (!Strings.isNullOrEmpty(options.getVariantAnnotationSetIds())) {
 			variantAnnotationSetIds = validateAnnotationSetsFlag(genomics, options.getVariantAnnotationSetIds(),
 					"VARIANT");
-			prepareHeaderAnnotationSets(genomics, variantAnnotationSetIds, 5, "VARIANT"); 
-			 /*
-			  * The first five columns are redundant 
-			  * [referenceName, start, end, referenceBases, alternateBases] are provided by variants
-			  * */
+			prepareHeaderAnnotationSets(genomics, variantAnnotationSetIds, 5, "VARIANT");
+			/*
+			 * The first five columns are redundant [referenceName, start, end,
+			 * referenceBases, alternateBases] are provided by variants
+			 */
 		}
-		
+
 		List<String> transcriptSetIds = null;
 		// TODO: Transcript and Generic should be separated
 		if (!Strings.isNullOrEmpty(options.getTranscriptSetIds())) {
 			transcriptSetIds = validateAnnotationSetsFlag(genomics, options.getTranscriptSetIds(), "GENERIC");
-			prepareHeaderAnnotationSets(genomics, transcriptSetIds, 3, "GENERIC"); 
-			 /*
-			  * The first three columns are redundant - 
-			  * [referenceName, start, end, referenceBases, alternateBases] are provided by variants
-			  */
+			prepareHeaderAnnotationSets(genomics, transcriptSetIds, 3, "GENERIC");
+			/*
+			 * The first three columns are redundant - [referenceName, start,
+			 * end, referenceBases, alternateBases] are provided by variants
+			 */
 		}
 
 		List<StreamVariantsRequest> requests = options.isAllReferences()
@@ -595,73 +743,150 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 						options.getBasesPerShard(), auth)
 				: ShardUtils.getVariantRequests(prototype, options.getBasesPerShard(), options.getReferences());
 
-				
 		System.out.println("The Num of Extensible Columns: " + getNumCols());
 		System.out.println("ChrM: " + options.getSupportChrM());
-		
-		
-		//Here is the dataflow pipeline 
+
+		// Here is the dataflow pipeline
 		Pipeline p = Pipeline.create(options);
 		p.getCoderRegistry().setFallbackCoderProvider(GenericJsonCoder.PROVIDER);
 
-		p.begin().apply(Create.of(requests))
-				.apply(ParDo
-						.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds,
-								variantAnnotationSetIds, ColInfoVariantAnnotation, 
-								ColInfoTranscript, options.getSupportChrM(), options.getOnlySNP())))
-				.apply(GroupByKey.<String, String> create())
-				.apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, String>() {
-					@Override
-					public void processElement(ProcessContext c) {
-						if (!DEBUG) {
-							String rows = "";
-							int index=0;
-							for (String s : c.element().getValue()){
-								index++;
-								if(index>1)
-									rows += "\n" + s;
-								else
-									rows += s;
-							}
-							c.output(rows);
-						} else {
-							c.output(c.element().getKey() + ": " + c.element().getValue());
-						}
-					}
-				})).apply(TextIO.Write.to(options.getOutput()));		
-		p.run();
-		
-		
-		Path VCF_Filename = Paths.get( options.getOutput());
-		System.out.println("");
-		System.out.println("");
-		System.out.println("[INFO] ------------------------------------------------------------------------");
-		System.out.println("[INFO] Below is the header of " + VCF_Filename.getFileName().toString());
-		System.out.println(HEADER);
-		System.out.println();
-		System.out.println("[INFO] To check the current status of your job, use the following command:");
-		System.out.println("\t ~: gcloud alpha dataflow jobs describe $YOUR_JOB_ID$");
-		System.out.println("");
-		System.out.println("[INFO] To gather the results into a single VCF file after the completion of job (i.e., currentState: JOB_STATE_DONE), run the following command:");
-		System.out.println("\t ~: gsutil cat " + options.getOutput() + "* | sort > " + VCF_Filename.getFileName().toString());	
-		System.out.println("");
-		System.out.println("[INFO] Please add the header to " + VCF_Filename.getFileName().toString());
-		System.out.println("[INFO] ------------------------------------------------------------------------");
-		System.out.println("");
-		System.out.println("");
+		/*
+		 * p.begin() .apply(Create.of(requests)) .apply(ParDo.named(
+		 * "Annotate Variants") .of(new AnnotateVariants(auth, callSetIds,
+		 * transcriptSetIds, variantAnnotationSetIds, ColInfoVariantAnnotation,
+		 * ColInfoTranscript, options.getSupportChrM(), options.getOnlySNP())))
+		 * .apply(GroupByKey.<String, String> create()) .apply(ParDo.named(
+		 * "Print Variants") .of(new DoFn<KV<String, Iterable<String>>,
+		 * String>() {
+		 * 
+		 * private static final long serialVersionUID = 1L;
+		 * 
+		 * @Override public void processElement(ProcessContext c) { if (!DEBUG)
+		 * { String rows = ""; long index=0; for (String s :
+		 * c.element().getValue()){ index++; if(index>1) rows += "\n" + s; else
+		 * 
+		 * rows += s; } c.output(rows); } else { c.output(c.element().getKey() +
+		 * ": " + c.element().getValue()); } }
+		 * })).apply(TextIO.Write.to(options.getOutput()));
+		 */
 
-		//TODO:Sort Output Files Using Dataflow
+		////////////////////////////////////////BIG-QUERY//////////////////////////////////////////////////////////////
 
+		 TableReference tableRef = new TableReference();
+		 tableRef.setProjectId(options.getProject());
+		 tableRef.setDatasetId(options.getBigQueryDataset());
+		 tableRef.setTableId(options.getBigQueryTable());
 		
+		 p.begin()
+		 .apply(Create.of(requests))
+		 .apply(ParDo.named("Annotate Variants")
+		 .of(new AnnotateVariants(auth, callSetIds, transcriptSetIds,
+		 variantAnnotationSetIds, ColInfoVariantAnnotation,
+		 ColInfoTranscript, options.getSupportChrM(), options.getOnlySNP())))
+		 .apply(new ConvertBigQueryFormat())
+		 .apply(BigQueryIO.Write.to(tableRef).withSchema(getSchema()));
+			////////////////////////////////////////BIG-QUERY//////////////////////////////////////////////////////////////
+
+		 p.run();
+
+		BigQueryFunctions.runQuery(options.getProject(), options.getBigQueryDataset(), 
+				options.getBigQueryTable(), options.getLocalOutputFilePath());
+
+	
+		// Path VCF_Filename = Paths.get( options.getOutput());
+		// System.out.println("");
+		// System.out.println("");
+		// System.out.println("[INFO]
+		// ------------------------------------------------------------------------");
+		// System.out.println("[INFO] Below is the header of " +
+		// VCF_Filename.getFileName().toString());
+		// System.out.println(HEADER);
+		// System.out.println();
+		// System.out.println("[INFO] To check the current status of your job,
+		// use the following command:");
+		// System.out.println("\t ~: gcloud alpha dataflow jobs describe
+		// $YOUR_JOB_ID$");
+		// System.out.println("");
+		// System.out.println("[INFO] To gather the results into a single VCF
+		// file after the completion of job (i.e., currentState:
+		// JOB_STATE_DONE), run the following command:");
+		// System.out.println("\t ~: gsutil cat " + options.getOutput() + "* |
+		// sort > " + VCF_Filename.getFileName().toString());
+		// System.out.println("\t ~: you can also install GNU parallel sort in
+		// linux or MAC (e.g., in MAC: brew coreutils) and leverage parallel
+		// sort:");
+		// System.out.println("\t ~: gsutil cat " + options.getOutput() + "* |
+		// gsort --parallel=N -s > " + VCF_Filename.getFileName().toString());
+		// System.out.println("");
+		// System.out.println("[INFO] Please add the header to " +
+		// VCF_Filename.getFileName().toString());
+		// System.out.println("[INFO]
+		// ------------------------------------------------------------------------");
+		// System.out.println("");
+		// System.out.println("");
+
+		// TODO:Sort Output Files Using Dataflow
+
 	}
 
-	private static void addGenotypetoHeader(String optionCallSetNames) {
-		String callSetNames="";
-		for(String name:callSetNames.split(","))
-		{
-				callSetNames += name + "\t";
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/**
+	 * Defines the BigQuery schema used for the output.
+	 */
+	static TableSchema getSchema() {
+		List<TableFieldSchema> fields = new ArrayList<>();
+		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
+		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("info").setType("STRING"));
+		TableSchema schema = new TableSchema().setFields(fields);
+		return schema;
+	}
+
+	/**
+	 * This PTransform extracts speed info from traffic station readings. It
+	 * groups the readings by 'route' and analyzes traffic slowdown for that
+	 * route. Lastly, it formats the results for BigQuery.
+	 */
+	static class ConvertBigQueryFormat extends PTransform<PCollection<KV<String, String>>, PCollection<TableRow>> {
+		/**
+		* 
+		*/
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public PCollection<TableRow> apply(PCollection<KV<String, String>> annotatedVariants) {
+
+			// Format the results for writing to BigQuery
+			PCollection<TableRow> results = annotatedVariants.apply(ParDo.of(new FormatStatsFn()));
+
+			return results;
 		}
-		HEADER += "\t" + callSetNames;		
+	}
+
+	/**
+	 * Format the results of the slowdown calculations to a TableRow, to save to
+	 * BigQuery.
+	 */
+	static class FormatStatsFn extends DoFn<KV<String, String>, TableRow> {
+		@Override
+		public void processElement(ProcessContext c) {
+			String[] key = c.element().getKey().toString().split(";");
+			// setTableRef(options.getBigQueryTable(),
+			// options.getBigQueryTable(),options.getBigQueryTable());
+			TableRow row = new TableRow().set("chrm", key[0]).set("start", key[1]).set("end", key[2]).set("Info",
+					c.element().getValue().toString());
+			c.output(row);
+		}
+	}
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	private static void addGenotypetoHeader(String optionCallSetNames) {
+		String callSetNames = "";
+		for (String name : callSetNames.split(",")) {
+			callSetNames += name + "\t";
+		}
+		HEADER += "\t" + callSetNames;
 	}
 
 	private static String formatTabs(int num) {
@@ -671,30 +896,29 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		return output;
 	}
 
-
 	/**
-	 * <h1> This method prepares the header for the output VCF file
+	 * <h1>This method prepares the header for the output VCF file
 	 * 
-	 * @param	genomics
-	 * @param	annosetIds
-	 * 			This is the input annotaionIds
-	 * @param	redundant
- 	 * @param	annotationType
+	 * @param genomics
+	 * @param annosetIds
+	 *            This is the input annotaionIds
+	 * @param redundant
+	 * @param annotationType
 	 */
-	
-	private static void prepareHeaderAnnotationSets(Genomics genomics, List<String> annosetIds, int redundant, String annotationType)
-			throws IOException {
+
+	private static void prepareHeaderAnnotationSets(Genomics genomics, List<String> annosetIds, int redundant,
+			String annotationType) throws IOException {
 
 		for (String annosetId : annosetIds) {
 			Map<String, List<Object>> gotInfo = genomics.annotationsets().get(annosetId).execute().getInfo();
 			List<Object> objectValue = gotInfo.get("header");
 
 			if (objectValue != null) {
-				String [] fields = objectValue.get(0).toString().split(",");
-				
-					for(int index=redundant; index<fields.length; index++){
-						HEADER += "\t" + fields[index];
-					}
+				String[] fields = objectValue.get(0).toString().split(",");
+
+				for (int index = redundant; index < fields.length; index++) {
+					HEADER += "\t" + fields[index];
+				}
 
 				addColInfo(annosetId, fields.length - redundant, annotationType);
 			} else {
@@ -704,15 +928,15 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		}
 	}
 
-	
 	/**
-	 * <h1> This method checks whether the types of annotationSets and variantSet are
-	 * the same or not. In the case of matched, it will return back a list of annotionIds
+	 * <h1>This method checks whether the types of annotationSets and variantSet
+	 * are the same or not. In the case of matched, it will return back a list
+	 * of annotionIds
 	 * 
-	 * @param	genomics
-	 * @param	flagValue
-	 * 			This is the input annotaionIds
-	 * @param	wantType
+	 * @param genomics
+	 * @param flagValue
+	 *            This is the input annotaionIds
+	 * @param wantType
 	 * @return annosetIds
 	 */
 	private static List<String> validateAnnotationSetsFlag(Genomics genomics, String flagValue, String wantType)
@@ -727,14 +951,15 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		}
 		return annosetIds;
 	}
-	
-	
+
 	/**
-	 * <h1>This function visits all input annotation sets, and calculate the maximum number of extended columns.  
-	 * @return NumCols
-	 * 		The function returns back the maximum number of columns that will be added after the annotation to the VCF file. 
+	 * <h1>This function visits all input annotation sets, and calculate the
+	 * maximum number of extended columns.
+	 * 
+	 * @return NumCols The function returns back the maximum number of columns
+	 *         that will be added after the annotation to the VCF file.
 	 */
-	
+
 	public static int getNumCols() {
 		int NumCols = 0;
 
@@ -744,7 +969,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 			System.out.println("Transcript AnnotationSetId: " + key + "\t Number of Columns: " + value);
 			NumCols += value;
 		}
-		
+
 		for (Map.Entry<String, Integer> entry : ColInfoVariantAnnotation.entrySet()) {
 			String key = entry.getKey();
 			int value = entry.getValue();
@@ -753,9 +978,10 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		}
 		return NumCols;
 	}
-	
+
 	/**
-	 * <h1>This function simply adds information <AnnotationSetId, Max. number of extended columns>. The information is used to aligned VCF columns.    
+	 * <h1>This function simply adds information <AnnotationSetId, Max. number
+	 * of extended columns>. The information is used to aligned VCF columns.
 	 */
 
 	public static void addColInfo(String asId, int numCols, String type) {
@@ -764,6 +990,5 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		else if (type.equalsIgnoreCase("TRANSCRIPT") || type.equalsIgnoreCase("GENERIC"))
 			ColInfoTranscript.put(asId, numCols);
 	}
-	
-	
+
 }
