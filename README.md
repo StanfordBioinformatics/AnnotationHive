@@ -1,6 +1,6 @@
 # README #
 
-### Cloud-based Annotation Engine ###
+### AnnotationHive (Cloud-based Annotation Engine) ###
 
 * Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be automatically derived from diverse genomes (e.g., ANNOVAR, SnpEff). The first problem using the existing tools is about downloading the software and the large build files. The second problem is scalability. Because current tools are sequential, the annotation of large numbers of patients is tedious and takes a significant amount of time. 
 
@@ -44,7 +44,7 @@
    {"assemblyId":"GRCh37","id":"EOSsjdnTicvzwAE"}
    {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
    ``` 
-1. To create and managing datasets click [here](https://cloud.google.com/genomics/v1/managing-datasets)
+1. To create and manage datasets click [here](https://cloud.google.com/genomics/v1/managing-datasets)
 
 1. To run:
 
