@@ -2,9 +2,7 @@ package com.google.cloud.genomics.cba;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+
 
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
@@ -15,10 +13,9 @@ import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.cloud.genomics.utils.RetryPolicy;
 import com.google.api.services.genomics.Genomics;
-import com.google.api.services.genomics.model.ImportVariantsRequest;
+import com.google.api.services.genomics.model.ExportVariantSetRequest;
 import com.google.api.services.genomics.model.Operation;
-import com.google.api.services.genomics.model.VariantSet;
-import com.google.api.services.genomics.Genomics.Variantsets;
+
 
 /**
  * <h1>Import VCF Files</h1> This class creates a variantSet imports VCF files.
@@ -34,7 +31,7 @@ import com.google.api.services.genomics.Genomics.Variantsets;
  * @since 2016-07-01
  */
 
-public class ImportVCF {
+public class ExportVCF {
 
 	private static Options options;
 	private static OfflineAuth auth;
@@ -43,58 +40,75 @@ public class ImportVCF {
 
 		@Description("The ID of the Google Genomics Dataset")
 		@Default.String("")
-		String getDatasetId();
-		void setDatasetId(String datasetId);
+		String getGoogleGenomicsDatasetId();
+		void setGoogleGenomicsDatasetId(String GoogleGenomicsDatasetId);
 
-		@Description("This provides the input of VCF source URIs. This is a required field.")
+		@Description("The ID of the Google Genomics Dataset")
 		@Default.String("")
-		String getURIs();
-		void setURIs(String uri);
+		String getProjectId();
+		void setProjectId(String ProjectId);
+		
+		@Description("This provides the name of the destination BigQuery Table. This is a required field.")
+		@Default.String("")
+		String getBigQueryTableId();
+		void setBigQueryTableId(String BigQueryTableId);
 
-		@Description("This provides the name of variantSet. This is a required field.")
+		@Description("This provides variantSetId. This is a required field.")
 		@Default.String("")
-		String getVariantSetName();
-		void setVariantSetName(String name);
+		String getVariantSetId();
+		void setVariantSetId(String VariantSetId);
+		
+		@Description("This provides BigqueryDataSetId. This is a required field.")
+		@Default.String("")
+		String getBigQueryDataSetId();
+		void setBigQueryDataSetId(String BigqueryDataSetId);
 	}
 
 	/**
-	 * <h1> This method is the main point of entry in this class; it creates a
-	 * variantSet, and import VCF files
+	 * <h1> This method is the main point of entry in this class; it creates a table in BigQuery
+	 * and export variantSet to the BigQuery Table
 	 */
 	
-	public static void run(String[] args) throws GeneralSecurityException, IOException {
+	 public static void run(String[] args) throws GeneralSecurityException, IOException {
 
 		PipelineOptionsFactory.register(Options.class);
 		options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
 		auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
-		if (options.getDatasetId().isEmpty()) {
-			throw new IllegalArgumentException("datasetId must be specified");
+//		if (options.getGoogleGenomicsDatasetId().isEmpty()) {
+//			throw new IllegalArgumentException("googleGenomicsDatasetId must be specified");
+//		}
+
+		if (options.getProjectId().isEmpty()) {
+			throw new IllegalArgumentException("projectId must be specified");
+		}
+		
+		if (options.getVariantSetId().isEmpty()) {
+			throw new IllegalArgumentException("variantSetId must be specified");
 		}
 
-		if (options.getURIs().isEmpty()) {
-			throw new IllegalArgumentException("URIs of the input VCF files must be specified (e.g., "
-					+ "gs://bucket/variants.vcf,gs://bucket/variants2.vcf,gs://bucket/variants_chr*.vcf)");
+		if (options.getBigQueryDataSetId().isEmpty()) {
+			throw new IllegalArgumentException("bigqueryDataSetId must be specified");
 		}
-
-		if (options.getVariantSetName().isEmpty()) {
-			throw new IllegalArgumentException("--variantSetName = Name of the variantSet must be specified");
+		
+		if (options.getBigQueryTableId().isEmpty()) {
+			throw new IllegalArgumentException("bigqueryTableId must be specified");
 		}
 		try{
-			VariantSet variantSet = createVariantSet();
 	
-			ImportVariantsRequest IVReq = new ImportVariantsRequest();
-			List<String> URIs = new ArrayList<String>(Arrays.asList(options.getURIs().split(",")));
-	
-			IVReq.setSourceUris(URIs);
-			IVReq.setVariantSetId(variantSet.getId());
-	
+		
 			Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
 			RetryPolicy retryP = RetryPolicy.nAttempts(4);
 	
+		    ExportVariantSetRequest requestBody = new ExportVariantSetRequest();
+		    requestBody.setBigqueryTable(options.getBigQueryTableId());
+		    requestBody.setBigqueryDataset(options.getBigQueryDataSetId());
+		    requestBody.setProjectId(options.getProject());
+
+		    
 			// TODO: Wait till the job is completed (Track the job)
-			Operation response = retryP.execute(genomics.variants().genomicsImport(IVReq));
+		    Operation response = retryP.execute(genomics.variantsets().export(options.getVariantSetId(), requestBody));
 			
 			
 			System.out.println("");
@@ -112,23 +126,7 @@ public class ImportVCF {
 			throw e;
 		}
 
-	}	
-	
-	/**
-	 * <h1> This method creates a new variant set using the given datasetId.
-	 */
-
-	private static VariantSet createVariantSet() throws GeneralSecurityException, IOException {
-
-		VariantSet vs = new VariantSet();
-		vs.setName(options.getVariantSetName());
-		vs.setDatasetId(options.getDatasetId());
-
-		Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
-		Variantsets.Create avRequest = genomics.variantsets().create(vs);
-		VariantSet avWithId = avRequest.execute();
-		System.out.println(avWithId.toPrettyString());
-		return avWithId;
 	}
+
 
 }

@@ -165,6 +165,11 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 
 		void setSupportChrM(boolean supportChrM);
 
+		@Description("This option helps to redirect the output of annottaion process to BigQuery or Google Storage. Default is false (Google Storage).")
+		boolean getBigQuery();
+		void setBigQuery(boolean BigQuery);
+
+		
 		@Description("If you want to only annotate SNPs, set this value true. Default is false. ")
 		boolean getOnlySNP();
 
@@ -667,6 +672,8 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	 * pipeline
 	 */
 	public static void run(String[] args) throws Exception {
+
+		
 		// Register the options so that they show up via --help
 		PipelineOptionsFactory.register(Options.class);
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -689,22 +696,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		if (options.getCallSetNames().isEmpty()) {
 			throw new IllegalArgumentException("CallSetNames must be specified (e.g., HG00261 for 1000 Genomes.)");
 		}
-
-		// check whether user provided BigQueryDatasetID
-		if (options.getBigQueryDataset().isEmpty()) {
-			throw new IllegalArgumentException("BigQueryDataset must be specified (e.g., my_dataset)");
-		}
-
-		// check whether user provided BigQueryTable
-		if (options.getBigQueryTable().isEmpty()) {
-			throw new IllegalArgumentException("BigQuery Table must be specified (e.g., my_table)");
-		}
-		else{
-			// check whether user provided the Path to the local output file 
-			if (options.getLocalOutputFilePath().isEmpty()) {
-				throw new IllegalArgumentException("e.g., /home/user/output.vcf");
-			}
-		}
+		
 		// Add Genotype field to the VCF HEADER!
 		addGenotypetoHeader(options.getCallSetNames());
 
@@ -746,90 +738,160 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		System.out.println("The Num of Extensible Columns: " + getNumCols());
 		System.out.println("ChrM: " + options.getSupportChrM());
 
+		
 		// Here is the dataflow pipeline
 		Pipeline p = Pipeline.create(options);
 		p.getCoderRegistry().setFallbackCoderProvider(GenericJsonCoder.PROVIDER);
 
-		/*
-		 * p.begin() .apply(Create.of(requests)) .apply(ParDo.named(
-		 * "Annotate Variants") .of(new AnnotateVariants(auth, callSetIds,
-		 * transcriptSetIds, variantAnnotationSetIds, ColInfoVariantAnnotation,
-		 * ColInfoTranscript, options.getSupportChrM(), options.getOnlySNP())))
-		 * .apply(GroupByKey.<String, String> create()) .apply(ParDo.named(
-		 * "Print Variants") .of(new DoFn<KV<String, Iterable<String>>,
-		 * String>() {
-		 * 
-		 * private static final long serialVersionUID = 1L;
-		 * 
-		 * @Override public void processElement(ProcessContext c) { if (!DEBUG)
-		 * { String rows = ""; long index=0; for (String s :
-		 * c.element().getValue()){ index++; if(index>1) rows += "\n" + s; else
-		 * 
-		 * rows += s; } c.output(rows); } else { c.output(c.element().getKey() +
-		 * ": " + c.element().getValue()); } }
-		 * })).apply(TextIO.Write.to(options.getOutput()));
-		 */
-
-		////////////////////////////////////////BIG-QUERY//////////////////////////////////////////////////////////////
-
-		 TableReference tableRef = new TableReference();
-		 tableRef.setProjectId(options.getProject());
-		 tableRef.setDatasetId(options.getBigQueryDataset());
-		 tableRef.setTableId(options.getBigQueryTable());
+		long tempEstimatedTime;
+		// START - Reset start for dataflow pipeline
+		long startTime = System.currentTimeMillis();
 		
-		 p.begin()
-		 .apply(Create.of(requests))
-		 .apply(ParDo.named("Annotate Variants")
-		 .of(new AnnotateVariants(auth, callSetIds, transcriptSetIds,
-		 variantAnnotationSetIds, ColInfoVariantAnnotation,
-		 ColInfoTranscript, options.getSupportChrM(), options.getOnlySNP())))
-		 .apply(new ConvertBigQueryFormat())
-		 .apply(BigQueryIO.Write.to(tableRef).withSchema(getSchema()));
-			////////////////////////////////////////BIG-QUERY//////////////////////////////////////////////////////////////
+//		////////////////////////////// Redirect Output to Google Storage ////////////////////////////////////
 
-		 p.run();
-
-		BigQueryFunctions.runQuery(options.getProject(), options.getBigQueryDataset(), 
-				options.getBigQueryTable(), options.getLocalOutputFilePath());
-
+		//With Group By
+//		p.begin().apply(Create.of(requests))
+//		.apply(ParDo.named("Annotate Variants")
+//				.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
+//						ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
+//						options.getOnlySNP())))
+//		.apply(GroupByKey.<String, String> create())
+//		.apply(ParDo.named("Print Variants").of(new DoFn<KV<String, Iterable<String>>, String>() {
+//
+//			private static final long serialVersionUID = 1L;
+//
+//			@Override
+//			public void processElement(ProcessContext c) {
+//				if (!DEBUG) {
+//					String rows = "";
+//					long index = 0;
+//					for (String s : c.element().getValue()) {
+//						index++;
+//						if (index > 1)
+//							rows += "\n" + s;
+//						else
+//
+//							rows += s;
+//					}
+//					c.output(rows);
+//				} else {
+//					c.output(c.element().getKey() + ": " + c.element().getValue());
+//				}
+//			}
+//		})).apply(TextIO.Write.to(options.getOutput()));
+//		
+		
+		////////////////////////////// Redirect Output to Google Storage ////////////////////////////////////
+		if (!options.getBigQuery()) {
+			p.begin().apply(Create.of(requests))
+			.apply(ParDo.named("Annotate Variants")
+					.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
+							ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
+							options.getOnlySNP())))
 	
-		// Path VCF_Filename = Paths.get( options.getOutput());
-		// System.out.println("");
-		// System.out.println("");
-		// System.out.println("[INFO]
-		// ------------------------------------------------------------------------");
-		// System.out.println("[INFO] Below is the header of " +
-		// VCF_Filename.getFileName().toString());
-		// System.out.println(HEADER);
-		// System.out.println();
-		// System.out.println("[INFO] To check the current status of your job,
-		// use the following command:");
-		// System.out.println("\t ~: gcloud alpha dataflow jobs describe
-		// $YOUR_JOB_ID$");
-		// System.out.println("");
-		// System.out.println("[INFO] To gather the results into a single VCF
-		// file after the completion of job (i.e., currentState:
-		// JOB_STATE_DONE), run the following command:");
-		// System.out.println("\t ~: gsutil cat " + options.getOutput() + "* |
-		// sort > " + VCF_Filename.getFileName().toString());
-		// System.out.println("\t ~: you can also install GNU parallel sort in
-		// linux or MAC (e.g., in MAC: brew coreutils) and leverage parallel
-		// sort:");
-		// System.out.println("\t ~: gsutil cat " + options.getOutput() + "* |
-		// gsort --parallel=N -s > " + VCF_Filename.getFileName().toString());
-		// System.out.println("");
-		// System.out.println("[INFO] Please add the header to " +
-		// VCF_Filename.getFileName().toString());
-		// System.out.println("[INFO]
-		// ------------------------------------------------------------------------");
-		// System.out.println("");
-		// System.out.println("");
+			.apply(ParDo.named("Print Variants").of(new DoFn<KV<String, String>, String>() {
+				private static final long serialVersionUID = -5065486967339199473L;
 
-		// TODO:Sort Output Files Using Dataflow
+				@Override
+				public void processElement(ProcessContext c) {
+					if (!DEBUG) {
+						c.output(c.element().getValue());
+					} else {
+						c.output(c.element().getKey() + ": " + c.element().getValue());
+					}
+				}
+			})).apply(TextIO.Write.to(options.getOutput()));
+
+		} else {
+			//////////////////////////////////////// BIG-QUERY [Google Genomics APIs]////////////////////
+
+			// check whether user provided BigQueryDatasetID
+			if (options.getBigQueryDataset().isEmpty()) {
+				throw new IllegalArgumentException("BigQueryDataset must be specified (e.g., my_dataset)");
+			}
+
+			// check whether user provided BigQueryTable
+			if (options.getBigQueryTable().isEmpty()) {
+				throw new IllegalArgumentException("BigQuery Table must be specified (e.g., my_table)");
+			}
+			else{
+				// check whether user provided the Path to the local output file 
+				if (options.getLocalOutputFilePath().isEmpty()) {
+					throw new IllegalArgumentException("e.g., /home/user/output.vcf");
+				}
+			}
+
+			
+			TableReference tableRef = new TableReference();
+			tableRef.setProjectId(options.getProject());
+			tableRef.setDatasetId(options.getBigQueryDataset());
+			tableRef.setTableId(options.getBigQueryTable());
+
+			p.begin().apply(Create.of(requests))
+					.apply(ParDo.named("Annotate Variants")
+							.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
+									ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
+									options.getOnlySNP())))
+					.apply(new ConvertBigQueryFormat()).apply(BigQueryIO.Write.to(tableRef).withSchema(getSchema()));
+		}
+	
+		 p.run();
+		 
+		 //END - RUN time 
+		 tempEstimatedTime = System.currentTimeMillis() - startTime;
+		 System.out.println("Execution Time for Pipeline: " + tempEstimatedTime);
+	     /////////////////////////////////END - RUN time ///////////////////////////////////////////
+			
+		if (options.getBigQuery()) {
+
+			/////////////////////// START - Reset start for Sorting/Downloading //////////////////////////////
+			startTime = System.currentTimeMillis();
+
+			BigQueryFunctions.sortAllAndPrintDataflow(options.getProject(), options.getBigQueryDataset(),
+					options.getBigQueryTable(), options.getLocalOutputFilePath());
+
+			tempEstimatedTime = System.currentTimeMillis() - startTime;
+			System.out.println("Execution Time for Sort and Transfer: " + tempEstimatedTime);
+			///////////////////////////////// END - RUN time ////////////////////////////////////////
+			//TODO: This is a dynamic sort -> first find the number of annotated variants, 
+			// then dynamically partition based on chromosome and interval, and sort each interval     
+			//BigQueryFunctions.sort(options.getProject(), options.getBigQueryDataset(), 
+			//		options.getBigQueryTable(), options.getLocalOutputFilePath());
+
+			//////////////////////////////Remove the intermediate table used for sorting ///////////// 
+			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getBigQueryTable());
+
+			
+		}else{
+
+			 Path VCF_Filename = Paths.get( options.getOutput());
+			 System.out.println("");
+			 System.out.println("");
+			 System.out.println("[INFO]------------------------------------------------------------------------");
+			 System.out.println("[INFO] Below is the header of " + VCF_Filename.getFileName().toString());
+			 System.out.println(HEADER);
+			 System.out.println();
+			 System.out.println("[INFO] To check the current status of your job, use the following command under 'DataflowPipelineRunner':");
+			 System.out.println("\t ~: gcloud alpha dataflow jobs describe $YOUR_JOB_ID$");
+			 System.out.println("");
+			 System.out.println("[INFO] To gather the results into a single VCF file after the completion of job (i.e., currentState:JOB_STATE_DONE), run the following command:");
+			 System.out.println("\t ~: gsutil cat " + options.getOutput() + "* | sort > " + VCF_Filename.getFileName().toString());
+			 System.out.println("\t ~: you can also install GNU parallel sort in linux or MAC (e.g., in MAC: brew coreutils) and leverage parallel sort:");
+			 System.out.println("\t ~: gsutil cat " + options.getOutput() + "* | awk '{ print length($1), $0 }' | sort -k 2,1 -n | awk '{$1 = \"\"; print}' > " + VCF_Filename.getFileName().toString());
+			 //System.out.println("\t ~: gsutil cat " + options.getOutput() + "* | gsort --parallel=N -s > " + VCF_Filename.getFileName().toString());
+			 System.out.println("");
+			 System.out.println("[INFO] To remove the output files from the cloud storage run the following command:");
+			 System.out.println("\t ~: gsutil rm " + options.getOutput() + "*");
+			 System.out.println("[INFO] ------------------------------------------------------------------------");
+			 System.out.println("");
+			 System.out.println("");
+
+
+		}
 
 	}
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/**
 	 * Defines the BigQuery schema used for the output.
 	 */
@@ -879,8 +941,12 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 			c.output(row);
 		}
 	}
+	
+	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	
+	
 	private static void addGenotypetoHeader(String optionCallSetNames) {
 		String callSetNames = "";
 		for (String name : callSetNames.split(",")) {
@@ -991,4 +1057,6 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 			ColInfoTranscript.put(asId, numCols);
 	}
 
+	
+	
 }
