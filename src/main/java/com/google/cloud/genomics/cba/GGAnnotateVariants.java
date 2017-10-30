@@ -1,8 +1,7 @@
 package com.google.cloud.genomics.cba;
 
-import com.google.api.client.auth.oauth2.Credential;
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016-2017 Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,28 +13,34 @@ import com.google.api.client.auth.oauth2.Credential;
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
+
+
+
 import com.google.api.client.util.Strings;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.Annotation;
 import com.google.api.services.genomics.model.AnnotationSet;
+import com.google.api.services.genomics.model.ListBasesResponse;
 import com.google.api.services.genomics.model.SearchAnnotationsRequest;
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryFactory;
-import com.google.cloud.bigquery.JobId;
-import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-//import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.api.services.genomics.model.VariantAnnotation;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
+
 import com.google.cloud.genomics.dataflow.coders.GenericJsonCoder;
 import com.google.cloud.genomics.dataflow.utils.CallSetNamesOptions;
 import com.google.cloud.genomics.dataflow.utils.GCSOutputOptions;
@@ -54,19 +59,9 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Range;
-import com.google.common.primitives.Chars;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
-import com.google.genomics.v1.VariantCall;
-import com.google.protobuf.ListValue;
-import com.google.protobuf.Value;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
 
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.IntervalTree.Node;
@@ -76,16 +71,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+
 
 /**
  * <h1>Annotating Google Genomics Variant Sets</h1> This class an annotationSet,
@@ -118,8 +111,9 @@ import java.util.logging.Logger;
  * @since 2016-07-01
  */
 
-final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, String>> {
+final class GGAnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, String>> {
 
+	private static final long serialVersionUID = -8100934752121655658L;
 	public static boolean DEBUG = false;
 	private static HashMap<String, Integer> ColInfoTranscript = new HashMap<String, Integer>();
 	private static HashMap<String, Integer> ColInfoVariantAnnotation = new HashMap<String, Integer>();
@@ -127,23 +121,20 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	// alternateBases info genotype";
 	private static String HEADER = "#referenceName	start	end	referenceBases	alternateBases";
 
-	public static interface Options extends
-			// Options for call set names.
+	public static interface Options extends  
+//			// Options for call set names.
 			CallSetNamesOptions,
-			// Options for calculating over regions, chromosomes, or whole
-			// genomes.
+//			// Options for calculating over regions, chromosomes, or whole
+//			// genomes.
 			ShardOptions,
-			// Options for the output destination.
-			GCSOutputOptions {
+//			// Options for the output destination.
+			GCSOutputOptions 
+		{
 
-		@Override
 		@Description("The ID of the Google Genomics variant set this pipeline is accessing.")
-		@Default.String("")
 		String getVariantSetId();
 
-		@Override
 		@Description("The names of the Google Genomics call sets this pipeline is working with, comma " + "delimited.")
-		@Default.String("")
 		String getCallSetNames();
 
 		@Description("The IDs of the Google Genomics transcript sets this pipeline is working with, "
@@ -166,9 +157,13 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		void setSupportChrM(boolean supportChrM);
 
 		@Description("This option helps to redirect the output of annottaion process to BigQuery or Google Storage. Default is false (Google Storage).")
-		boolean getBigQuery();
-		void setBigQuery(boolean BigQuery);
+		boolean getBigQuerySort();
+		void setBigQuerySort(boolean BigQuerySort);
 
+	    @Description("Genomic window \"bin\" size to use for grouping variants")
+	    @Default.Integer(1000000)
+	    int getBinSize();
+	    void setBinSize(int BinSize);
 		
 		@Description("If you want to only annotate SNPs, set this value true. Default is false. ")
 		boolean getOnlySNP();
@@ -207,7 +202,7 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 
 	}
 
-	private static final Logger LOG = Logger.getLogger(AnnotateVariants.class.getName());
+	private static final Logger LOG = Logger.getLogger(GGAnnotateVariants.class.getName());
 
 	/*
 	 * To visit variants efficiently, the program creates
@@ -226,10 +221,11 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	private final HashMap<String, Integer> TranscriptColInfo;
 	private final boolean supportChrM;
 	private final boolean onlySNP;
-
-	public AnnotateVariants(OfflineAuth auth, List<String> callSetIds, List<String> transcriptSetIds,
+	private final boolean BigQuery;
+	
+	public GGAnnotateVariants(OfflineAuth auth, List<String> callSetIds, List<String> transcriptSetIds,
 			List<String> variantAnnotationSetIds, HashMap<String, Integer> _VariantColInfo,
-			HashMap<String, Integer> _TranscriptColInfo, boolean _supportChrM, boolean _onlySNP) {
+			HashMap<String, Integer> _TranscriptColInfo, boolean _supportChrM, boolean _onlySNP, boolean _bigQuery) {
 		this.auth = auth;
 		this.callSetIds = callSetIds;
 		this.transcriptSetIds = transcriptSetIds;
@@ -238,9 +234,10 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		this.TranscriptColInfo = _TranscriptColInfo;
 		this.supportChrM = _supportChrM;
 		this.onlySNP = _onlySNP;
+		this.BigQuery=_bigQuery;
 	}
 
-	@Override
+	@org.apache.beam.sdk.transforms.DoFn.ProcessElement
 	public void processElement(DoFn<StreamVariantsRequest, KV<String, String>>.ProcessContext c) throws Exception {
 
 		Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
@@ -334,12 +331,12 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 											// element
 
 											// TESTING
-											VCFOutput += "ALT:" + match.getVariant().getAlternateBases();
+											VCFOutput += "ALT:" + match.getVariant().getAlternateBases() + "\t";
 										} else {
 											VCFOutput += ";" + createVCFFormat(variant, match);
 
 											// TESTING
-											VCFOutput += "ALT:" + match.getVariant().getAlternateBases();
+											VCFOutput += "ALT:" + match.getVariant().getAlternateBases() + "\t";
 										}
 									}
 								}
@@ -396,7 +393,6 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 								VCFOutput += formatTabs(TranscriptColInfo.get(key));
 							}
 						}
-
 					}
 				} // End of Transcripts
 
@@ -451,20 +447,31 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 				 * referenceBases alternateBases quality>, + The content of
 				 * "VCFOutput" OR Annotation's fields
 				 */
-				if (!VCFOutput.isEmpty()) {
-					c.output(KV.of(
-							variant.getReferenceName() + ";" + Long.toString(variant.getStart()) + ";"
-									+ Long.toString(variant.getEnd()),
-							// Value
-							variant.getReferenceName()
-									// <-- increment by 1 => convert to 1-based
-									// -->
-									+ "\t" + (variant.getStart() + 1) + "\t" + variant.getEnd() + "\t"
-									+ variant.getReferenceBases() + "\t" + varintALTs
-									// + "\t" + VariantInfo
-									// + "\t" + variant.getQuality()
-									// + "\t" + VariantGenotype
-									+ "\t" + VCFOutput));
+				if(this.BigQuery){
+					if (!VCFOutput.isEmpty()) {
+						c.output(KV.of(
+								variant.getReferenceName() + ";" + Long.toString(variant.getStart()) + ";"
+										+ Long.toString(variant.getEnd()),
+								// Value
+								 VCFOutput));
+					}					
+				}
+				else {
+					if (!VCFOutput.isEmpty()) {
+						c.output(KV.of(
+								variant.getReferenceName() + ";" + Long.toString(variant.getStart()) + ";"
+										+ Long.toString(variant.getEnd()),
+								// Value
+								variant.getReferenceName()
+										// <-- increment by 1 => convert to 1-based
+										// -->
+										+ "\t" + (variant.getStart() + 1) + "\t" + variant.getEnd() + "\t"
+										+ variant.getReferenceBases() + "\t" + varintALTs
+										// + "\t" + VariantInfo
+										// + "\t" + variant.getQuality()
+										// + "\t" + VariantGenotype
+										+ "\t" + VCFOutput));
+					}
 				}
 
 				varCount++;
@@ -673,7 +680,6 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 	 */
 	public static void run(String[] args) throws Exception {
 
-		
 		// Register the options so that they show up via --help
 		PipelineOptionsFactory.register(Options.class);
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -741,58 +747,34 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		
 		// Here is the dataflow pipeline
 		Pipeline p = Pipeline.create(options);
-		p.getCoderRegistry().setFallbackCoderProvider(GenericJsonCoder.PROVIDER);
-
+		 p.getCoderRegistry().registerCoderForClass(Annotation.class,
+			      (Coder<Annotation>) GenericJsonCoder.of(Annotation.class));
+			    p.getCoderRegistry().registerCoderForClass(AnnotationSet.class,
+			      (Coder<AnnotationSet>) GenericJsonCoder.of(AnnotationSet.class));
+			    p.getCoderRegistry().registerCoderForClass(ListBasesResponse.class,
+			      (Coder<ListBasesResponse>) GenericJsonCoder.of(ListBasesResponse.class));
+			    p.getCoderRegistry().registerCoderForClass(SearchAnnotationsRequest.class,
+			      (Coder<SearchAnnotationsRequest>) GenericJsonCoder.of(SearchAnnotationsRequest.class));
+			    p.getCoderRegistry().registerCoderForClass(VariantAnnotation.class,
+			      (Coder<VariantAnnotation>) GenericJsonCoder.of(VariantAnnotation.class));
+		
 		long tempEstimatedTime;
 		// START - Reset start for dataflow pipeline
 		long startTime = System.currentTimeMillis();
 		
-//		////////////////////////////// Redirect Output to Google Storage ////////////////////////////////////
-
-		//With Group By
-//		p.begin().apply(Create.of(requests))
-//		.apply(ParDo.named("Annotate Variants")
-//				.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
-//						ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
-//						options.getOnlySNP())))
-//		.apply(GroupByKey.<String, String> create())
-//		.apply(ParDo.named("Print Variants").of(new DoFn<KV<String, Iterable<String>>, String>() {
-//
-//			private static final long serialVersionUID = 1L;
-//
-//			@Override
-//			public void processElement(ProcessContext c) {
-//				if (!DEBUG) {
-//					String rows = "";
-//					long index = 0;
-//					for (String s : c.element().getValue()) {
-//						index++;
-//						if (index > 1)
-//							rows += "\n" + s;
-//						else
-//
-//							rows += s;
-//					}
-//					c.output(rows);
-//				} else {
-//					c.output(c.element().getKey() + ": " + c.element().getValue());
-//				}
-//			}
-//		})).apply(TextIO.Write.to(options.getOutput()));
-//		
 		
 		////////////////////////////// Redirect Output to Google Storage ////////////////////////////////////
-		if (!options.getBigQuery()) {
+		if (!options.getBigQuerySort()) {
 			p.begin().apply(Create.of(requests))
-			.apply(ParDo.named("Annotate Variants")
-					.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
+			.apply("Annotate Variants", ParDo
+					.of(new GGAnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
 							ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
-							options.getOnlySNP())))
+							options.getOnlySNP(), options.getBigQuerySort())))
 	
-			.apply(ParDo.named("Print Variants").of(new DoFn<KV<String, String>, String>() {
+			.apply("Print Variants", ParDo.of(new DoFn<KV<String, String>, String>() {
 				private static final long serialVersionUID = -5065486967339199473L;
-
-				@Override
+		
+				@org.apache.beam.sdk.transforms.DoFn.ProcessElement
 				public void processElement(ProcessContext c) {
 					if (!DEBUG) {
 						c.output(c.element().getValue());
@@ -800,67 +782,82 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 						c.output(c.element().getKey() + ": " + c.element().getValue());
 					}
 				}
-			})).apply(TextIO.Write.to(options.getOutput()));
+			})).apply(TextIO.write().to(options.getOutput()));
 
-		} else {
-			//////////////////////////////////////// BIG-QUERY [Google Genomics APIs]////////////////////
+		} 
+		else {
+		//////////////////////////////////////// BIG-QUERY [Google Genomics APIs]////////////////////
 
-			// check whether user provided BigQueryDatasetID
-			if (options.getBigQueryDataset().isEmpty()) {
-				throw new IllegalArgumentException("BigQueryDataset must be specified (e.g., my_dataset)");
-			}
-
-			// check whether user provided BigQueryTable
-			if (options.getBigQueryTable().isEmpty()) {
-				throw new IllegalArgumentException("BigQuery Table must be specified (e.g., my_table)");
-			}
-			else{
-				// check whether user provided the Path to the local output file 
-				if (options.getLocalOutputFilePath().isEmpty()) {
-					throw new IllegalArgumentException("e.g., /home/user/output.vcf");
-				}
-			}
-
-			
-			TableReference tableRef = new TableReference();
-			tableRef.setProjectId(options.getProject());
-			tableRef.setDatasetId(options.getBigQueryDataset());
-			tableRef.setTableId(options.getBigQueryTable());
-
-			p.begin().apply(Create.of(requests))
-					.apply(ParDo.named("Annotate Variants")
-							.of(new AnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
-									ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
-									options.getOnlySNP())))
-					.apply(new ConvertBigQueryFormat()).apply(BigQueryIO.Write.to(tableRef).withSchema(getSchema()));
+		// check whether user provided BigQueryDatasetID
+		if (options.getBigQueryDataset().isEmpty()) {
+			throw new IllegalArgumentException("BigQueryDataset must be specified (e.g., my_dataset)");
 		}
+
+		// check whether user provided BigQueryTable
+		if (options.getBigQueryTable().isEmpty()) {
+			throw new IllegalArgumentException("BigQuery Table must be specified (e.g., my_table)");
+		}
+		else{
+			// check whether user provided the Path to the local output file 
+			if (options.getLocalOutputFilePath().isEmpty()) {
+				throw new IllegalArgumentException("e.g., /home/user/output.vcf");
+			}
+		}
+
+		
+		TableReference tableRef = new TableReference();
+		tableRef.setProjectId(options.getProject());
+		tableRef.setDatasetId(options.getBigQueryDataset());
+		tableRef.setTableId(options.getBigQueryTable());
+
+		p.begin().apply(Create.of(requests))
+				.apply(ParDo.of( new GGAnnotateVariants(auth, callSetIds, transcriptSetIds, variantAnnotationSetIds,
+								ColInfoVariantAnnotation, ColInfoTranscript, options.getSupportChrM(),
+								options.getOnlySNP(), options.getBigQuerySort())))
+				.apply(ParDo.of(new FormatStatsFn()))
+				.apply( BigQueryIO.writeTableRows()
+		                .to(tableRef)
+		                .withSchema(getSchema())
+		                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
 	
-		 p.run();
-		 
+		}
+		
+		 p.run().waitUntilFinish();
+		
 		 //END - RUN time 
 		 tempEstimatedTime = System.currentTimeMillis() - startTime;
 		 System.out.println("Execution Time for Pipeline: " + tempEstimatedTime);
 	     /////////////////////////////////END - RUN time ///////////////////////////////////////////
 			
-		if (options.getBigQuery()) {
+		if (options.getBigQuerySort()) {
 
 			/////////////////////// START - Reset start for Sorting/Downloading //////////////////////////////
 			startTime = System.currentTimeMillis();
 
-			BigQueryFunctions.sortAllAndPrintDataflow(options.getProject(), options.getBigQueryDataset(),
-					options.getBigQueryTable(), options.getLocalOutputFilePath());
-
-			tempEstimatedTime = System.currentTimeMillis() - startTime;
-			System.out.println("Execution Time for Sort and Transfer: " + tempEstimatedTime);
+//			BigQueryFunctions.sortAllAndPrintDataflow(options.getProject(), options.getBigQueryDataset(),
+//					options.getBigQueryTable(), options.getLocalOutputFilePath());
+		
 			///////////////////////////////// END - RUN time ////////////////////////////////////////
 			//TODO: This is a dynamic sort -> first find the number of annotated variants, 
 			// then dynamically partition based on chromosome and interval, and sort each interval     
 			//BigQueryFunctions.sort(options.getProject(), options.getBigQueryDataset(), 
 			//		options.getBigQueryTable(), options.getLocalOutputFilePath());
+			
+			try {
+				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDataset(), 
+						options.getBigQueryTable(), options.getLocalOutputFilePath(), options.getBinSize());
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
 			//////////////////////////////Remove the intermediate table used for sorting ///////////// 
-			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getBigQueryTable());
+			//BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getBigQueryTable());
 
+		
+			tempEstimatedTime = System.currentTimeMillis() - startTime;
+			System.out.println("Execution Time for Sort and Transfer: " + tempEstimatedTime);
 			
 		}else{
 
@@ -890,60 +887,6 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 		}
 
 	}
-
-
-	/**
-	 * Defines the BigQuery schema used for the output.
-	 */
-	static TableSchema getSchema() {
-		List<TableFieldSchema> fields = new ArrayList<>();
-		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
-		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
-		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
-		fields.add(new TableFieldSchema().setName("info").setType("STRING"));
-		TableSchema schema = new TableSchema().setFields(fields);
-		return schema;
-	}
-
-	/**
-	 * This PTransform extracts speed info from traffic station readings. It
-	 * groups the readings by 'route' and analyzes traffic slowdown for that
-	 * route. Lastly, it formats the results for BigQuery.
-	 */
-	static class ConvertBigQueryFormat extends PTransform<PCollection<KV<String, String>>, PCollection<TableRow>> {
-		/**
-		* 
-		*/
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public PCollection<TableRow> apply(PCollection<KV<String, String>> annotatedVariants) {
-
-			// Format the results for writing to BigQuery
-			PCollection<TableRow> results = annotatedVariants.apply(ParDo.of(new FormatStatsFn()));
-
-			return results;
-		}
-	}
-
-	/**
-	 * Format the results of the slowdown calculations to a TableRow, to save to
-	 * BigQuery.
-	 */
-	static class FormatStatsFn extends DoFn<KV<String, String>, TableRow> {
-		@Override
-		public void processElement(ProcessContext c) {
-			String[] key = c.element().getKey().toString().split(";");
-			// setTableRef(options.getBigQueryTable(),
-			// options.getBigQueryTable(),options.getBigQueryTable());
-			TableRow row = new TableRow().set("chrm", key[0]).set("start", key[1]).set("end", key[2]).set("Info",
-					c.element().getValue().toString());
-			c.output(row);
-		}
-	}
-	
-	
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	
 	
@@ -1057,6 +1000,35 @@ final class AnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, Stri
 			ColInfoTranscript.put(asId, numCols);
 	}
 
-	
+	/**
+	 * Defines the BigQuery schema used for the output.
+	 */
+	static TableSchema getSchema() {
+		List<TableFieldSchema> fields = new ArrayList<>();
+		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
+		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("info").setType("STRING"));
+		TableSchema schema = new TableSchema().setFields(fields);
+		return schema;
+	}
+
+	/**
+	 * Format the results to a TableRow, to save to
+	 * BigQuery.
+	 */
+	static class FormatStatsFn extends DoFn<KV<String, String>, TableRow> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7241249982422720375L;
+		@org.apache.beam.sdk.transforms.DoFn.ProcessElement
+		public void processElement(ProcessContext c) {
+			String[] key = c.element().getKey().toString().split(";");
+			TableRow row = new TableRow().set("chrm", key[0]).set("start", key[1]).set("end", key[2]).set("Info",
+					c.element().getValue().toString());
+			c.output(row);
+		}
+	}
 	
 }

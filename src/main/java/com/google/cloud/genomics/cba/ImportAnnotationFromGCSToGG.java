@@ -1,7 +1,7 @@
 package com.google.cloud.genomics.cba;
 
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016-2017 Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -16,20 +16,14 @@ package com.google.cloud.genomics.cba;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.ExponentialBackOff;
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.Genomics.Annotationsets;
 import com.google.api.services.genomics.model.Annotation;
@@ -38,29 +32,21 @@ import com.google.api.services.genomics.model.BatchCreateAnnotationsRequest;
 import com.google.api.services.genomics.model.BatchCreateAnnotationsResponse;
 import com.google.api.services.genomics.model.Transcript;
 import com.google.api.services.genomics.model.VariantAnnotation;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.Validation;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.ProcessContext;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.genomics.cba.AnnotateVariants.ConvertBigQueryFormat;
-import com.google.cloud.genomics.cba.AnnotateVariants.FormatStatsFn;
-import com.google.cloud.genomics.dataflow.coders.GenericJsonCoder;
+
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 import com.google.cloud.genomics.dataflow.utils.ShardOptions;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.cloud.genomics.utils.RetryPolicy;
 import com.google.common.collect.Lists;
-import com.google.genomics.v1.StreamVariantsRequest;
 
 /**
  * <h1>Import Annotation Files (Reference Annotation Datasets)</h1> This class
@@ -72,7 +58,7 @@ import com.google.genomics.v1.StreamVariantsRequest;
  * @since 2016-07-01
  */
 
-public class ImportAnnotation {
+public class ImportAnnotationFromGCSToGG {
 
 	/*
 	 * Options required to run this pipeline.
@@ -98,7 +84,6 @@ public class ImportAnnotation {
 	 */
 	public static interface Options extends ShardOptions {
 
-		@Validation.Required
 		@Description("The ID of the Google Genomics Dataset that the output AnnotationSet will be posted to.")
 		@Default.String("")
 		String getDatasetId();
@@ -167,7 +152,7 @@ public class ImportAnnotation {
 	private static Options options;
 	private static Pipeline p;
 	private static OfflineAuth auth;
-	private static final Logger LOG = Logger.getLogger(ImportAnnotation.class.getName());
+	private static final Logger LOG = Logger.getLogger(ImportAnnotationFromGCSToGG.class.getName());
 
 	public static void run(String[] args) throws GeneralSecurityException, IOException {
 		// Register the options so that they show up via --help
@@ -177,7 +162,7 @@ public class ImportAnnotation {
 		auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
 		p = Pipeline.create(options);
-		p.getCoderRegistry().setFallbackCoderProvider(GenericJsonCoder.PROVIDER);
+		//p.getCoderRegistry().setFallbackCoderProvider(GenericJsonCoder.PROVIDER);
 
 		if (options.getDatasetId().isEmpty()) {
 			throw new IllegalArgumentException("datasetId must be specified");
@@ -221,16 +206,17 @@ public class ImportAnnotation {
 
 		 //If user specify OutputJSONBucketAddr then the program creates the file.
 		if (options.getAnnotationOutputJSONBucketAddr().isEmpty()) {
-			p.apply(TextIO.Read.from(options.getAnnotationInputTextBucketAddr()))
+			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
 					.apply(ParDo.of(new CreateAnnotations(annotationSet.getId(), annotationSet.getType(),
 							options.getHeader(), baseStatus, auth, true)));
 		} else {
-			p.apply(TextIO.Read.from(options.getAnnotationInputTextBucketAddr()))
+			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
 					.apply(ParDo.of(new CreateAnnotations(annotationSet.getId(), annotationSet.getType(),
 							options.getHeader(), baseStatus, auth, true)))
-					.apply(TextIO.Write.to(options.getAnnotationOutputJSONBucketAddr()));
+					.apply(TextIO.write().to(options.getAnnotationOutputJSONBucketAddr()));
 		}
-		p.run();
+		
+		p.run().waitUntilFinish();
 
 
 		System.out.println("");
@@ -253,7 +239,7 @@ public class ImportAnnotation {
 	static class CreateAnnotations extends
 			// DoFn<KV<Position, Iterable<KV<String, String>>>, Annotation> {
 			DoFn<String, String> {
-
+		private static final long serialVersionUID = 1L;
 		private final String asId;
 		private final String asType;
 		private final String header;
@@ -276,7 +262,7 @@ public class ImportAnnotation {
 		private static long waitingTime = 0;
 
 		// VariantAnnotation
-		@Override
+		@org.apache.beam.sdk.transforms.DoFn.ProcessElement
 		public void processElement(ProcessContext c) throws GeneralSecurityException, IOException {
 
 			for (String line : c.element().split("\n")) {
@@ -415,7 +401,6 @@ public class ImportAnnotation {
 		 * specified size of batch (e.g., 4096) then this method post the last
 		 * batch.
 		 */
-		@Override
 		public void finishBundle(Context c) throws IOException, GeneralSecurityException {
 			// Finish up any leftover annotations at the end.
 			if (write && !currAnnotations.isEmpty()) {

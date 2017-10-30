@@ -1,14 +1,28 @@
 package com.google.cloud.genomics.cba;
 
+/*
+ * Copyright (C) 2016-2017 Stanford University.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
-import com.google.cloud.genomics.dataflow.utils.ShardOptions;
+
+
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.cloud.genomics.utils.RetryPolicy;
@@ -31,22 +45,17 @@ import com.google.api.services.genomics.model.Operation;
  * @since 2016-07-01
  */
 
-public class ExportVCF {
+public class ExportVCFFromGGToBigQuery {
 
 	private static Options options;
 	private static OfflineAuth auth;
 
-	public static interface Options extends ShardOptions {
+	public static interface Options extends GenomicsOptions {
 
 		@Description("The ID of the Google Genomics Dataset")
 		@Default.String("")
 		String getGoogleGenomicsDatasetId();
 		void setGoogleGenomicsDatasetId(String GoogleGenomicsDatasetId);
-
-		@Description("The ID of the Google Genomics Dataset")
-		@Default.String("")
-		String getProjectId();
-		void setProjectId(String ProjectId);
 		
 		@Description("This provides the name of the destination BigQuery Table. This is a required field.")
 		@Default.String("")
@@ -80,8 +89,8 @@ public class ExportVCF {
 //			throw new IllegalArgumentException("googleGenomicsDatasetId must be specified");
 //		}
 
-		if (options.getProjectId().isEmpty()) {
-			throw new IllegalArgumentException("projectId must be specified");
+		if (options.getProject().isEmpty()) {
+			throw new IllegalArgumentException("project must be specified");
 		}
 		
 		if (options.getVariantSetId().isEmpty()) {
@@ -97,7 +106,6 @@ public class ExportVCF {
 		}
 		try{
 	
-		
 			Genomics genomics = GenomicsFactory.builder().build().fromOfflineAuth(auth);
 			RetryPolicy retryP = RetryPolicy.nAttempts(4);
 	

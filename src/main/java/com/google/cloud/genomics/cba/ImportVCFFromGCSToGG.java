@@ -1,16 +1,31 @@
 package com.google.cloud.genomics.cba;
 
+/*
+ * Copyright (C) 2016-2017 Stanford University.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
-import com.google.cloud.genomics.dataflow.utils.ShardOptions;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.cloud.genomics.utils.RetryPolicy;
@@ -34,12 +49,14 @@ import com.google.api.services.genomics.Genomics.Variantsets;
  * @since 2016-07-01
  */
 
-public class ImportVCF {
+public class ImportVCFFromGCSToGG {
 
 	private static Options options;
 	private static OfflineAuth auth;
 
-	public static interface Options extends ShardOptions {
+	public static interface Options extends PipelineOptions, GenomicsOptions
+	//extends ShardOptions 
+	{
 
 		@Description("The ID of the Google Genomics Dataset")
 		@Default.String("")

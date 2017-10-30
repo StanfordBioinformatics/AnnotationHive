@@ -1,37 +1,35 @@
 package com.google.cloud.genomics.cba;
 
+/*
+ * Copyright (C) 2016-2017 Stanford University.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
 
 /**
  * Uploading and Downloading files - Cloud Storage
  * Modified version - Google Class - Handles uploads and downloads 
  * 
  */
-
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.util.Strings;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.ObjectAccessControl;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.genomics.dataflow.utils.ShardOptions;
+
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+
+
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -43,6 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 
 public class CloudStorage {
 
@@ -50,7 +49,9 @@ public class CloudStorage {
 
 	private static Options options;
 
-	public static interface Options extends ShardOptions {
+	public static interface Options extends GenomicsOptions 
+	{
+	
 
 		@Description("This provides bucketName. This is a required field.")
 		@Default.String("")
@@ -139,13 +140,13 @@ public class CloudStorage {
 		
 		// Do the get
 		Storage client = StorageFactory.getService();
-		boolean getMetadata = false;
+//		boolean getMetadata = false;
 		
 		Storage.Objects.Get getObject = client.objects().get(bucketName, objectName);
 
-		if (getMetadata == true) {
-		  StorageObject object = getObject.execute();
-		} else {
+//		if (getMetadata == true) {
+//		  StorageObject object = getObject.execute();
+//		} else {
 		  // Downloading data.
 		  ByteArrayOutputStream out = new ByteArrayOutputStream();
 		  // If you're not in AppEngine, download the whole thing in one request, if possible.
@@ -155,7 +156,7 @@ public class CloudStorage {
 			try(OutputStream outputStream = new FileOutputStream(localFilename)) {
 				out.writeTo(outputStream);
 			}
-		}
+//		}
 	}
 	
 	/**
