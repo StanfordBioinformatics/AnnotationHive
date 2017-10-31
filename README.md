@@ -48,6 +48,8 @@
 
 1. To run:
 
+### Upload ###
+
 * Upload the sample transcript annotation (Samples/sample_transcript_annotation_chr17.bed)
  
     ```
@@ -65,6 +67,7 @@ mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnota
  ```
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="UploadFileToGCS --project=<YOUR_Google_Cloud_Project_ID> --username=<YOUR_Google_Cloud_Registered_Email> --bucketName=<Your_Google_Cloud_Bucket_Name> --localFilenameAddr=Samples/NA12877-chr17.vcf --cloudObjectName=NA12877-chr17.vcf
  ``` 
+### Import ###
 
 * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search.
 
