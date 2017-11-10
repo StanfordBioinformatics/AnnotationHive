@@ -28,11 +28,6 @@
 
 1. Install [Maven](http://maven.apache.org/).
 
-1. Build this project:
-
-   ```
-   mvn clean compile assembly:single
-   ```
 1. [Reference Sets](https://cloud.google.com/genomics/v1/reference-sets) with Google Genomics
 
    ```
