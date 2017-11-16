@@ -432,7 +432,7 @@ public final class BigQueryAnnotateVariants {
 	        		key = "23";
 	        else 	if (key.equalsIgnoreCase("X"))
 	        		key ="24";
-	        else if (key.equalsIgnoreCase("M"))
+	        else if (key.equalsIgnoreCase("M") || key.equalsIgnoreCase("MT") )
 	        		key="25";
 	        
 	        	String BinNum = Long.toString(startBin);
