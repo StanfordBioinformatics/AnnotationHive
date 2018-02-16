@@ -458,7 +458,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 			for (String line : c.element().split("\n")) {
 				if (!line.isEmpty() && !line.startsWith("#") && !line.startsWith("chrom")) {
 
-					String[] vals = c.element().toString().split("\t");
+					String[] vals = c.element().toString().split("\\s+");
 		
 					
 					TableRow row = new TableRow();

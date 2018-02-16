@@ -19,7 +19,10 @@
    ```
    gcloud init
    ```
-
+1. Authentictaion
+   ```
+   gcloud auth application-default login
+   ```
 1. Clone this repo.
 
    ```
@@ -39,7 +42,7 @@
    {"assemblyId":"GRCh37","id":"EOSsjdnTicvzwAE"}
    {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
    ``` 
-1. To create and manage datasets click [here](https://cloud.google.com/genomics/v1/managing-datasets)
+1. To create and manage Google Genomics datasets click [here](https://cloud.google.com/genomics/)
 
 1. To run:
 
@@ -50,6 +53,8 @@
     ```
     mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="UploadFileToGCS --project=<YOUR_Google_Cloud_Project_ID> --username=<YOUR_Google_Cloud_Registered_Email> --bucketName=<Your_Google_Cloud_Bucket_Name> --localFilenameAddr=Samples/sample_transcript_annotation_chr17.bed --cloudObjectName=sample_transcript_annotation_chr17.bed"
     ```
+
+* You can also directly upload/remove/read/rename fils on the Google Cloud Storage using [gsutil] (https://cloud.google.com/storage/docs/gsutil) tool 
  
 * Upload the sample variant annotation (Samples/sample_variant_annotation_chr17.bed)
 
@@ -128,3 +133,8 @@ mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnota
  ```
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4 --gcpTempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --bigQueryDataset=<YOUR_BigQuery_Dataset_Name>  --bigQueryTable=<The_Output_Table_Name> --variantAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names> --output=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-standard-16 --bigQuerySort=true --localOutputFilePath=<Local_Annotated_VCF_File_Address>" -Pdataflow-runner
  ```
+* Storing the output as a BigQuery Table
+
+
+* Gene-based Annotation 
+Under development

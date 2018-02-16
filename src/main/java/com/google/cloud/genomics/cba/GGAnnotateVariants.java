@@ -247,7 +247,6 @@ final class GGAnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, St
 		StreamVariantsRequest request = StreamVariantsRequest.newBuilder(c.element()).addAllCallSetIds(callSetIds)
 				.build();
 
-		// TODO: It would be better to exclude chrM from the variantStream
 		if (canonicalizeRefName(request.getReferenceName()).equals("M") && supportChrM == false) {
 			LOG.info("There is no information about Chr M in the provided AnnotationSet!");
 			return;
