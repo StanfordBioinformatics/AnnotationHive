@@ -1913,7 +1913,6 @@ public class BigQueryFunctions {
 
 		 	 
 		String AllFields=""; // Use to 
-		String AnnotationQuery="";
 						
 				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
 				 * ProjectId: gbsc-gcp-project-cba
