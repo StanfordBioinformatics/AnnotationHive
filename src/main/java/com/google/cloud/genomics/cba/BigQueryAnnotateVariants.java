@@ -282,35 +282,10 @@ public final class BigQueryAnnotateVariants {
 		if (options.getSampleId().isEmpty()) {
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
-					// Step 1: Create MinTable
-					// Step 2: Join Two Tables (MinTable w/ AllDist Table)
-//					queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinTablemVCF(options.getVCFTables(),
-//							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-//							options.getTranscriptCanonicalizeRefNames(), options.getOnlyIntrogenic());
-//					String TempMinTable = "Temp_" + options.getOutputBigQueryTable() + "_Min";
-//
-//	//				runQuery(queryString, options.getBigQueryDataset(), TempMinTable, true, 1); // BigQuery ->
-//																								// allowLargeResults and
-//																								// Billing Tier for this
-//																								// query is 1
-//
-//					queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF(
-//							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-//							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-//							options.getProjectId() + ":" + options.getBigQueryDataset() + "." + TempMinTable,
-//							options.getOnlyIntrogenic());
-//					// LOG.info("Query: " + queryString);
-					
-//					BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF(
-//							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-//							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-//							options.getOnlyIntrogenic());
-//					queryString="SELECT   VCF.reference_name,   VCF.start,   VCF.END,   VCF.reference_bases,   CONCAT(\"1: \", ARRAY_AGG(AN.name   ORDER BY    (CASE WHEN (ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) THEN ABS(VCF.Start-AN.END) ELSE ABS(VCF.END-AN.Start) END)     LIMIT     1)[SAFE_OFFSET(0)]) name,   ARRAY_AGG(AN.name2   ORDER BY    (CASE WHEN (ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) THEN ABS(VCF.Start-AN.END) ELSE ABS(VCF.END-AN.Start) END)     LIMIT     1)[SAFE_OFFSET(0)] name2      FROM     `gbsc-gcp-project-mvp.va_aaa_pilot_data.aaa_multisample_variants_sample_qc_v2_2` as VCF JOIN   `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` AS AN ON   VCF.reference_name = AN.chrm      WHERE  (VCF.start>AN.End) OR (AN.Start> VCF.END) GROUP BY   VCF.reference_name,   VCF.start,   VCF.END,   VCF.reference_bases"; 
-			
-					queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF_SQLStandard(
+						queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF_SQLStandard(
 							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
 							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-							options.getOnlyIntrogenic());
+							options.getOnlyIntrogenic(), options.getOutputFormatTable());
 				
 				} else {
 					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF(options.getVCFTables(),
@@ -319,15 +294,15 @@ public final class BigQueryAnnotateVariants {
 							options.getOnlyIntrogenic());
 				}
 			} else {// Variant-based or Interval-based annotation
-				queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
-						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), false);
+//				queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_SQLStandard(options.getVCFTables(),
+//						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+//						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+//						options.getVariantAnnotationCanonicalizeRefNames(), false);
 			}
 		} else { // e.g., LP6005038-DNA_H11
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
-
+					//TODO: Fix it!
 					// Step 1: Create MinTable
 					// Step 2: Join Two Tables (MinTable w/ AllDist Table)
 					queryString = BigQueryFunctions.prepareGeneBasedAnnotationQueryConcatFieldsWithSampleNamesMin(
@@ -352,7 +327,7 @@ public final class BigQueryAnnotateVariants {
 
 		LOG.info("Query: " + queryString);
 
-		////////////////////////////////// STEP1:
+		////////////////////////////////// STEP1/////////////////////////////////////
 		////////////////////////////////// Joins/////////////////////////////////////
 		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
 				options.getMaximumBillingTier());
@@ -362,7 +337,7 @@ public final class BigQueryAnnotateVariants {
 
 		if (!options.getOutputFormatTable()) {
 
-			////////////////////////////////// STEP2:
+			////////////////////////////////// STEP2////////////////////////////////////
 			////////////////////////////////// Sort/////////////////////////////////////
 			startTime = System.currentTimeMillis();
 			runSort();
@@ -371,6 +346,7 @@ public final class BigQueryAnnotateVariants {
 
 			///////////////// STEP3: Delete the Intermediate
 			///////////////// Table///////////////////////////
+			//TODO: Add a new condition here
 			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getOutputBigQueryTable());
 		}
 	}

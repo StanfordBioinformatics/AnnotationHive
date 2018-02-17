@@ -857,6 +857,8 @@ public class BigQueryFunctions {
 		
 		return Query;
 	}
+	
+	
 
 	
 	public static String prepareAnnotateVariantQueryConcatFields_mVCF(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
@@ -1278,7 +1280,8 @@ public class BigQueryFunctions {
 
 	
 	public static String prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF(String VCFTableNames,
-			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames, String TranscriptCanonicalizeRefNames,String TempMinTableName, boolean OnlyIntrogenic) {
+			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames, String TranscriptCanonicalizeRefNames,
+			String TempMinTableName, boolean OnlyIntrogenic, boolean OutputASTable) {
 
 		String[] TranscriptAnnotations=null;
 		String[] VCFTables=null;
@@ -1857,7 +1860,8 @@ public class BigQueryFunctions {
 	
 	
 	public static String prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF_SQLStandard(String VCFTableNames,
-			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames, String TranscriptCanonicalizeRefNames, boolean OnlyIntrogenic) {
+			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames, String TranscriptCanonicalizeRefNames, 
+			boolean OnlyIntrogenic, boolean OutputASTable) {
 
 		String[] TranscriptAnnotations=null;
 		String[] VCFTables=null;
@@ -1928,7 +1932,10 @@ public class BigQueryFunctions {
 				//AllFields = exonCount:exonStarts:exonEnds:score
 				for (int index2=2; index2<TableInfo.length; index2++){
 					if(index2==2){
-						AllFields += " CONCAT(\"1: \","+ "AN" +"." + TableInfo[index2] + " ) ";
+						if(!OutputASTable)
+							AllFields += " CONCAT(\"1: \","+ "AN" +"." + TableInfo[index2] + " ) ";
+						else
+							AllFields +=  "AN" +"." + TableInfo[index2];
 					}
 					else	
 						AllFields +=  " , " + "AN" +"." + TableInfo[index2];
@@ -1953,8 +1960,8 @@ public class BigQueryFunctions {
 				+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
 				+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) "
 				+ "    LIMIT " 
-				+ "      1 )[SAFE_OFFSET(0)] names, "
-				+"CASE " + 
+				+ "      1 )[SAFE_OFFSET(0)] names "
+				+", CASE " + 
 				"		 WHEN " + 
 				"        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + 
 				"        THEN " + 
@@ -1973,6 +1980,54 @@ public class BigQueryFunctions {
 			
 		
 		return Query;
+	}
+
+
+
+
+
+	public static String prepareAnnotateVariantQueryConcatFields_mVCF_SQLStandard(String vcfTables,
+			String vcfCanonicalizeRefNames, String genericAnnotationTables, String transcriptCanonicalizeRefNames,
+			String variantAnnotationTables, String variantAnnotationCanonicalizeRefNames, boolean b) {
+
+//		SELECT
+//		  VCF.reference_name AS chrm,
+//		  VCF.start AS start,
+//		  VCF.END AS `END`,
+//		  VCF.reference_bases AS reference_bases,
+//		  ARRAY_TO_STRING(VCF.alternate_bases,
+//		    ',') AS alternate_bases,
+//		  AN.name,
+//		  AN.name2,  
+//		  CASE
+//		    WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN 'Closest'
+//		    ELSE 'Overlapped'
+//		  END AS Status
+//		FROM (
+//		  SELECT
+//		    REPLACE(reference_name, '', '') AS reference_name,
+//		    start,
+//		    `END`,
+//		    reference_bases,
+//		    alternate_bases
+//		  FROM
+//		    `genomics-public-data.1000_genomes_phase_3.variants_20150220_release`
+//		  WHERE
+//		    EXISTS (
+//		    SELECT
+//		      alternate_bases
+//		    FROM
+//		      UNNEST(alternate_bases) alt
+//		    WHERE
+//		      alt NOT IN ("<NON_REF>",
+//		        "<*>")) ) AS VCF
+//		JOIN
+//		  `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` AS AN
+//		ON
+//		  VCF.reference_name = AN.chrm
+//		WHERE (AN.START <= VCF.END) AND ( VCF.START <= AN.END)
+	
+		return null;
 	}	
 
 }
