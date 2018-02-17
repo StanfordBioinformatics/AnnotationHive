@@ -279,25 +279,31 @@ public final class BigQueryAnnotateVariants {
 		long startTime = System.currentTimeMillis();
 
 		String queryString = "";
+		boolean LegacySql=true;
+		
 		if (options.getSampleId().isEmpty()) {
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
-						queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF_SQLStandard(
+						LOG.info("<============ Gene-based Annotation (mVCF) - Closet Genes (Min) ============>");
+						queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFields_Min_mVCF_SQLStandard(
 							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
 							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
 							options.getOnlyIntrogenic(), options.getOutputFormatTable());
-				
+						LegacySql=false;
 				} else {
-					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF(options.getVCFTables(),
+					LOG.info("<============ Gene-based Annotation (mVCF) - Closet Genes (Range) ============>");
+					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_StandardSQL(options.getVCFTables(),
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 							options.getTranscriptCanonicalizeRefNames(), options.getProximityThreshold(),
-							options.getOnlyIntrogenic());
+							options.getOnlyIntrogenic(), options.getOutputFormatTable());
+					LegacySql=false;
 				}
 			} else {// Variant-based or Interval-based annotation
-//				queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_SQLStandard(options.getVCFTables(),
-//						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-//						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-//						options.getVariantAnnotationCanonicalizeRefNames(), false);
+				LOG.info("<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
+				queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
+						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+						options.getVariantAnnotationCanonicalizeRefNames(), false);
 			}
 		} else { // e.g., LP6005038-DNA_H11
 			if (options.getGeneBasedAnnotation()) {
@@ -330,7 +336,7 @@ public final class BigQueryAnnotateVariants {
 		////////////////////////////////// STEP1/////////////////////////////////////
 		////////////////////////////////// Joins/////////////////////////////////////
 		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
-				options.getMaximumBillingTier());
+				options.getMaximumBillingTier(), LegacySql);
 
 		long tempEstimatedTime = System.currentTimeMillis() - startTime;
 		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
@@ -352,11 +358,11 @@ public final class BigQueryAnnotateVariants {
 	}
 
 	private static void runQuery(String queryString, String bigQueryDataset, String outputBigQueryTable,
-			boolean allowLargeResults, int maximumBillingTier) {
+			boolean allowLargeResults, int maximumBillingTier, boolean LegacySql) {
 
 		try {
 			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDataset, outputBigQueryTable,
-					allowLargeResults, maximumBillingTier);
+					allowLargeResults, maximumBillingTier, LegacySql);
 		} catch (TimeoutException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

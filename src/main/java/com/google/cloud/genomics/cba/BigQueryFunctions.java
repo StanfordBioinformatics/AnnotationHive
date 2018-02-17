@@ -491,7 +491,7 @@ public class BigQueryFunctions {
 	}
 
 	public static void runQueryPermanentTable(String queryString, String destinationDataset, String destinationTable,
-			boolean allowLargeResults, int MaximumBillingTier ) throws TimeoutException, InterruptedException {
+			boolean allowLargeResults, int MaximumBillingTier, boolean LegacySql ) throws TimeoutException, InterruptedException {
 		QueryJobConfiguration queryConfig;
 		
 		if (MaximumBillingTier>1)
@@ -504,7 +504,7 @@ public class BigQueryFunctions {
 			queryConfig = QueryJobConfiguration.newBuilder(queryString)
 			.setDestinationTable(TableId.of(destinationDataset, destinationTable))
 			.setAllowLargeResults(allowLargeResults)
-			.setUseLegacySql(false)
+			.setUseLegacySql(LegacySql)
 			.build();
 		}
 		
@@ -1778,6 +1778,125 @@ public class BigQueryFunctions {
 	}
 
 
+	public static String prepareGeneBasedQueryConcatFields_mVCF_Range_StandardSQL(String VCFTableNames,
+			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames, String TranscriptCanonicalizeRefNames,
+			 int Threashold, boolean onlyIntrogenic, boolean OutputASTable) {
+
+		String[] TranscriptAnnotations=null;
+		String[] VCFTables=null;
+		String[] VCFCanonicalize=null; 
+		String[] TranscriptCanonicalize=null;
+	
+		/////////////////////Transcripts//////////////
+		if(TranscriptAnnotationTableNames!=null){
+			TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
+	
+			if(!TranscriptCanonicalizeRefNames.isEmpty()){
+				TranscriptCanonicalize = TranscriptCanonicalizeRefNames.split(","); 
+				if (TranscriptAnnotations.length != TranscriptCanonicalize.length)
+					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and transcript tables");
+			}
+		}
+
+		//////////VCF Files/////////////
+		/*Check if the VCF table contains any prefix for the reference fields (e.g., chr => chr17 )*/
+		if(!VCFTableNames.isEmpty()){
+			VCFTables = VCFTableNames.split(","); 
+		
+			if(!VCFCanonicalizeRefNames.isEmpty()){
+				VCFCanonicalize = VCFCanonicalizeRefNames.split(","); 
+				if (VCFCanonicalize.length != VCFTables.length)
+					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
+			}
+			else{
+				System.out.println("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
+			}
+		}
+		
+		
+				
+		/*#######################Prepare VCF queries#######################*/
+		String VCFQuery="";
+		for (int index=0; index < VCFTables.length; index++){
+			if(VCFCanonicalize != null)
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+			else
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start as VCF_Start, `END` as VCF_END, reference_bases, alternate_bases ";
+
+			if (index+1<VCFTables.length)
+				VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "."+  VCFTables[index].split(":")[1] +"`   WHERE EXISTS (SELECT alternate_bases FROM UNNEST(alternate_bases) alt WHERE alt NOT IN (\"<NON_REF>\", \"<*>\")) ";
+			else
+				VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "."+  VCFTables[index].split(":")[1]   +"` WHERE EXISTS (SELECT alternate_bases FROM UNNEST(alternate_bases) alt WHERE alt NOT IN (\"<NON_REF>\", \"<*>\")) ";
+		}
+		VCFQuery +=" ) as VCF ";
+
+		 	 
+		String AllFields=""; // Use to 
+		String RequestedFields = "" ;		
+			
+				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+				 * ProjectId: gbsc-gcp-project-cba
+				 * DatasetId: PublicAnnotationSets
+				 * TableId: hg19_refGene_chr17
+				 * Features: exonCount:exonStarts:exonEnds:score
+				 */
+			
+				//There is only one Annotation Dataset
+				String [] TableInfo = TranscriptAnnotations[0].split(":");
+														
+				//Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+				//TableName = gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene_chr17
+				String TableName = TableInfo[0]+"."+TableInfo[1];
+				
+				//AllFields = exonCount:exonStarts:exonEnds:score
+				for (int index2=2; index2<TableInfo.length; index2++){
+					RequestedFields +=  " , " +  TableInfo[index2] ;		
+
+					if(index2==2){
+						if(!OutputASTable)
+							AllFields += ", CONCAT(\"1: \","+ "AN" +"." + TableInfo[index2] + " ) ";
+						else
+							AllFields +=  "AN" +"." + TableInfo[index2];
+					}
+					else	
+						AllFields +=  " , " + "AN" +"." + TableInfo[index2];
+				}
+
+									
+		String Query= "  SELECT "
+				+ " VCF.reference_name as chrm, VCF_start as start, VCF_END as `end`, "
+				+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases " 
+				+ AllFields
+				+ ", AN_start"
+				+ ", AN_end"
+				+ ", CASE" 
+				+ "      WHEN (ABS(VCF_End-AN_Start)>=ABS(VCF_Start - AN_End)) THEN ABS(VCF_Start-AN_End)"  
+				+ "      ELSE ABS(VCF_End-AN_Start)" 
+				+ "    END AS distance"
+				+ ", CASE "
+				+ "    WHEN ((VCF_start <= AN_End) AND (AN_Start <= VCF_END)) THEN 'Overlapped' "
+				+ "    ELSE 'Closest' "  
+				+ "  END AS Status "
+				+ " FROM " + VCFQuery
+				+ " JOIN ("
+				+ "SELECT " 
+				+ "      chrm "  
+				+ "      , start as AN_Start  "  
+				+ "      , `END` as AN_END "  
+				+ RequestedFields
+				+ " From "
+				+ "`" + TableName +"`) AS AN "
+				+ " ON AN.chrm = VCF.reference_name ";
+//NOTE: It seems we find all genes within the range irrespective of whether a variant overlapped w/ any gene or not. 
+		/*		if (onlyIntrogenic) {
+			Query += " WHERE (( VCF.start> AN.End) OR (AN.Start> VCF.END))";
+		}*/
+
+		Query = "Select * from (" + Query + ") WHERE distance < " + Threashold;
+		
+		
+		return Query;
+	}
 
 
 	public static String prepareGeneBasedAnnotationMinTablemVCF(String VCFTableNames,
@@ -1859,7 +1978,7 @@ public class BigQueryFunctions {
 	
 	
 	
-	public static String prepareGeneBasedAnnotationMinQueryConcatFieldsMinmVCF_SQLStandard(String VCFTableNames,
+	public static String prepareGeneBasedAnnotationMinQueryConcatFields_Min_mVCF_SQLStandard(String VCFTableNames,
 			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames, String TranscriptCanonicalizeRefNames, 
 			boolean OnlyIntrogenic, boolean OutputASTable) {
 
