@@ -715,39 +715,69 @@ public final class BigQueryAnnotateVariants {
 								@org.apache.beam.sdk.transforms.DoFn.ProcessElement
 								public void processElement(ProcessContext c) {
 
-//									ArrayList<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> records = Lists
-//											.newArrayList(c.element().getValue()); // Get
-//																					// a
-//																					// modifiable
-//																					// list.
-//									Collections.sort(records, ChrmID_COMPARATOR);
-//
-//									for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : records) {
-//										for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
-//
-//											for (String ItemLevel : BinLevel.getValue()) {
-//												/////////////////////////
-//												c.output(ItemLevel);
-//											}
-//										}
-//									}
+									ArrayList<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> records = Lists
+											.newArrayList(c.element().getValue()); // Get
+																					// a
+																					// modifiable
+																					// list.
+									Collections.sort(records, ChrmID_COMPARATOR);
 
-									Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
-											.getValue();
+									for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : records) {
+										for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
 
-									for (int chrm = 1; chrm < 26; chrm++) {
-										for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
-											LOG.warning("Chrm: " + chrm + " ChromLevel.getKey().intValue(): " + ChromLevel.getKey().intValue());
-											if(Integer.compare(chrm, ChromLevel.getKey().intValue()) == 0) {
-												for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
-													for (String ItemLevel : BinLevel.getValue()) {
-															c.output(ItemLevel);
-													}
-												}
+											for (String ItemLevel : BinLevel.getValue()) {
+												/////////////////////////
+												c.output(ItemLevel);
 											}
 										}
 									}
 									
+									
+								//Solution: When there is not much sapce available -> remember if you do this 
+									// Then it would take much longer, that means you have to pay more. So, always better 
+									// To reserve large memory instances to handle these cases.
+
+//									Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
+//											.getValue();
+//
+//										
+//									for (int chrm = 1; chrm < 26; chrm++) {
+//										for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
+//											LOG.warning("Chrm: " + chrm + " ChromLevel.getKey().intValue(): " + ChromLevel.getKey().intValue());
+//											if(Integer.compare(chrm, ChromLevel.getKey().intValue()) == 0) {
+//												for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
+//													for (String ItemLevel : BinLevel.getValue()) {
+//															c.output(ItemLevel);
+//													}
+//												}
+//											}
+//										}
+//									}
+									
+									
+
+									//This is another method for handling this case,  	
+//									HashMap<Integer, Iterable<KV<Long, Iterable<String>>>> hmap = 
+//											new HashMap<Integer, Iterable<KV<Long, Iterable<String>>>>();
+//
+//									Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
+//											.getValue();
+//
+//										
+//									//for (int chrm = 1; chrm < 26; chrm++) {
+//										for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
+//											hmap.put(ChromLevel.getKey().intValue(), ChromLevel.getValue());
+//										}
+//																			    	
+//									    	for (int chrm = 1; chrm < 26; chrm++) {
+//									    		if(hmap.containsKey(chrm)) {
+//										    		for (KV<Long, Iterable<String>> BinLevel : hmap.get(chrm)) {
+//														for (String ItemLevel : BinLevel.getValue()) {
+//																c.output(ItemLevel);
+//														}
+//													}
+//											}
+//									    	}	
 									
 									
 								}
