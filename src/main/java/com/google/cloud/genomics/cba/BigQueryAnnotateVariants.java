@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.extensions.sorter.*;
 
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -335,8 +336,8 @@ public final class BigQueryAnnotateVariants {
 
 		////////////////////////////////// STEP1/////////////////////////////////////
 		////////////////////////////////// Joins/////////////////////////////////////
-		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
-				options.getMaximumBillingTier(), LegacySql);
+//		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
+//				options.getMaximumBillingTier(), LegacySql);
 
 		long tempEstimatedTime = System.currentTimeMillis() - startTime;
 		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
@@ -353,7 +354,7 @@ public final class BigQueryAnnotateVariants {
 			///////////////// STEP3: Delete the Intermediate
 			///////////////// Table///////////////////////////
 			//TODO: Add a new condition here
-			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getOutputBigQueryTable());
+//			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getOutputBigQueryTable());
 		}
 	}
 
@@ -469,8 +470,8 @@ public final class BigQueryAnnotateVariants {
 
 										Iterable<String> sortedBin = mergedItems; // recordsString;
 										if (mergedItems.size() > 0) {
-											// TODO: bin must be specified by users
-											int chrm = (int) (key / 1000000);
+											// 9 Digits Padding
+											int chrm = (int) (key / 1000000000);
 											c.output(KV.of(chrm, KV.of(key, sortedBin)));
 										}
 									}
@@ -612,7 +613,7 @@ public final class BigQueryAnnotateVariants {
 
 										Iterable<String> sortedBin = mergedItems; // recordsString;
 										if (mergedItems.size() > 0) {
-											int chrm = (int) (key / 1000000);
+											int chrm = (int) (key / 1000000000); //9 digits padding
 											c.output(KV.of(chrm, KV.of(key, sortedBin)));
 										}
 									}
@@ -714,22 +715,41 @@ public final class BigQueryAnnotateVariants {
 								@org.apache.beam.sdk.transforms.DoFn.ProcessElement
 								public void processElement(ProcessContext c) {
 
-									ArrayList<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> records = Lists
-											.newArrayList(c.element().getValue()); // Get
-																					// a
-																					// modifiable
-																					// list.
-									Collections.sort(records, ChrmID_COMPARATOR);
+//									ArrayList<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> records = Lists
+//											.newArrayList(c.element().getValue()); // Get
+//																					// a
+//																					// modifiable
+//																					// list.
+//									Collections.sort(records, ChrmID_COMPARATOR);
+//
+//									for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : records) {
+//										for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
+//
+//											for (String ItemLevel : BinLevel.getValue()) {
+//												/////////////////////////
+//												c.output(ItemLevel);
+//											}
+//										}
+//									}
 
-									for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : records) {
-										for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
+									Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
+											.getValue();
 
-											for (String ItemLevel : BinLevel.getValue()) {
-												/////////////////////////
-												c.output(ItemLevel);
+									for (int chrm = 1; chrm < 26; chrm++) {
+										for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
+											LOG.warning("Chrm: " + chrm + " ChromLevel.getKey().intValue(): " + ChromLevel.getKey().intValue());
+											if(Integer.compare(chrm, ChromLevel.getKey().intValue()) == 0) {
+												for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
+													for (String ItemLevel : BinLevel.getValue()) {
+															c.output(ItemLevel);
+													}
+												}
 											}
 										}
 									}
+									
+									
+									
 								}
 							}))
 					.apply("VCF", TextIO.write().to(options.getBucketAddrAnnotatedVCF()));

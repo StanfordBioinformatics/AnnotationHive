@@ -27,7 +27,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <beam.version>2.1.0</beam.version>
+    <beam.version>2.3.0</beam.version>
     <google.dataflow.version>2.1.0</google.dataflow.version>
     <bigquery.version>v2-rev354-1.22.0</bigquery.version>
     <google-clients.version>1.22.0</google-clients.version>
@@ -417,6 +417,11 @@
       <version>LATEST</version>
     </dependency>
 
+     <dependency>
+    	<groupId>org.apache.beam</groupId>
+    	<artifactId>beam-sdks-java-extensions-sorter</artifactId>
+    	<version>2.3.0</version>
+    </dependency>
 
     <!-- The DirectRunner is needed for unit tests. -->
     <dependency>
