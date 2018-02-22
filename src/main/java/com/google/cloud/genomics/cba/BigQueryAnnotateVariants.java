@@ -106,7 +106,7 @@ import com.google.common.base.Function;
  *            specify this file when you want to sort the output of BigQuery
  *            using BigQuery itself.
  * @param maximumBillingTier
- *            Users can specify the maximum billing tier.
+ *            Users can specify the maximum billing tier.          
  * @version 1.0
  * @since 2018-02-01
  */
@@ -280,55 +280,48 @@ public final class BigQueryAnnotateVariants {
 		long startTime = System.currentTimeMillis();
 
 		String queryString = "";
-		boolean LegacySql=true;
+		boolean LegacySql=false;
 		
 		if (options.getSampleId().isEmpty()) {
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
 						LOG.info("<============ Gene-based Annotation (mVCF) - Closet Genes (Min) ============>");
-						queryString = BigQueryFunctions.prepareGeneBasedAnnotationMinQueryConcatFields_Min_mVCF_SQLStandard(
-							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-							options.getOnlyIntrogenic(), options.getOutputFormatTable());
-						LegacySql=false;
 				} else {
 					LOG.info("<============ Gene-based Annotation (mVCF) - Closet Genes (Range) ============>");
-					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_StandardSQL(options.getVCFTables(),
-							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-							options.getTranscriptCanonicalizeRefNames(), options.getProximityThreshold(),
-							options.getOnlyIntrogenic(), options.getOutputFormatTable());
-					LegacySql=false;
-				}
+				}				
+				queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(options.getVCFTables(),
+						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+						options.getTranscriptCanonicalizeRefNames(), options.getProximityThreshold(),
+						options.getOnlyIntrogenic(), options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+				
 			} else {// Variant-based or Interval-based annotation
 				LOG.info("<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
 				queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
 						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 						options.getVariantAnnotationCanonicalizeRefNames(), false);
+				LegacySql=true;
 			}
 		} else { // e.g., LP6005038-DNA_H11
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
-					//TODO: Fix it!
-					// Step 1: Create MinTable
-					// Step 2: Join Two Tables (MinTable w/ AllDist Table)
-					queryString = BigQueryFunctions.prepareGeneBasedAnnotationQueryConcatFieldsWithSampleNamesMin(
-							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-							options.getSampleId(), options.getOnlyIntrogenic());
-
+					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closet Genes (Min) ============>");
 				} else {
-					queryString = BigQueryFunctions.prepareGeneBasedAnnotationQueryConcatFieldsWithSampleNames(
-							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-							options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic());
+					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closet Genes (Range) ============>");			
 				}
+				queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
+						options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+						options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
+						options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(), 
+						options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
 			} else {
+				LOG.info("<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
 				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(options.getVCFTables(),
 						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 						options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
 						options.getOutputFormatTable());
+				LegacySql=true;
 			}
 		}
 
@@ -336,8 +329,8 @@ public final class BigQueryAnnotateVariants {
 
 		////////////////////////////////// STEP1/////////////////////////////////////
 		////////////////////////////////// Joins/////////////////////////////////////
-//		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
-//				options.getMaximumBillingTier(), LegacySql);
+		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
+				options.getMaximumBillingTier(), LegacySql);
 
 		long tempEstimatedTime = System.currentTimeMillis() - startTime;
 		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
@@ -354,7 +347,7 @@ public final class BigQueryAnnotateVariants {
 			///////////////// STEP3: Delete the Intermediate
 			///////////////// Table///////////////////////////
 			//TODO: Add a new condition here
-//			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getOutputBigQueryTable());
+			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getOutputBigQueryTable());
 		}
 	}
 
