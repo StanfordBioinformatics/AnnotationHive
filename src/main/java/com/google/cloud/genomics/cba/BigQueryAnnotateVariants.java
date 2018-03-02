@@ -58,7 +58,7 @@ import com.google.common.base.Function;
  * 
  * @param projectID
  *            The ID of the Google Cloud project.
- * @param bigQueryDataset
+ * @param bigQueryDatasetId
  *            The ID of the user's BigQuery dataset.
  * @param outputBigQueryTable
  *            This provides the name for the table that will be created by
@@ -119,7 +119,7 @@ public final class BigQueryAnnotateVariants {
 		@Default.String("")
 		String getBigQueryDatasetId();
 
-		void setBigQueryDataset(String BigQueryDataset);
+		void setBigQueryDatasetId(String BigQueryDatasetId);
 
 		@Description("This provides BigQuery Table.")
 		@Default.String("")
@@ -232,6 +232,17 @@ public final class BigQueryAnnotateVariants {
 		Boolean getOutputFormatTable();
 
 		void setOutputFormatTable(Boolean outputFormatTable);
+		
+		
+		@Description("User can specifiy a variant in the form of \"Chromosome Id:start:end:Reference_bases:Alternate bases (e.g., chr17:1001:1001:A:C)\" )")
+		@Default.String("")
+		String getInputVariant();
+		void setInputVariant(String value);
+		
+		@Description("User can specifiy a region in the form of \"Chromosome Id:start:end (e.g., chr17:1000:2000)\" )")
+		@Default.String("")
+		String getInputRegion();
+		void setInputRegion(String value);
 
 	}
 
@@ -273,89 +284,181 @@ public final class BigQueryAnnotateVariants {
 		}
 
 		// check whether user provided VCF tables IDs
-		if (options.getVCFTables().isEmpty()) {
+		if (options.getVCFTables().isEmpty() && options.getInputVariant().isEmpty() && options.getInputRegion().isEmpty()) {
 			throw new IllegalArgumentException(
-					"Please specify VCF tables (e.g., VCFTables=genomics-public-data:platinum_genomes.variants )");
+					"Please specify either a VCF/mVCF table (e.g., VCFTables=genomics-public-data:platinum_genomes.variants) \n"
+					+ " OR a variant (e.g., chr13:68482097:68482098:CC:TT) \n"
+					+ " OR a region (e.g., chr17:1000:2001) \n");
 		}
+		
 		long startTime = System.currentTimeMillis();
 
 		String queryString = "";
 		boolean LegacySql=false;
 		
-		if (options.getSampleId().isEmpty()) {
-			if (options.getGeneBasedAnnotation()) {
-				if (options.getGeneBasedMinAnnotation()) {
-					LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
-				} else {
-					LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
-				}				
-				queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(options.getVCFTables(),
-						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-						options.getTranscriptCanonicalizeRefNames(), options.getProximityThreshold(),
-						options.getOnlyIntrogenic(), options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
-				
-			} else {// Variant-based or Interval-based annotation
-				LOG.info("<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
-				queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
-						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), false);
-				LegacySql=true;
-			}
-		} else { // e.g., LP6005038-DNA_H11
-			if (options.getGeneBasedAnnotation()) {
-				if (options.getGeneBasedMinAnnotation()) {
-					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Min) ============>");
-				} else {
-					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Range) ============>");			
+		if (!options.getVCFTables().isEmpty()) {
+			if (options.getSampleId().isEmpty()) {
+				if (options.getGeneBasedAnnotation()) {
+					if (options.getGeneBasedMinAnnotation()) {
+						LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
+					} else {
+						LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
+					}
+					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
+							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
+							options.getProximityThreshold(), options.getOnlyIntrogenic(),
+							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+
+				} else {// Variant-based or Interval-based annotation
+					LOG.info(
+							"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
+					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
+							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+							options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getVariantAnnotationCanonicalizeRefNames(), false);
+					LegacySql = true;
 				}
-				queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
-						options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-						options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-						options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(), 
-						options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
-			} else {
-				LOG.info("<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
-				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(options.getVCFTables(),
-						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-						options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
-						options.getOutputFormatTable());
-				LegacySql=true;
+			} else { // e.g., LP6005038-DNA_H11
+				if (options.getGeneBasedAnnotation()) {
+					if (options.getGeneBasedMinAnnotation()) {
+						LOG.info(
+								"<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Min) ============>");
+					} else {
+						LOG.info(
+								"<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Range) ============>");
+					}
+					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
+							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
+							options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(),
+							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+				} else {
+					LOG.info(
+							"<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
+					queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(options.getVCFTables(),
+							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+							options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
+							options.getOutputFormatTable());
+					LegacySql = true;
+				}
 			}
 		}
+		else if (!options.getInputVariant().isEmpty()){
+			LOG.info("<============ Variant-based Annotation ( "+ options.getInputVariant() +" ) ============>");
 
+			//QC
+			String[] va = QC_Test_Variant( options.getInputVariant());
+			if (va==null) {
+				throw new IllegalArgumentException(
+						"Please specify either a VCF/mVCF table (e.g., VCFTables=genomics-public-data:platinum_genomes.variants) \n"
+						+ " OR a variant (e.g., chr13:68482097:68482098:CC:TT) \n"
+						+ " OR a region (e.g., chr17:1000:2001) \n");
+			}
+			
+
+			queryString = BigQueryFunctions.prepareOneVariantQuery_StandardSQL(va, 
+					options.getVariantAnnotationTables(),
+					options.getVariantAnnotationCanonicalizeRefNames());
+			LegacySql = true;
+
+		}else { //options.getInputRegion().isEmpty()
+			
+//			queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(
+//					options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+//					options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
+//					options.getProximityThreshold(), options.getOnlyIntrogenic(),
+//					options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+
+		}
+
+		
+		
 		LOG.info("Query: " + queryString);
 
-		////////////////////////////////// STEP1/////////////////////////////////////
-		////////////////////////////////// Joins/////////////////////////////////////
-		runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
-				options.getMaximumBillingTier(), LegacySql);
-
-		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
-
-		if (!options.getOutputFormatTable()) {
-
-			////////////////////////////////// STEP2////////////////////////////////////
-			////////////////////////////////// Sort/////////////////////////////////////
-			startTime = System.currentTimeMillis();
-			runSort();
-			tempEstimatedTime = System.currentTimeMillis() - startTime;
-			LOG.info("Execution Time for Sort Query: " + tempEstimatedTime);
-
-			///////////////// STEP3: Delete the Intermediate
-			///////////////// Table///////////////////////////
-			//TODO: Add a new condition here
-			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
-		}
+//		////////////////////////////////// STEP1/////////////////////////////////////
+//		////////////////////////////////// Joins/////////////////////////////////////
+//		runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
+//				options.getMaximumBillingTier(), LegacySql);
+//
+//		long tempEstimatedTime = System.currentTimeMillis() - startTime;
+//		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
+//
+//		if (!options.getOutputFormatTable()) {
+//
+//			////////////////////////////////// STEP2////////////////////////////////////
+//			////////////////////////////////// Sort/////////////////////////////////////
+//			startTime = System.currentTimeMillis();
+//			runSort();
+//			tempEstimatedTime = System.currentTimeMillis() - startTime;
+//			LOG.info("Execution Time for Sort Query: " + tempEstimatedTime);
+//
+//			///////////////// STEP3: Delete the Intermediate
+//			///////////////// Table///////////////////////////
+//			//TODO: Add a new condition here
+//			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
+//		}
 	}
 
-	private static void runQuery(String queryString, String bigQueryDataset, String outputBigQueryTable,
+	private static String[] QC_Test_Variant(String inputVariant) {
+
+		try {
+			String[] va = inputVariant.split(":");
+			if (va.length < 5 || va.length > 5) {
+				throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
+						+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+						+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+						+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+			}
+
+			String chr = "";
+			if (va[0].contains("chr")) {
+				chr = va[0].replace("chr", "");
+			}
+			if (!chr.contentEquals("M") && !chr.contentEquals("MT") && !chr.contentEquals("X")
+					&& !chr.contentEquals("Y")) {
+				int chrID = Integer.parseInt(chr);
+				if (chrID < 1 && chrID > 23) {
+					throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
+							+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+							+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+							+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+				}
+			}
+			va[0] = chr;
+
+			int start= 	Integer.parseInt(va[1]);
+			int end = Integer.parseInt(va[2]);
+			if(start<0 || end<0 || end<start) {
+				throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
+						+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+						+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+						+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+			}
+			
+//			if (va[3].matches("^[a-A-T-t-c-C-T-t-g-G]+$")) {
+//				  // contains only listed chars
+//				} else {
+//				  // contains other chars
+//				}
+			
+			
+			return va;
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+
+	}
+
+	private static void runQuery(String queryString, String bigQueryDatasetId, String outputBigQueryTable,
 			boolean allowLargeResults, int maximumBillingTier, boolean LegacySql) {
 
 		try {
-			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDataset, outputBigQueryTable,
+			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDatasetId, outputBigQueryTable,
 					allowLargeResults, maximumBillingTier, LegacySql);
 		} catch (TimeoutException e) {
 			// TODO Auto-generated catch block
