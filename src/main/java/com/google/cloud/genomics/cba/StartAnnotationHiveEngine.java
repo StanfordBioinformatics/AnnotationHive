@@ -36,6 +36,7 @@ public class StartAnnotationHiveEngine {
 					+ "\t\tExportVCFFromGGToBigQuery\n"
 					+ "\t\tImportAnnotationFromGCSToBigQuery\n"
 					+ "\t\tBigQueryAnnotateVariants\n"
+					+ "\t\tBigQueryAnnotationRepository\n"
 					+ "##################AnnotationHive#####################\n\n");	
 		}
 
@@ -62,6 +63,9 @@ public class StartAnnotationHiveEngine {
 				if (args[0].equalsIgnoreCase("BigQueryAnnotateVariants")){
 				BigQueryAnnotateVariants.run(Arrays.copyOfRange(args, 1, args.length));
 			}
+			else if (args[0].equalsIgnoreCase("BigQueryAnnotationRepository") ) {
+					BigQueryAnnotationRepository.run(Arrays.copyOfRange(args, 1, args.length));
+			}
 			else
 			throw new IllegalArgumentException(
 					"\n\n##################AnnotationHive#####################\n"
@@ -73,6 +77,7 @@ public class StartAnnotationHiveEngine {
 					+ "\t\tExportVCFFromGGToBigQuery\n"
 					+ "\t\tImportAnnotationFromGCSToBigQuery\n"
 					+ "\t\tBigQueryAnnotateVariants\n"
+					+ "\t\tBigQueryAnnotationRepository\n"
 					+ "##################AnnotationHive#####################\n\n");	
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

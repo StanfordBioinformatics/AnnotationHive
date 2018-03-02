@@ -290,9 +290,9 @@ public class ImportAnnotationFromGCSToBigQuery {
 	    	fields.add(Field.of("AnnotationSetType", Field.Type.string()));
 	    	fields.add(Field.of("AnnotationSetFields", Field.Type.string()));
 	    	fields.add(Field.of("CreationDate", Field.Type.string()));
-	    	fields.add(Field.of("HumanAssembly", Field.Type.string()));
+	    	fields.add(Field.of("Build", Field.Type.string()));
 	    	fields.add(Field.of("AnnotationSetSize", Field.Type.string()));
-	    	fields.add(Field.of("info", Field.Type.string()));
+	    	fields.add(Field.of("Info", Field.Type.string()));
 			Schema schema = Schema.of(fields);		
 			TableId tableId = TableId.of(options.getBigQueryDatasetId(), "AnnotationList");
 
@@ -307,7 +307,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 		    rowContent.put("AnnotationSetType", "Test");
 		    rowContent.put("AnnotationSetFields", "Test");
 		    rowContent.put("CreationDate", "Test");
-		    rowContent.put("HumanAssembly", "Test");
+		    rowContent.put("Build", "Test");
 		    rowContent.put("AnnotationSetSize", "Test");
 		    rowContent.put("Info", "Test");
 		    InsertAllResponse response;
@@ -344,7 +344,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 	    rowContent.put("AnnotationSetType", options.getAnnotationType());
 	    rowContent.put("AnnotationSetFields", options.getHeader());
 	    rowContent.put("CreationDate", dateFormat.format(date).toString());
-	    rowContent.put("HumanAssembly", options.getAssemblyId());
+	    rowContent.put("Build", options.getAssemblyId());
 
 		QueryResponse rs = BigQueryFunctions.runquery(BigQueryFunctions.countQuery(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()));
 		QueryResult result = rs.getResult();
@@ -475,9 +475,20 @@ public class ImportAnnotationFromGCSToBigQuery {
 							row.set("start", Integer.parseInt(vals[1]));
 						}
 						
-						row.set("end", vals[2])
-						.set("base", vals[3])
-						.set("alt", vals[4]);
+						row.set("end", vals[2]);
+						
+						/*Make sure to handle special cases for reference bases [insertion]*/
+						if (vals[3] == null || vals[3].isEmpty() || vals[3] =="-")
+							row.set("base", "");
+						else
+							row.set("base", vals[3]);
+						
+						
+						/*Make sure to handle special cases for alternate bases [deletion] */
+						if (vals[4] == null || vals[4].isEmpty() || vals[4] =="-")
+							row.set("alt", "");
+						else
+							row.set("alt", vals[4]);
 					
 						for (int index=5; index<vals.length; index++ )
 							row.set(inputFields[index], vals[index]);

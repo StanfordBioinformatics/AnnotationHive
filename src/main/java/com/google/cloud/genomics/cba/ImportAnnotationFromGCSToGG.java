@@ -291,7 +291,8 @@ public class ImportAnnotationFromGCSToGG {
 					else if (asType.equalsIgnoreCase("VARIANT") && words.length >= 5) {
 
 						VariantAnnotation va = new VariantAnnotation();
-						if (words[4] == null || words[4].isEmpty())
+						/*Make sure to handle special case null cases for alternate bases*/
+						if (words[4] == null || words[4].isEmpty() || words[4] =="-")
 							va.setAlternateBases("");
 						else // Add alternateBases
 							va.setAlternateBases(
@@ -299,7 +300,7 @@ public class ImportAnnotationFromGCSToGG {
 
 						a.setType("VARIANT").setAnnotationSetId(asId).setReferenceName(canonicalizeRefName(words[0]))
 								.setVariant(va).setInfo(new HashMap<String, List<Object>>());
-   
+  
 						if (this.is_0_Base) {
 							a.setStart(Long.parseLong(words[1])).setEnd(Long.parseLong(words[2]));
 						} else { // 1-Base

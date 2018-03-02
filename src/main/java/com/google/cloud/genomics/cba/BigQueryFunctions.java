@@ -27,13 +27,15 @@ import com.google.cloud.bigquery.TableId;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
+
 
 public class BigQueryFunctions {
+	private static final Logger LOG = Logger.getLogger(BigQueryAnnotateVariants.class.getName());
+
 	public static boolean DEBUG = false;
 
 //	public static void sort(String projectId, String datasetId, String tableId, String outputFile, int BinSize)
@@ -1363,7 +1365,6 @@ public class BigQueryFunctions {
 		 	 
 		String AllFields=""; // Use to 
 		String QueryCalcAll="";
-		String QueryCalcMin="";
 		String AnnotationQuery="";
 						
 				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
@@ -2406,6 +2407,59 @@ public class BigQueryFunctions {
 		}
 
 		return Query;
+	}
+
+
+
+	public static void listAnnotationDatasets(String projectId, String datasetId, String tableId,
+			String annotationDatasetBuild, boolean printAll, String searchKeyword) {
+				
+		String queryStat ="";
+		
+		String Fields=" AnnotationSetName, AnnotationSetType, AnnotationSetSize, Build, AnnotationSetFields ";
+		if (printAll) {
+			Fields=" * ";
+		}
+		
+		if (!annotationDatasetBuild.isEmpty())
+		{
+			queryStat ="SELECT "+ Fields + " from [" + projectId + ":"
+					+ datasetId + "." + tableId + "] "
+					+ "WHERE Build=\"" + annotationDatasetBuild + "\"";
+		}else if (!searchKeyword.isEmpty()) {
+			queryStat ="SELECT "+ Fields + " from [" + projectId + ":"
+					+ datasetId + "." + tableId + "] "
+					+ "WHERE AnnotationSetName LIKE \"%" + searchKeyword + "%\"";
+		}
+		else {
+			queryStat ="SELECT "+ Fields + "  from [" + projectId + ":"
+					+ datasetId + "." + tableId + "] "
+					+ " Order By Build";
+		}
+		
+		// Get the results.
+		System.out.println("Stat Query: " + queryStat);
+		QueryResponse response = runquery(queryStat);
+		QueryResult result = response.getResult();
+		LOG.info("");
+		LOG.info("");
+		LOG.info("<============ AnnotationList ============>");
+		while (result != null) {
+			for (List<FieldValue> row : result.iterateAll()) {
+			    Integer columnsCount = row.size();
+			    StringBuilder sb = new StringBuilder();
+			    for(int i = 0; i < columnsCount; i++){
+			    		if(i+1<columnsCount)
+			    			sb.append(row.get(i).getStringValue() + " | ");
+			    		else
+			    			sb.append(row.get(i).getStringValue());
+
+			    }
+			    System.out.println(sb.toString());
+			}
+			result = result.getNextPage();
+		}
+		
 	}
 
 }

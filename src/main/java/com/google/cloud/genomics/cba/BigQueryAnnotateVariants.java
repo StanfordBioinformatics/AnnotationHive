@@ -117,7 +117,7 @@ public final class BigQueryAnnotateVariants {
 
 		@Description("This provides BigQuery Dataset ID.")
 		@Default.String("")
-		String getBigQueryDataset();
+		String getBigQueryDatasetId();
 
 		void setBigQueryDataset(String BigQueryDataset);
 
@@ -285,9 +285,9 @@ public final class BigQueryAnnotateVariants {
 		if (options.getSampleId().isEmpty()) {
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
-						LOG.info("<============ Gene-based Annotation (mVCF) - Closet Genes (Min) ============>");
+					LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
 				} else {
-					LOG.info("<============ Gene-based Annotation (mVCF) - Closet Genes (Range) ============>");
+					LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
 				}				
 				queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(options.getVCFTables(),
 						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
@@ -305,9 +305,9 @@ public final class BigQueryAnnotateVariants {
 		} else { // e.g., LP6005038-DNA_H11
 			if (options.getGeneBasedAnnotation()) {
 				if (options.getGeneBasedMinAnnotation()) {
-					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closet Genes (Min) ============>");
+					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Min) ============>");
 				} else {
-					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closet Genes (Range) ============>");			
+					LOG.info("<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Range) ============>");			
 				}
 				queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
 						options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
@@ -329,7 +329,7 @@ public final class BigQueryAnnotateVariants {
 
 		////////////////////////////////// STEP1/////////////////////////////////////
 		////////////////////////////////// Joins/////////////////////////////////////
-		runQuery(queryString, options.getBigQueryDataset(), options.getOutputBigQueryTable(), true,
+		runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
 				options.getMaximumBillingTier(), LegacySql);
 
 		long tempEstimatedTime = System.currentTimeMillis() - startTime;
@@ -347,7 +347,7 @@ public final class BigQueryAnnotateVariants {
 			///////////////// STEP3: Delete the Intermediate
 			///////////////// Table///////////////////////////
 			//TODO: Add a new condition here
-			BigQueryFunctions.deleteTable(options.getBigQueryDataset(), options.getOutputBigQueryTable());
+			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
 		}
 	}
 
@@ -381,7 +381,7 @@ public final class BigQueryAnnotateVariants {
 			////////////////////////////////// Sort/////////////////////////////////////
 			PCollection<TableRow> variantData = p
 					.apply(BigQueryIO.read().fromQuery("SELECT  * FROM [" + options.getProjectId() + ":"
-							+ options.getBigQueryDataset() + "." + options.getOutputBigQueryTable() + "]"));
+							+ options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable() + "]"));
 
 			PCollection<KV<Long, TableRow>> variantDataKV = variantData.apply(ParDo.of(new BinVariantsFn()));
 			PCollection<KV<Integer, KV<Long, Iterable<String>>>> SortedBin;
@@ -825,7 +825,7 @@ public final class BigQueryAnnotateVariants {
 			////////////////////////////////// Output is a local
 			////////////////////////////////// file/////////////////////////////////////
 			try {
-				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDataset(),
+				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDatasetId(),
 						options.getOutputBigQueryTable(), options.getLocalOutputFilePath(), options.getBinSize());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
