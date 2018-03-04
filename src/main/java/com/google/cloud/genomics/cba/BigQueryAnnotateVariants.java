@@ -169,9 +169,9 @@ public final class BigQueryAnnotateVariants {
 
 		@Description("This provides the prefix for reference field in Transcript tables (e.g, \"chr\")")
 		@Default.String("")
-		String getTranscriptCanonicalizeRefNames();
+		String getGenericCanonicalizeRefNames();
 
-		void setTranscriptCanonicalizeRefNames(String TranscriptCanonicalizeRefNames);
+		void setGenericCanonicalizeRefNames(String GenericCanonicalizeRefNames);
 
 		@Description("This provides the prefix for reference field in Annotation tables (e.g, \"chr\")")
 		@Default.String("")
@@ -306,7 +306,7 @@ public final class BigQueryAnnotateVariants {
 					}
 					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
 							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
+							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
 							options.getProximityThreshold(), options.getOnlyIntrogenic(),
 							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
 
@@ -315,7 +315,7 @@ public final class BigQueryAnnotateVariants {
 							"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
 					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-							options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 							options.getVariantAnnotationCanonicalizeRefNames(), false);
 					LegacySql = true;
 				}
@@ -330,7 +330,7 @@ public final class BigQueryAnnotateVariants {
 					}
 					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
 							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
+							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
 							options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(),
 							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
 				} else {
@@ -338,7 +338,7 @@ public final class BigQueryAnnotateVariants {
 							"<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
 					queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(options.getVCFTables(),
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-							options.getTranscriptCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 							options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
 							options.getOutputFormatTable());
 					LegacySql = true;
@@ -349,13 +349,11 @@ public final class BigQueryAnnotateVariants {
 			LOG.info("<============ Variant-based Annotation ( "+ options.getInputVariant() +" ) ============>");
 
 			//QC
-			String[] va = QC_Test_Variant( options.getInputVariant());
+			String[] va = QC_Test_Input_Variant( options.getInputVariant(), false);
 			if (va==null) {
 				throw new IllegalArgumentException(
-						"Please specify either a VCF/mVCF table (e.g., VCFTables=genomics-public-data:platinum_genomes.variants) \n"
-						+ " OR a variant (e.g., chr13:68482097:68482098:CC:TT) \n"
-						+ " OR a region (e.g., chr17:1000:2001) \n");
-			}
+						"Please specify a variant (e.g., chr13:68482097:68482098:CC:TT) \n");		
+				}
 			
 
 			queryString = BigQueryFunctions.prepareOneVariantQuery_StandardSQL(va, 
@@ -365,12 +363,21 @@ public final class BigQueryAnnotateVariants {
 
 		}else { //options.getInputRegion().isEmpty()
 			
-//			queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(
-//					options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-//					options.getGenericAnnotationTables(), options.getTranscriptCanonicalizeRefNames(),
-//					options.getProximityThreshold(), options.getOnlyIntrogenic(),
-//					options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+			LOG.info("<============ Region-based Annotation ( "+ options.getInputVariant() +" ) ============>");
 
+			//QC
+			String[] region = QC_Test_Input_Variant( options.getInputRegion(), true);
+			if (region==null) {
+				throw new IllegalArgumentException(
+						"Please specify a region (e.g., chr17:1000:2001) \n");
+			}
+			
+
+			queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(region, 
+					options.getGenericAnnotationTables(),
+					options.getGenericCanonicalizeRefNames());
+			LegacySql = true;
+			
 		}
 
 		
@@ -401,15 +408,26 @@ public final class BigQueryAnnotateVariants {
 //		}
 	}
 
-	private static String[] QC_Test_Variant(String inputVariant) {
+
+	private static String[] QC_Test_Input_Variant(String inputVariant, boolean region_based) {
 
 		try {
 			String[] va = inputVariant.split(":");
-			if (va.length < 5 || va.length > 5) {
-				throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
-						+ "SNP example: \"chr17:1001:1001:A:C\" \n"
-						+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
-						+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+			
+			int numParameters=5; //Variant  
+			if (region_based)
+				numParameters=3; // region
+				
+				
+			if (va.length < numParameters || va.length > numParameters) {
+				if(!region_based)
+					throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
+							+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+							+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+							+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+				else
+					throw new IllegalArgumentException("The input region is not correct. Here is an example: \n"
+							+ "\"chr17:1001:2001\" \n");
 			}
 
 			String chr = "";
@@ -420,22 +438,32 @@ public final class BigQueryAnnotateVariants {
 					&& !chr.contentEquals("Y")) {
 				int chrID = Integer.parseInt(chr);
 				if (chrID < 1 && chrID > 23) {
-					throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
-							+ "SNP example: \"chr17:1001:1001:A:C\" \n"
-							+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
-							+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+					if(!region_based)
+						throw new IllegalArgumentException("The input chormosome is not correct. Here are three examples: \n"
+								+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+								+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+								+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+					else
+						throw new IllegalArgumentException("The input region is not correct. Here is an example: \n"
+								+ "\"chr17:1001:2001\" \n");
 				}
 			}
 			va[0] = chr;
-
+			
 			int start= 	Integer.parseInt(va[1]);
 			int end = Integer.parseInt(va[2]);
 			if(start<0 || end<0 || end<start) {
-				throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
-						+ "SNP example: \"chr17:1001:1001:A:C\" \n"
-						+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
-						+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
-			}
+				if(!region_based)
+					throw new IllegalArgumentException("The input chormosome is not correct. Here are three examples: \n"
+							+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+							+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+							+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+				else
+					throw new IllegalArgumentException("The input region is not correct. Here is an example: \n"
+							+ "\"chr17:1001:2001\" \n");
+				}
+			
+			//TODO: check input reference bases and alternate bases
 			
 //			if (va[3].matches("^[a-A-T-t-c-C-T-t-g-G]+$")) {
 //				  // contains only listed chars

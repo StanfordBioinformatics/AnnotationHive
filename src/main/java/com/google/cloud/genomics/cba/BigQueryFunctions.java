@@ -2522,18 +2522,18 @@ public class BigQueryFunctions {
 							}
 							else //If there is only one feature
 								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] ;
-							
+							//TODO: Limited to 64 databases 
 							if(fieldIndex==2){
 	
 								if (TableInfo.length>3){ //Top Select 
 									//(e.g.,     CONCAT(Annotation3.name, "/",Annotation3.name2) AS Annotation3.Annotation3)
 									//AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-									AllFields += "," + AliasTableName +"." + AliasTableName + " ";
+									AllFields += ", max(" + AliasTableName +"." + AliasTableName + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex] + " ";
 									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + AliasTableName + " ) ";
 								}
 								else{
 									//AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-									AllFields += ","+ AliasTableName +"." + TableInfo[fieldIndex] + " ";
+									AllFields += ", max("+ AliasTableName +"." + TableInfo[fieldIndex] + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex] + " ";
 
 									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
 								}
@@ -2566,14 +2566,124 @@ public class BigQueryFunctions {
 		}
 
 		String Query= "  SELECT "
-				+ chrm + " as chrm, "+ start + " as start, "+ end + " as end, " + RefBases + " as reference_bases, "
+				+ chrm + " as chrm, " + start + " as start, "+ end + " as end, " + RefBases + " as reference_bases, "
 				+   AltBase + " as alternate_bases " + AllFields 
 				+ " FROM " + AnnotationQuery;
 					
-		Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases " + AllFields; 
+		Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases " ; //+ AllFields; 
 	
 		
 		return Query;
 	}
 
+	public static String prepareOneRegionQuery_StandardSQL(String[] region, String TranscriptAnnotationTableNames,
+			  String TranscriptCanonicalizeRefNames) {
+		
+		 
+			
+	String[] TranscriptAnnotations=null;
+	String[] TranscriptCanonicalize=null;
+
+	/////////////////////Transcripts//////////////
+	if(TranscriptAnnotationTableNames!=null){
+		TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
+
+		if(!TranscriptCanonicalizeRefNames.isEmpty()){
+			TranscriptCanonicalize = TranscriptCanonicalizeRefNames.split(","); 
+			if (TranscriptAnnotations.length != TranscriptCanonicalize.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and transcript tables");
+		}
+	}
+
+		String AllFields=""; // Use to 
+		String AnnotationQuery="";
+		int AnnotationIndex=1; // Use for creating alias names
+		
+		String chrm= "\"" + region[0] + "\"";
+		int start= (Integer.parseInt(region[1])-1)  ; //0-base
+		int end=  Integer.parseInt(region[2]);
+		
+			
+		/*#######################Prepare VCF queries#######################*/
+		if(TranscriptAnnotations!=null){
+			for (int index=0; index< TranscriptAnnotations.length; index++, AnnotationIndex++){
+						
+						/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
+						 * ProjectId: gbsc-gcp-project-cba
+						 * DatasetId: PublicAnnotationSets
+						 * TableId: hg19_GME
+						 * Features: GME_AF:GME_NWA:GME_NEA
+						 */
+						
+						String [] TableInfo = TranscriptAnnotations[index].split(":");
+												
+						String RequestedFields="";
+						String AliasTableName= "Annotation" + AnnotationIndex; 
+						String TableName = TableInfo[0]+":"+TableInfo[1];
+						
+						
+						for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
+							if (TableInfo.length>3){ // Creating CONCAT
+								if (fieldIndex+1 < TableInfo.length)
+									RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+								else
+									RequestedFields += AliasTableName +"." + TableInfo[fieldIndex];
+							}
+							else //If there is only one feature
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] ;
+							//TODO: Limited to 64 databases 
+							if(fieldIndex==2){
+	
+								if (TableInfo.length>3){ //Top Select 
+									//(e.g.,     CONCAT(Annotation3.name, "/",Annotation3.name2) AS Annotation3.Annotation3)
+									//AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+									AllFields += ", max(" + AliasTableName +"." + AliasTableName + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex] + " ";
+									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+								}
+								else{
+									//AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+									AllFields += ", max("+ AliasTableName +"." + TableInfo[fieldIndex] + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex] + " ";
+
+									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+								}
+							}
+														
+						}
+						
+						//IF the number of fields is more that 1 -> then concat all of them
+						if (TableInfo.length>3)
+							AnnotationQuery += " ( SELECT " + chrm + ", " + start + "," + end + ", "
+									+ "CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+						else
+							AnnotationQuery +=  " ( SELECT " + chrm + ", " + start + "," + end + ", "
+								    + RequestedFields;
+
+						AnnotationQuery +=
+							 " FROM [" + TableName +"] AS " + AliasTableName ;
+						AnnotationQuery += " WHERE (" + AliasTableName + ".chrm = " + chrm + ") "
+								+ " AND ("+ AliasTableName +".start <= " + end +") AND (" + start + "<= "+ AliasTableName +".end ) ";				
+				
+									
+						//This is the case when we have transcript annotations 
+						if(index+1 <  TranscriptAnnotations.length)
+							AnnotationQuery +=  "), ";
+						else
+							AnnotationQuery +=  ") ";
+			}
+
+		}
+
+		String Query= "  SELECT "
+				+ chrm + " as chrm, " + start + " as start, "+ end + " as end " + AllFields 
+				+ " FROM " + AnnotationQuery;
+					
+		Query += " GROUP BY  chrm, start, END " ; //+ AllFields; 
+	
+		
+		return Query;
+	}
+	
+	
+	
+	
 }
