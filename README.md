@@ -198,9 +198,8 @@ Users can submit a list of variants as VCF file to AnnotationHive using ```--inp
 
 Users can also submit a list of variants as VCF file to AnnotationHive using 
 
-   ```
-   --inputRegion=chr11:25900005:25900505,chrY:9323748:9323848```
-
+   ```--inputRegion=chr11:25900005:25900505,chrY:9323748:9323848```
+ 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --gcpTempLocation=gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID>  --outputBigQueryTable=<YOUR_Output_Table> --variantAnnotationTables=<>  --inputRegion=chr11:25900005:25900405,chrY:9323748:9323848 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --localOutputFilePath=<Local_Dir>/YOUR_filename.vcf --bigQuerySort=true" -Pdataflow-runner
    ```
