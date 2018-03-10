@@ -50,18 +50,20 @@
 
 * Upload the sample transcript annotation (Samples/sample_transcript_annotation_chr17.bed)
  
-    ```
-    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="UploadFileToGCS --project=<YOUR_Google_Cloud_Project_ID> --username=<YOUR_Google_Cloud_Registered_Email> --bucketName=<Your_Google_Cloud_Bucket_Name> --localFilenameAddr=Samples/sample_transcript_annotation_chr17.bed --cloudObjectName=sample_transcript_annotation_chr17.bed --runner=DataflowRunner" -Pdataflow-runner
-    ```
+   ```
+   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="UploadFileToGCS --project=<YOUR_Google_Cloud_Project_ID> --username=<YOUR_Google_Cloud_Registered_Email> --bucketName=<Your_Google_Cloud_Bucket_Name> --localFilenameAddr=Samples/sample_transcript_annotation_chr17.bed --cloudObjectName=sample_transcript_annotation_chr17.bed --runner=DataflowRunner" -Pdataflow-runner
+   ```
+
 * Alternatively, you can easily upload/remove/read/rename files on the Google Cloud Storage using [gsutil] (https://cloud.google.com/storage/docs/gsutil) tool 
-    ```
- gsutil cp Samples/sample_transcript_annotation_chr17.bed gs://<Your_Google_Cloud_Bucket_Name>/<DIR>
-    ```
+
+   ```
+   gsutil cp Samples/sample_transcript_annotation_chr17.bed gs://<Your_Google_Cloud_Bucket_Name>/<DIR>
+   ```
 * Upload the sample variant annotation (Samples/sample_variant_annotation_chr17.bed)
 
-    ```
-gsutil cp Samples/sample_variant_annotation_chr17.bed gs://<Your_Google_Cloud_Bucket_Name>/<DIR>
-    ``` 
+   ```
+   gsutil cp Samples/sample_variant_annotation_chr17.bed gs://<Your_Google_Cloud_Bucket_Name>/<DIR>
+   ``` 
 
 * Upload the sample VCF file (Samples/NA12877-chr17.vcf)
 
