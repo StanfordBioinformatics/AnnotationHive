@@ -139,11 +139,11 @@ After creating AnnotationList Table successfully, then you can import your annot
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4 --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17.bed --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Link=..., Date=DD-MM-YYYY'" -Pdataflow-runner
  ```
 
-You can specify sepatator charector between columns (default value is "\\s+" that covers all type of spaces. If you only have tab the set it to `\t`)   
 ```--columnSeparator```
+You can specify sepatator charector between columns (default value is '\\s+' that covers all type of spaces. If you only have tab the set it to `\t`)   
 
-If the table exist, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
 ```--forceUpdate```   
+If the table exist, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
 
  
 
