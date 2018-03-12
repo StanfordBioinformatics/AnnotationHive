@@ -1,7 +1,7 @@
 package com.google.cloud.genomics.cba;
 
 /*
- * Copyright (C) 2016-2017 Stanford University.
+ * Copyright (C) 2016-2018 Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -84,10 +84,6 @@ public class ExportVCFFromGGToBigQuery {
 		options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
 		auth = GenomicsOptions.Methods.getGenomicsAuth(options);
-
-//		if (options.getGoogleGenomicsDatasetId().isEmpty()) {
-//			throw new IllegalArgumentException("googleGenomicsDatasetId must be specified");
-//		}
 
 		if (options.getProject().isEmpty()) {
 			throw new IllegalArgumentException("project must be specified");

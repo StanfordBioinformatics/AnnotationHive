@@ -14,8 +14,6 @@ package com.google.cloud.genomics.cba;
  * the License.
  */
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -39,7 +37,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.extensions.sorter.*;
 
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -106,7 +103,7 @@ import com.google.common.base.Function;
  *            specify this file when you want to sort the output of BigQuery
  *            using BigQuery itself.
  * @param maximumBillingTier
- *            Users can specify the maximum billing tier.          
+ *            Users can specify the maximum billing tier.
  * @version 1.0
  * @since 2018-02-01
  */
@@ -232,16 +229,17 @@ public final class BigQueryAnnotateVariants {
 		Boolean getOutputFormatTable();
 
 		void setOutputFormatTable(Boolean outputFormatTable);
-		
-		
+
 		@Description("User can specifiy a variant in the form of \"Chromosome Id:start:end:Reference_bases:Alternate bases (e.g., chr17:1001:1001:A:C)\" )")
 		@Default.String("")
 		String getInputVariant();
+
 		void setInputVariant(String value);
-		
+
 		@Description("User can specifiy a region in the form of \"Chromosome Id:start:end (e.g., chr17:1000:2000)\" )")
 		@Default.String("")
 		String getInputRegion();
+
 		void setInputRegion(String value);
 
 	}
@@ -254,7 +252,7 @@ public final class BigQueryAnnotateVariants {
 	 * <h1>This function is the main function that populates queries and calls
 	 * dataflow/BigQuering sorting
 	 */
-	public static void run(String[] args) throws GeneralSecurityException, IOException {
+	public static void run(String[] args) {
 
 		// TODO: Make sure all VCF files and annotation sets are in the same
 		// systems (e.g., hg19/GRCh37 or hg20/GRCh38)
@@ -284,18 +282,18 @@ public final class BigQueryAnnotateVariants {
 		}
 
 		// check whether user provided VCF tables IDs
-		if (options.getVCFTables().isEmpty() && options.getInputVariant().isEmpty() && options.getInputRegion().isEmpty()) {
+		if (options.getVCFTables().isEmpty() && options.getInputVariant().isEmpty()
+				&& options.getInputRegion().isEmpty()) {
 			throw new IllegalArgumentException(
 					"Please specify either a VCF/mVCF table (e.g., VCFTables=genomics-public-data:platinum_genomes.variants) \n"
-					+ " OR a variant (e.g., chr13:68482097:68482098:CC:TT) \n"
-					+ " OR a region (e.g., chr17:1000:2001) \n");
+							+ " OR a variant (e.g., chr13:68482097:68482098:CC:TT) \n"
+							+ " OR a region (e.g., chr17:1000:2001) \n");
 		}
-		
+
 		long startTime = System.currentTimeMillis();
 
 		String queryString = "";
-		boolean LegacySql=false;
-		
+		boolean LegacySql = false;
 		if (!options.getVCFTables().isEmpty()) {
 			if (options.getSampleId().isEmpty()) {
 				if (options.getGeneBasedAnnotation()) {
@@ -340,94 +338,141 @@ public final class BigQueryAnnotateVariants {
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 							options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
-							options.getOutputFormatTable());
+							options.getOutputFormatTable(), false);
 					LegacySql = true;
 				}
 			}
-		}
-		else if (!options.getInputVariant().isEmpty()){
-			LOG.info("<============ Variant-based Annotation ( "+ options.getInputVariant() +" ) ============>");
+		} else if (!options.getInputVariant().isEmpty()) {
+			LOG.info("<============ Variant-based Annotation ( " + options.getInputVariant() + " ) ============>");
 
-			//QC
-			String[] va = QC_Test_Input_Variant( options.getInputVariant(), false);
-			if (va==null) {
-				throw new IllegalArgumentException(
-						"Please specify a variant (e.g., chr13:68482097:68482098:CC:TT) \n");		
-				}
-			
+			// QC
+			String[] VAs = options.getInputVariant().split(",");
+			List<String[]> listVA = new ArrayList<String[]>(VAs.length);
+			;
+			for (String v : VAs)
+				listVA.add(QC_Test_Input_Variant(v, false));
 
-			queryString = BigQueryFunctions.prepareOneVariantQuery_StandardSQL(va, 
-					options.getVariantAnnotationTables(),
-					options.getVariantAnnotationCanonicalizeRefNames());
-			LegacySql = true;
-
-		}else { //options.getInputRegion().isEmpty()
-			
-			LOG.info("<============ Region-based Annotation ( "+ options.getInputVariant() +" ) ============>");
-
-			//QC
-			String[] region = QC_Test_Input_Variant( options.getInputRegion(), true);
-			if (region==null) {
-				throw new IllegalArgumentException(
-						"Please specify a region (e.g., chr17:1000:2001) \n");
+			if (listVA.isEmpty()) {
+				throw new IllegalArgumentException("Please specify a variant (e.g., chr13:68482097:68482098:CC:TT) \n");
 			}
-			
 
-			queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(region, 
-					options.getGenericAnnotationTables(),
-					options.getGenericCanonicalizeRefNames());
+			if (listVA.size() == 1) {
+				queryString = BigQueryFunctions.prepareOneVariantQuery_StandardSQL(listVA.get(0),
+						options.getVariantAnnotationTables(), options.getVariantAnnotationCanonicalizeRefNames());
+			} else {// >1
+					// create a small VCF table w/ the input dataset
+				String tempTableName = "`" + options.getProjectId() + "." + options.getBigQueryDatasetId() + "."
+						+ "AnnotationHiveTempVCFTable`";
+				queryString = BigQueryFunctions.createTempVCFTable(listVA, tempTableName, true);
+				// Create the temp VCF table
+				runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
+						options.getMaximumBillingTier(), LegacySql);
+
+				String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
+						+ "AnnotationHiveTempVCFTable";
+
+				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
+						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+						options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true);
+			}
+
 			LegacySql = true;
-			
+
+		} else { // options.getInputRegion().isEmpty()
+
+			LOG.info("<============ Region-based Annotation ( " + options.getInputVariant() + " ) ============>");
+
+			if (options.getVariantAnnotationTables() != null) {
+				throw new IllegalArgumentException(
+						"Region-based annotation (the input regions) only accepts generic annotation!\n");
+			}
+
+			// QC
+			String[] Regions = options.getInputRegion().split(",");
+			List<String[]> listRegions = new ArrayList<String[]>(Regions.length);
+			;
+			for (String v : Regions)
+				listRegions.add(QC_Test_Input_Variant(v, true));
+
+			if (listRegions.isEmpty()) {
+				throw new IllegalArgumentException("Please specify a region (e.g., chr17:1000:2001) \n");
+			}
+
+			if (listRegions.size() == 1) {
+				queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(listRegions.get(0),
+						options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames());
+			} else {// >1
+				// create a small VCF table w/ the input dataset
+				String tempTableName = "`" + options.getProjectId() + "." + options.getBigQueryDatasetId() + "."
+						+ "AnnotationHiveTempVCFTable`";
+				queryString = BigQueryFunctions.createTempVCFTable(listRegions, tempTableName, false);
+				// Create the temp VCF table
+				runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
+						options.getMaximumBillingTier(), LegacySql);
+
+				String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
+						+ "AnnotationHiveTempVCFTable";
+
+				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
+						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+						options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true);
+			}
+			LegacySql = true;
+
 		}
 
-		
-		
 		LOG.info("Query: " + queryString);
 
-//		////////////////////////////////// STEP1/////////////////////////////////////
-//		////////////////////////////////// Joins/////////////////////////////////////
-//		runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
-//				options.getMaximumBillingTier(), LegacySql);
-//
-//		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-//		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
-//
-//		if (!options.getOutputFormatTable()) {
-//
-//			////////////////////////////////// STEP2////////////////////////////////////
-//			////////////////////////////////// Sort/////////////////////////////////////
-//			startTime = System.currentTimeMillis();
-//			runSort();
-//			tempEstimatedTime = System.currentTimeMillis() - startTime;
-//			LOG.info("Execution Time for Sort Query: " + tempEstimatedTime);
-//
-//			///////////////// STEP3: Delete the Intermediate
-//			///////////////// Table///////////////////////////
-//			//TODO: Add a new condition here
-//			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
-//		}
-	}
+		////////////////////////////////// STEP1/////////////////////////////////////
+		////////////////////////////////// Joins/////////////////////////////////////
+		runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
+				options.getMaximumBillingTier(), LegacySql);
 
+		long tempEstimatedTime = System.currentTimeMillis() - startTime;
+		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
+
+		// Remove the temporarily VCF file created based on the input list of
+		// varainats/regions
+		if (!options.getInputRegion().isEmpty() || !options.getInputVariant().isEmpty()) {
+			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable");
+		}
+
+		if (!options.getOutputFormatTable()) {
+
+			////////////////////////////////// STEP2////////////////////////////////////
+			////////////////////////////////// Sort/////////////////////////////////////
+			startTime = System.currentTimeMillis();
+			runSort();
+			tempEstimatedTime = System.currentTimeMillis() - startTime;
+			LOG.info("Execution Time for Sort Query: " + tempEstimatedTime);
+
+			///////////////// STEP3: Delete the Intermediate
+			///////////////// Table///////////////////////////
+			// TODO: Add a new condition here
+			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
+		}
+	}
 
 	private static String[] QC_Test_Input_Variant(String inputVariant, boolean region_based) {
 
 		try {
 			String[] va = inputVariant.split(":");
-			
-			int numParameters=5; //Variant  
+
+			int numParameters = 5; // Variant
 			if (region_based)
-				numParameters=3; // region
-				
-				
+				numParameters = 3; // region
+
 			if (va.length < numParameters || va.length > numParameters) {
-				if(!region_based)
+				if (!region_based)
 					throw new IllegalArgumentException("The input variant is not correct. Here are three examples: \n"
 							+ "SNP example: \"chr17:1001:1001:A:C\" \n"
 							+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
 							+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
 				else
-					throw new IllegalArgumentException("The input region is not correct. Here is an example: \n"
-							+ "\"chr17:1001:2001\" \n");
+					throw new IllegalArgumentException(
+							"The input region is not correct. Here is an example: \n" + "\"chr17:1001:2001\" \n");
 			}
 
 			String chr = "";
@@ -438,40 +483,41 @@ public final class BigQueryAnnotateVariants {
 					&& !chr.contentEquals("Y")) {
 				int chrID = Integer.parseInt(chr);
 				if (chrID < 1 && chrID > 23) {
-					if(!region_based)
-						throw new IllegalArgumentException("The input chormosome is not correct. Here are three examples: \n"
-								+ "SNP example: \"chr17:1001:1001:A:C\" \n"
-								+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
-								+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+					if (!region_based)
+						throw new IllegalArgumentException(
+								"The input chormosome is not correct. Here are three examples: \n"
+										+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+										+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+										+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
 					else
-						throw new IllegalArgumentException("The input region is not correct. Here is an example: \n"
-								+ "\"chr17:1001:2001\" \n");
+						throw new IllegalArgumentException(
+								"The input region is not correct. Here is an example: \n" + "\"chr17:1001:2001\" \n");
 				}
 			}
 			va[0] = chr;
-			
-			int start= 	Integer.parseInt(va[1]);
+
+			int start = Integer.parseInt(va[1]);
 			int end = Integer.parseInt(va[2]);
-			if(start<0 || end<0 || end<start) {
-				if(!region_based)
-					throw new IllegalArgumentException("The input chormosome is not correct. Here are three examples: \n"
-							+ "SNP example: \"chr17:1001:1001:A:C\" \n"
-							+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
-							+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
+			if (start < 0 || end < 0 || end < start) {
+				if (!region_based)
+					throw new IllegalArgumentException(
+							"The input chormosome is not correct. Here are three examples: \n"
+									+ "SNP example: \"chr17:1001:1001:A:C\" \n"
+									+ "Insertion examples: \"chr17:1001:1001:A:ACTT\" OR  \"chr17:1001:1001:-:CTT\"  \n"
+									+ "Deletion examples: \"chr17:1001:1003:ATT:-\" \n");
 				else
-					throw new IllegalArgumentException("The input region is not correct. Here is an example: \n"
-							+ "\"chr17:1001:2001\" \n");
-				}
-			
-			//TODO: check input reference bases and alternate bases
-			
-//			if (va[3].matches("^[a-A-T-t-c-C-T-t-g-G]+$")) {
-//				  // contains only listed chars
-//				} else {
-//				  // contains other chars
-//				}
-			
-			
+					throw new IllegalArgumentException(
+							"The input region is not correct. Here is an example: \n" + "\"chr17:1001:2001\" \n");
+			}
+
+			// TODO: check input reference bases and alternate bases
+
+			// if (va[3].matches("^[a-A-T-t-c-C-T-t-g-G]+$")) {
+			// // contains only listed chars
+			// } else {
+			// // contains other chars
+			// }
+
 			return va;
 
 		} catch (Exception e) {
@@ -737,7 +783,7 @@ public final class BigQueryAnnotateVariants {
 
 										Iterable<String> sortedBin = mergedItems; // recordsString;
 										if (mergedItems.size() > 0) {
-											int chrm = (int) (key / 1000000000); //9 digits padding
+											int chrm = (int) (key / 1000000000); // 9 digits padding
 											c.output(KV.of(chrm, KV.of(key, sortedBin)));
 										}
 									}
@@ -855,55 +901,53 @@ public final class BigQueryAnnotateVariants {
 											}
 										}
 									}
-									
-									
-								//Solution: When there is not much sapce available -> remember if you do this 
-									// Then it would take much longer, that means you have to pay more. So, always better 
+
+									// Solution: When there is not much space available -> remember if you do this
+									// Then it would take much longer, that means you have to pay more. So, always
+									// better
 									// To reserve large memory instances to handle these cases.
 
-//									Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
-//											.getValue();
-//
-//										
-//									for (int chrm = 1; chrm < 26; chrm++) {
-//										for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
-//											LOG.warning("Chrm: " + chrm + " ChromLevel.getKey().intValue(): " + ChromLevel.getKey().intValue());
-//											if(Integer.compare(chrm, ChromLevel.getKey().intValue()) == 0) {
-//												for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
-//													for (String ItemLevel : BinLevel.getValue()) {
-//															c.output(ItemLevel);
-//													}
-//												}
-//											}
-//										}
-//									}
-									
-									
+									// Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
+									// .getValue();
+									//
+									//
+									// for (int chrm = 1; chrm < 26; chrm++) {
+									// for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
+									// LOG.warning("Chrm: " + chrm + " ChromLevel.getKey().intValue(): " +
+									// ChromLevel.getKey().intValue());
+									// if(Integer.compare(chrm, ChromLevel.getKey().intValue()) == 0) {
+									// for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
+									// for (String ItemLevel : BinLevel.getValue()) {
+									// c.output(ItemLevel);
+									// }
+									// }
+									// }
+									// }
+									// }
 
-									//This is another method for handling this case,  	
-//									HashMap<Integer, Iterable<KV<Long, Iterable<String>>>> hmap = 
-//											new HashMap<Integer, Iterable<KV<Long, Iterable<String>>>>();
-//
-//									Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
-//											.getValue();
-//
-//										
-//									//for (int chrm = 1; chrm < 26; chrm++) {
-//										for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
-//											hmap.put(ChromLevel.getKey().intValue(), ChromLevel.getValue());
-//										}
-//																			    	
-//									    	for (int chrm = 1; chrm < 26; chrm++) {
-//									    		if(hmap.containsKey(chrm)) {
-//										    		for (KV<Long, Iterable<String>> BinLevel : hmap.get(chrm)) {
-//														for (String ItemLevel : BinLevel.getValue()) {
-//																c.output(ItemLevel);
-//														}
-//													}
-//											}
-//									    	}	
-									
-									
+									// This is another method for handling this case,
+									// HashMap<Integer, Iterable<KV<Long, Iterable<String>>>> hmap =
+									// new HashMap<Integer, Iterable<KV<Long, Iterable<String>>>>();
+									//
+									// Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
+									// .getValue();
+									//
+									//
+									// //for (int chrm = 1; chrm < 26; chrm++) {
+									// for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
+									// hmap.put(ChromLevel.getKey().intValue(), ChromLevel.getValue());
+									// }
+									//
+									// for (int chrm = 1; chrm < 26; chrm++) {
+									// if(hmap.containsKey(chrm)) {
+									// for (KV<Long, Iterable<String>> BinLevel : hmap.get(chrm)) {
+									// for (String ItemLevel : BinLevel.getValue()) {
+									// c.output(ItemLevel);
+									// }
+									// }
+									// }
+									// }
+
 								}
 							}))
 					.apply("VCF", TextIO.write().to(options.getBucketAddrAnnotatedVCF()));

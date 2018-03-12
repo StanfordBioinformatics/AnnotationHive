@@ -1,7 +1,7 @@
 package com.google.cloud.genomics.cba;
 
 /*
- * Copyright (C) 2016-2017 Stanford University.
+ * Copyright (C) 2016-2018 Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -87,10 +87,6 @@ public class ImportAnnotationFromGCSToBigQuery {
 	 */
 	public static interface Options extends GenomicsOptions {
 
-//		@Description("The ID of the Google Genomics Dataset that the output AnnotationSet will be posted to.")
-//		@Default.String("")
-//		String getDatasetId();
-//		void setDatasetId(String datasetId);
 
 		@Description("This provides the URI of inputfile which contains annotations. This is a required field.")
 		@Default.String("")
@@ -140,6 +136,13 @@ public class ImportAnnotationFromGCSToBigQuery {
 		String getAssemblyId();	
 		void setAssemblyId(String AssemblyId);
 
+		@Description("This provides columnOrder for the first 3 columns for a generic annotations and 5 for "
+				+ " a variant annotation. This is an optional field.")
+		@Default.String("")
+		String getColumnOrder();	
+		void setColumnOrder(String ColumnOrder);
+
+		
 		@Description("This provides the number of workers. This is a required filed.")
 		int getNumWorkers();	
 		void setNumWorkers(int value);
@@ -148,7 +151,17 @@ public class ImportAnnotationFromGCSToBigQuery {
 		@Default.Boolean(false)
 		boolean getCreateAnnotationSetListTable();	
 		void setCreateAnnotationSetListTable(boolean value);
+		
+		@Description("Users can force update in case the table already exists.")
+		@Default.Boolean(false)
+		boolean getForceUpdate();	
+		void setForceUpdate(boolean value);
 
+		@Description("User can specify column separator.")
+		@Default.String("\\s+")
+		String getColumnSeparator();	
+		void setColumnSeparator(String ColumnSeparator);
+		
 	}
 
 	private static Options options;
@@ -220,18 +233,30 @@ public class ImportAnnotationFromGCSToBigQuery {
 			throw new IllegalArgumentException("AnnotationType option must be either variant or generic!");
 		}
 
-
-		System.out.println(getTranscriptSchema().toString());
+		if(!options.getColumnOrder().isEmpty()) {
+			checkColumnOrder(options.getColumnOrder());
+		}
 		
+		if(checkTableExist()) {
+			if (!options.getForceUpdate()) {
+				LOG.warning(options.getBigQueryAnnotationSetTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
+				return;
+			}else {
+				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId());
+			}
+		}
+		
+		LOG.warning(options.getBigQueryAnnotationSetTableId() + "  is a new annotation table!");
+	
 		String [] inputFields = options.getHeader().split(",");
 		if (VariantAnnotation){
 			System.out.println("Variant Annotation Pipeline");
 			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus)))
+			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator())))
 			.apply(
 		            BigQueryIO.writeTableRows()
 		                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
-		                .withSchema(getVariantSchema())
+		                .withSchema(getVariantSchema(options.getColumnOrder()))
 		                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
 		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
 		}
@@ -239,11 +264,11 @@ public class ImportAnnotationFromGCSToBigQuery {
 			System.out.println("Generic Annotation Pipeline");
 
 			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus)))
+			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator())))
 			.apply(
 		            BigQueryIO.writeTableRows()
 		                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
-		                .withSchema(getTranscriptSchema())
+		                .withSchema(getTranscriptSchema(options.getColumnOrder()))
 		                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
 		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));			
 		}
@@ -252,16 +277,30 @@ public class ImportAnnotationFromGCSToBigQuery {
 
 		////////////////////////////////// End TIMER /////////////////////////////////////  
 		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-		addToAnnotationSetList(tempEstimatedTime);
-
-
-			
+		addToAnnotationSetList(tempEstimatedTime);			
 	}
 	
-	
-	
-	
-	  static TableReference getTable(String projectId, String datasetId, String tableName) {
+	private static boolean checkTableExist() {
+		    BigQueryOptions.Builder optionsBuilder = BigQueryOptions.newBuilder();
+		    BigQuery bigquery = optionsBuilder.build().getService();
+		    LOG.warning("DatasetId: " + options.getBigQueryDatasetId() +" TableId: " + options.getBigQueryAnnotationSetTableId() );
+		    //return bigquery.getDataset(options.getBigQueryDatasetId()).get(options.getBigQueryAnnotationSetTableId()).exists();		    	    
+		    return bigquery.getDataset(options.getBigQueryDatasetId()).get(options.getBigQueryAnnotationSetTableId()) != null;		    	    
+	}
+
+	private static void checkColumnOrder(String columnOrder) {
+		  String[] Order = columnOrder.split(",");
+		  for(String s:Order) {
+			  for (char c : s.toCharArray())
+			    {
+			        if (!Character.isDigit(c)) 
+			        		throw new IllegalArgumentException("Wrong numbers in column order!");
+			    }
+		  }
+	}
+
+
+	static TableReference getTable(String projectId, String datasetId, String tableName) {
 		    TableReference table = new TableReference();
 		    table.setDatasetId(datasetId);
 		    table.setProjectId(projectId);
@@ -319,7 +358,6 @@ public class ImportAnnotationFromGCSToBigQuery {
 	    }
 	    else
 		    System.out.println("### Table \"AnnotationList\" exists");
-
 	}
 
 	
@@ -376,10 +414,11 @@ public class ImportAnnotationFromGCSToBigQuery {
 	 * <h1>This function defines the BigQuery table schema 
 	 * used for variant annotation tables.
 	 *  (e.g., 'chrm', 'start', 'end', 'base', 'alt', ...)
+	 * @param Order 
 	 * @return schema 
 	 */
 	
-	static TableSchema getVariantSchema() {
+	static TableSchema getVariantSchema(String ColumnOrder) {
 		List<TableFieldSchema> fields = new ArrayList<>();
 		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
 		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
@@ -387,11 +426,37 @@ public class ImportAnnotationFromGCSToBigQuery {
 		fields.add(new TableFieldSchema().setName("base").setType("STRING"));
 		fields.add(new TableFieldSchema().setName("alt").setType("STRING"));
 		
-		String[] inputFields= options.getHeader().split(",");
-		for(int i=5; i<inputFields.length; i++){
-			fields.add(new TableFieldSchema().setName(inputFields[i]).setType("STRING"));
+		int chromIndex=0, startIndex=1, endIndex=2, refIndex=3, altIndex=4;
+		
+		if (!ColumnOrder.isEmpty()) {
+				String[] order = ColumnOrder.split(",");
+				
+				if (order.length!=5) {
+					throw new IllegalArgumentException("Column Order for Variant Annotation must contains the first "
+							+ "five elements order (e.g., chrom,start,end,refBase,altBase=\"5,6,3,9,10\")");
+				}
+				
+				chromIndex=Integer.parseInt(order[0])-1;
+				startIndex=Integer.parseInt(order[1])-1;
+				endIndex=Integer.parseInt(order[2])-1;
+				refIndex=Integer.parseInt(order[3])-1;
+				altIndex=Integer.parseInt(order[4])-1;
 		}
-
+			
+		if (ColumnOrder.isEmpty()) {
+			String[] inputFields= options.getHeader().split(",");
+			for(int i=5; i<inputFields.length; i++){
+				fields.add(new TableFieldSchema().setName(inputFields[i]).setType("STRING"));
+			}
+		}
+		else {
+			String[] inputFields= options.getHeader().split(",");
+			for(int index=0; index<inputFields.length; index++){
+				if(index!=chromIndex && index!=startIndex 
+				&& index!=endIndex && index!=refIndex && index!=altIndex)
+					fields.add(new TableFieldSchema().setName(inputFields[index]).setType("STRING"));
+			}			
+		}
 		TableSchema schema = new TableSchema().setFields(fields);
 		return schema;
 	}
@@ -403,16 +468,43 @@ public class ImportAnnotationFromGCSToBigQuery {
 	 * @return schema 
 	 */
 	
-	static TableSchema getTranscriptSchema() {
+	static TableSchema getTranscriptSchema(String ColumnOrder) {
 		List<TableFieldSchema> fields = new ArrayList<>();
 		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
 		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
 		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
 		
-		String[] inputFields= options.getHeader().split(",");		
-		for(int i=3; i<inputFields.length; i++){
-			fields.add(new TableFieldSchema().setName(inputFields[i]).setType("STRING"));
+		int chromIndex=0, startIndex=1, endIndex=2;
+		
+		if (!ColumnOrder.isEmpty()) {
+			String[] order = ColumnOrder.split(",");
+			
+			if (order.length!=3) {
+				throw new IllegalArgumentException("Column Order for Generic Annotation must contains the first "
+						+ "three elements order (e.g., chrom,start,end=\"5,6,3,9,10\")");
+			}
+			
+			chromIndex=Integer.parseInt(order[0])-1;
+			startIndex=Integer.parseInt(order[1])-1;
+			endIndex=Integer.parseInt(order[2])-1;
 		}
+		
+		if (ColumnOrder.isEmpty()) {
+
+			String[] inputFields= options.getHeader().split(",");		
+			for(int i=3; i<inputFields.length; i++){
+				fields.add(new TableFieldSchema().setName(inputFields[i]).setType("STRING"));
+			}
+		}
+		else {
+			String[] inputFields= options.getHeader().split(",");
+			for(int index=0; index<inputFields.length; index++){
+				if(index!=chromIndex && index!=startIndex 
+				&& index!=endIndex)
+					fields.add(new TableFieldSchema().setName(inputFields[index]).setType("STRING"));
+			}			
+		}
+		
 		
 		TableSchema schema = new TableSchema().setFields(fields);
 		return schema;
@@ -444,77 +536,129 @@ public class ImportAnnotationFromGCSToBigQuery {
 
 		private final String [] inputFields;
 		private final boolean VariantAnnotation;
-		private final boolean is_0_Base;
+		private final boolean is_0_Based;
+		private String columnOrder="";
+		private String columnSeparator="";
 		private static final long serialVersionUID = 7700800981719306804L;
 
-		public FormatFn(String [] inputFields, boolean VA, boolean base0) {
-			this.inputFields = inputFields;
-			this.VariantAnnotation = VA;
-			this.is_0_Base = base0;
-			}
+		public FormatFn(String [] _inputFields, boolean _VA, boolean _zeroBased, String _columnOrder, String _columnSeparator) {
+			this.inputFields = _inputFields;
+			this.VariantAnnotation = _VA;
+			this.is_0_Based = _zeroBased;
+			this.columnOrder=_columnOrder;
+			this.columnSeparator=_columnSeparator;
+			
+		}
 
 		@org.apache.beam.sdk.transforms.DoFn.ProcessElement
 		public void processElement(ProcessContext c) {
 			for (String line : c.element().split("\n")) {
 				if (!line.isEmpty() && !line.startsWith("#") && !line.startsWith("chrom")) {
 
-					String[] vals = c.element().toString().split("\\s+");
-		
-					
+					//UCSC \t is the only acceptable space b/w columns
+					String[] vals = c.element().toString().split(this.columnSeparator);
 					TableRow row = new TableRow();
+					int chromIndex=0, startIndex=1, endIndex=2, refIndex=3, altIndex=4;
 					
 					//Variant
 					if (this.VariantAnnotation){
 						
-						row.set("chrm", canonicalizeRefName(vals[0]));
+						if (!this.columnOrder.isEmpty()) {
+							String[] order = columnOrder.split(",");
+							chromIndex=Integer.parseInt(order[0])-1;
+							startIndex=Integer.parseInt(order[1])-1;
+							endIndex=Integer.parseInt(order[2])-1;
+							refIndex=Integer.parseInt(order[3])-1;
+							altIndex=Integer.parseInt(order[4])-1;
+						}
 						
-						if (!this.is_0_Base){
-								row.set("start", Integer.parseInt(vals[1])-1);
+						row.set("chrm", canonicalizeRefName(vals[chromIndex]));
+			
+						//Our internal database representations of coordinates always 
+						//have a zero-based start and a one-based end.
+						if (!this.is_0_Based){
+								row.set("start", Integer.parseInt(vals[startIndex])-1);
 						}
 						else{
-							row.set("start", Integer.parseInt(vals[1]));
+							row.set("start", Integer.parseInt(vals[startIndex]));
 						}
 						
-						row.set("end", vals[2]);
+						row.set("end", vals[endIndex]);
 						
 						/*Make sure to handle special cases for reference bases [insertion]*/
-						if (vals[3] == null || vals[3].isEmpty() || vals[3] =="-")
+						//For those cases that annotation reference file does not support refBase column 
+						if (refIndex>=vals.length || vals[refIndex] == null || vals[refIndex].isEmpty() || vals[refIndex].equals("-"))
 							row.set("base", "");
 						else
-							row.set("base", vals[3]);
+							row.set("base", vals[refIndex]);
 						
+						if (this.columnOrder.isEmpty()) {						
+							for (int index=5; index<vals.length; index++ )
+								row.set(inputFields[index], vals[index]);
+						}else {
+							for (int index=0; index<vals.length; index++ )
+								if(index!=chromIndex && index!=startIndex 
+								&& index!=endIndex && index!=refIndex && index!=altIndex)
+									row.set(inputFields[index], vals[index]);
+						}
 						
 						/*Make sure to handle special cases for alternate bases [deletion] */
-						if (vals[4] == null || vals[4].isEmpty() || vals[4] =="-")
+						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
 							row.set("alt", "");
-						else
-							row.set("alt", vals[4]);
-					
-						for (int index=5; index<vals.length; index++ )
-							row.set(inputFields[index], vals[index]);
-					
-
+						else {
+							if (vals[altIndex].split("/").length>1) {
+								String[] alts = vals[altIndex].split("/");
+								for(String allele : alts) {
+									if (allele == null || allele.isEmpty() || allele.equals("-"))
+										row.set("alt", "");
+									else
+										row.set("alt", allele);
+									
+									c.output(row);
+								}
+							}else {
+								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
+									row.set("alt", "");
+								else
+									row.set("alt", vals[altIndex]);
+								c.output(row);
+							}
+						}
 					}
 					else{ //Generic+Transcript
+
+						if (!this.columnOrder.isEmpty()) {
+							String[] order = columnOrder.split(",");
+							chromIndex=Integer.parseInt(order[0])-1;
+							startIndex=Integer.parseInt(order[1])-1;
+							endIndex=Integer.parseInt(order[2])-1;
+						}
 						
-						row.set("chrm", canonicalizeRefName(vals[0]));
+						row.set("chrm", canonicalizeRefName(vals[chromIndex]));
 						
-						if (!this.is_0_Base){
-							row.set("start", Integer.parseInt(vals[1])-1);
+						if (!this.is_0_Based){
+							row.set("start", Integer.parseInt(vals[startIndex])-1);
 						}
 						else{
-							row.set("start", Integer.parseInt(vals[1]));
+							row.set("start", Integer.parseInt(vals[startIndex]));
 						}
 						
-						row.set("end", vals[2]);				
+						row.set("end", vals[endIndex]);				
 
-						for (int index=3; index<vals.length; index++ )
-							row.set(inputFields[index], vals[index]);
-								
 						
+						if (this.columnOrder.isEmpty()) {						
+							for (int index=3; index<vals.length; index++ )
+								row.set(inputFields[index], vals[index]);
+						}else {
+							for (int index=0; index<vals.length; index++ )
+								if(index!=chromIndex && index!=startIndex 
+								&& index!=endIndex)
+									row.set(inputFields[index], vals[index]);
+						}
+								
+						c.output(row);						
 					}
 					
-					c.output(row);
 				}
 			}
 		}

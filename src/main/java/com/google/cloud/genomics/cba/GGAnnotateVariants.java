@@ -1,7 +1,7 @@
 package com.google.cloud.genomics.cba;
 
 /*
- * Copyright (C) 2016-2017 Google Inc. and Stanford University.
+ * Copyright (C) 2016-2018 Google Inc. and Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -186,9 +186,9 @@ final class GGAnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, St
 		
 		@Description("This provides BigQuery Dataset ID.")
 		@Default.String("")
-		String getBigQueryDataset();
-
-		void setBigQueryDataset(String BigQueryDataset);
+		
+		String getBigQueryDatasetId();
+		void setBigQueryDatasetId(String BigQueryDatasetId);
 
 		@Description("This provides BigQuery Table.")
 		@Default.String("")
@@ -790,7 +790,7 @@ final class GGAnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, St
 		//////////////////////////////////////// BIG-QUERY [Google Genomics APIs]////////////////////
 
 		// check whether user provided BigQueryDatasetID
-		if (options.getBigQueryDataset().isEmpty()) {
+		if (options.getBigQueryDatasetId().isEmpty()) {
 			throw new IllegalArgumentException("BigQueryDataset must be specified (e.g., my_dataset)");
 		}
 
@@ -808,7 +808,7 @@ final class GGAnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, St
 		
 		TableReference tableRef = new TableReference();
 		tableRef.setProjectId(options.getProject());
-		tableRef.setDatasetId(options.getBigQueryDataset());
+		tableRef.setDatasetId(options.getBigQueryDatasetId());
 		tableRef.setTableId(options.getBigQueryTable());
 
 		p.begin().apply(Create.of(requests))
@@ -846,7 +846,7 @@ final class GGAnnotateVariants extends DoFn<StreamVariantsRequest, KV<String, St
 			//		options.getBigQueryTable(), options.getLocalOutputFilePath());
 			
 			try {
-				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDataset(), 
+				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDatasetId(), 
 						options.getBigQueryTable(), options.getLocalOutputFilePath(), options.getBinSize());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block

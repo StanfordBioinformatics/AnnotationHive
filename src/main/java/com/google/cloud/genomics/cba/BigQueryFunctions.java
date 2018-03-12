@@ -1,7 +1,7 @@
 package com.google.cloud.genomics.cba;
 
 /*
- * Copyright (C) 2016-2017 Stanford University.
+ * Copyright (C) 2016-2018 Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -37,76 +37,6 @@ public class BigQueryFunctions {
 	private static final Logger LOG = Logger.getLogger(BigQueryAnnotateVariants.class.getName());
 
 	public static boolean DEBUG = false;
-
-//	public static void sort(String projectId, String datasetId, String tableId, String outputFile, int BinSize)
-//			throws Exception {
-//
-////		String queryStat = "SELECT *, LENGTH(innerQ.Chromosome) as len from (SELECT  RIGHT(chrm, LENGTH(chrm) - 3) as Chromosome, "
-////				+ "count(*) as Cnt, min (start) as Minimum, max(start) as Maximum FROM   " + "[" + projectId + ":"
-////				+ datasetId + "." + tableId + "] "
-////				+ "group by Chromosome  order by Chromosome) as innerQ  order by len, innerQ.Chromosome";
-//
-//		String queryStat = "SELECT *, LENGTH(innerQ.Chromosome) as len from (SELECT  chrm as Chromosome, "
-//				+ "count(*) as Cnt, min (start) as Minimum, max(start) as Maximum FROM   " + "[" + projectId + ":"
-//				+ datasetId + "." + tableId + "] "
-//				+ "group by Chromosome  order by Chromosome) as innerQ  order by len, innerQ.Chromosome";
-//
-//		
-//		// Get the results.
-//		QueryResponse response = runquery(queryStat);
-//		QueryResult result = response.getResult();
-//
-//		// Per each chromosome, sort the result.
-//		List<FieldValue> X = null, Y = null, M = null;
-//		while (result != null) {
-//			for (List<FieldValue> row : result.iterateAll()) {
-//				String chrm = row.get(0).getValue().toString();
-//				if (!chrm.equals("M") && !chrm.equals("MT")  && !chrm.equals("X") && !chrm.equals("Y")) {
-//					System.out.println(chrm + " " + row.get(1).getValue().toString() + " "
-//							+ row.get(2).getValue().toString() + " " + row.get(3).getValue().toString());
-//					sortAndPrint(row.get(0).getValue().toString(),
-//							Integer.parseInt(row.get(1).getValue().toString()),
-//							Integer.parseInt(row.get(2).getValue().toString()),
-//							Integer.parseInt(row.get(3).getValue().toString()), projectId, datasetId, tableId,
-//							outputFile, BinSize);
-//				} else {
-//					if (chrm.equals("M") || chrm.equals("MT"))
-//						M = row;
-//					else if (chrm.equals("X"))
-//						X = row;
-//					else if (chrm.equals("Y"))
-//						Y = row;
-//				}
-//			}
-//			result = result.getNextPage();
-//		}
-//		if (X != null) {
-//			System.out.println(X.get(0).getValue().toString() + " " + X.get(1).getValue().toString() + " "
-//					+ X.get(2).getValue().toString() + " " + X.get(3).getValue().toString());
-//
-//			sortAndPrint("chr" + X.get(0).getValue().toString(), Integer.parseInt(X.get(1).getValue().toString()),
-//					Integer.parseInt(X.get(2).getValue().toString()), Integer.parseInt(X.get(3).getValue().toString()),
-//					projectId, datasetId, tableId, outputFile, BinSize);
-//
-//		}
-//		if (Y != null) {
-//			System.out.println(Y.get(0).getValue().toString() + " " + Y.get(1).getValue().toString() + " "
-//					+ Y.get(2).getValue().toString() + " " + Y.get(3).getValue().toString());
-//			sortAndPrint("chr" + Y.get(0).getValue().toString(), Integer.parseInt(Y.get(1).getValue().toString()),
-//					Integer.parseInt(Y.get(2).getValue().toString()), Integer.parseInt(Y.get(3).getValue().toString()),
-//					projectId, datasetId, tableId, outputFile, BinSize);
-//
-//		}
-//		if (M != null) {
-//			System.out.println(M.get(0).getValue().toString() + " " + M.get(1).getValue().toString() + " "
-//					+ M.get(2).getValue().toString() + " " + M.get(3).getValue().toString());
-//			sortAndPrint("chr" + M.get(0).getValue().toString(), Integer.parseInt(M.get(1).getValue().toString()),
-//					Integer.parseInt(M.get(2).getValue().toString()), Integer.parseInt(M.get(3).getValue().toString()),
-//					projectId, datasetId, tableId, outputFile, BinSize);
-//
-//		}
-//	}
-//
 	
 	/**
 	 * This function receives the intermediate table ID and Bin Size and run OrderBy over 
@@ -185,201 +115,7 @@ public class BigQueryFunctions {
 		}
 	}
 
-	
-	
-	
-	
-//	public static void sortAllAndPrint(String projectId,
-//			String datasetId, String tableId, String outputFile) {
-//
-//		String Query = "SELECT  * FROM ";
-//
-//		
-//	
-//		for (int chrmId=1; chrmId<23; chrmId++){
-//			Query +=  " (SELECT CAST (RIGHT(chrm, LENGTH(chrm) - 3) as INTEGER) as chrm, CAST (start as INTEGER), end, "
-//					+ "reference_bases, alternate_bases, Annotation_info FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//					+ "where chrm='chr" + chrmId + "'"
-//					+ " order by chrm, start) as chrm" + chrmId + ", ";
-//
-//		}
-//		
-//		
-//		Query +=  " (SELECT CAST ('23' as INTEGER) as chrm, CAST (start as INTEGER), end, "
-//					+ "reference_bases, alternate_bases, Annotation_info FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//				+ "where chrm='chrX'"
-//				+ " order by chrm, start) as chrmX, ";
-//		
-//		Query +=  " (SELECT CAST ('24' as INTEGER) as chrm, CAST (start as INTEGER), end, "
-//					+ "reference_bases, alternate_bases, Annotation_info FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//				+ "where chrm='chrY'"
-//				+ " order by chrm, start) as chrmY, ";
-//
-//		Query +=  " (SELECT CAST ('25' as INTEGER) as chrm, CAST (start as INTEGER), end, "
-//					+ "reference_bases, alternate_bases, Annotation_info FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//				+ "where chrm='chrM'"
-//				+ " order by chrm, start) as chrmM ";
-//
-//		Query += " order by chrm ";
-//		
-//		//START - Reset start for BigQuery 
-//		long startTime = System.currentTimeMillis();
-//				
-//		
-//		//if (DEBUG)
-//			System.out.println(Query);
-//		// Get the results.
-//		QueryResponse response = runquery(Query);
-//		QueryResult result = response.getResult();
-//		
-//		//END - RUN time 
-//		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-//
-//		System.out.println("Execution Time for Sort: " + tempEstimatedTime);
-//		
-//		//START - Reset start for BigQuery 
-//		startTime = System.currentTimeMillis();
-//
-//		
-//		if (result != null) {
-//			for (List<FieldValue> row : result.iterateAll()) {
-//				try {
-//					 String temp="";
-//				      for (FieldValue val : row) {
-//				    	  temp += val.getValue().toString() + "\t";
-//				        }
-//				      if(temp.startsWith("23")){
-//				    	  temp=temp.substring(2);
-//				    	  temp = "X" + temp;
-//				      }
-//				      else if (temp.startsWith("24")){
-//				    	  temp = temp.substring(2);
-//				    	  temp = "Y" + temp;
-//				      }
-//				      else if (temp.startsWith("25")){
-//				    	  temp = temp.substring(2);
-//				    	  temp = "M" + temp;
-//				      }
-//
-//				    FileWriter fw = new FileWriter(outputFile, true);    
-//				    fw.write(temp + "\n"); 
-//					fw.close();
-//				} catch (IOException ioe) {
-//					System.err.println("IOException: " + ioe.getMessage());
-//				}
-//				
-//
-//			}
-//			
-//		}
-//		tempEstimatedTime = System.currentTimeMillis() - startTime;
-//
-//		System.out.println("Execution Time for Transfer and Print: " + tempEstimatedTime);
-//	
-//	}
-	
-	
-//	public static void sortAllAndPrintDataflow(String projectId,
-//			String datasetId, String tableId, String outputFile) {
-//
-//		String Query = "SELECT chrm, info FROM (SELECT  * FROM ";
-//
-//		
-//	
-//		for (int chrmId=1; chrmId<23; chrmId++){
-//			Query +=  " (SELECT CAST (RIGHT(chrm, LENGTH(chrm) - 3) as INTEGER) as chrm, start, end, info "
-//					+ " FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//					+ "where chrm='chr" + chrmId + "'"
-//					+ " order by chrm, start) as chrm" + chrmId + ", ";
-//		}
-//
-//		Query +=  " (SELECT CAST ('23' as INTEGER) as chrm, start, end, info "
-//					+ "FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//				+ "where chrm='chrX'"
-//				+ " order by chrm, start) as chrmX, ";
-//		
-//		Query +=  " (SELECT CAST ('24' as INTEGER) as chrm, start, end, info "
-//					+ "FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//				+ "where chrm='chrY'"
-//				+ " order by chrm, start) as chrmY, ";
-//
-//		Query +=  " (SELECT CAST ('25' as INTEGER) as chrm, start, end, info "
-//					+ "FROM [" + projectId + ":" + datasetId + "." + tableId + "] "
-//				+ "where chrm='chrM'"
-//				+ " order by chrm, start) as chrmM ";
-//
-//		//TODO: make sure "order by" scales 
-//		Query += ") "; // " order by chrm, start) ";
-//		
-//		//START - Reset start for BigQuery 
-//		long startTime = System.currentTimeMillis();
-//				
-//		
-//		//if (DEBUG)
-//			System.out.println(Query);
-//		// Get the results.
-//		QueryResponse response = runquery(Query);
-//		QueryResult result = response.getResult();
-//		
-//		//END - RUN time 
-//		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-//
-//		System.out.println("Execution Time for Sort: " + tempEstimatedTime);
-//		
-//		//START - Reset start for BigQuery 
-//		startTime = System.currentTimeMillis();
-//
-//		//ArrayList<Integer> arrli = new ArrayList<Integer>(n);
-//		HashMap<Integer, List<String>> OrderBy = new HashMap<Integer, List<String>>();
-//		for (int index=1; index<=25; index++){
-//			List<String> L = new ArrayList<String>();
-//			OrderBy.put(index, L);
-//		}
-//		
-//		
-//		if (result != null) {
-//			for (List<FieldValue> row : result.iterateAll()) {
-//				String str2=(String) row.get(1).getValue();
-//				Integer chrId= Integer.parseInt((String) row.get(0).getValue());
-//				//System.out.println("CHID:" +chrId + "  " +str2);
-//				OrderBy.get(chrId).add(str2);
-//
-////				try {
-////					 String temp="";
-////				      for (FieldValue val : row) {
-////				    	  temp += val.getValue().toString() + "\t";
-////				        }
-////
-////				    FileWriter fw = new FileWriter(outputFile, true);    
-////				    fw.write(temp + "\n"); 
-////					fw.close();
-////				} catch (IOException ioe) {
-////					System.err.println("IOException: " + ioe.getMessage());
-////				}
-//				
-//
-//			}
-//			
-//			for (int index = 1; index <= 25; index++) {
-//				for (String str : OrderBy.get(index)) {
-//
-//					try {
-//						FileWriter fw = new FileWriter(outputFile, true);
-//						fw.write(str + "\n");
-//						fw.close();
-//					} catch (IOException ioe) {
-//						System.err.println("IOException: " + ioe.getMessage());
-//					}
-//
-//				}
-//			}
-//			
-//		}
-//		tempEstimatedTime = System.currentTimeMillis() - startTime;
-//
-//		System.out.println("Execution Time for Transfer and Print: " + tempEstimatedTime);
-//	
-//	}
+
 
 	
 	private static void partition(String chromId, int count, int startMin, int startMax, String projectId,
@@ -688,183 +424,9 @@ public class BigQueryFunctions {
 		return Query;
 	}
 	
-
-	public static String prepareAnnotateVariantQuery(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
-			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, String VariantannotationCanonicalizerefNames, boolean GroupBy) {
-
-				
-		String[] TranscriptAnnotations=null;
-		String[] VariantAnnotationTables=null;
-		String[] VCFTables=null;
-		String[] VCFCanonicalize=null; 
-		String[] TranscriptCanonicalize=null;
-		String[] VariantannotationCanonicalize=null;
-	
-		/////////////////////Transcripts//////////////
-		if(!TranscriptAnnotationTableNames.isEmpty()){
-			TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
-	
-			if(!TranscriptCanonicalizeRefNames.isEmpty()){
-				TranscriptCanonicalize = TranscriptCanonicalizeRefNames.split(","); 
-				if (TranscriptAnnotations.length != TranscriptCanonicalize.length)
-					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and transcript tables");
-			}
-		}
-		////////////Variant Annotations///////
-		if(!VariantAnnotationTableNames.isEmpty()){
-			VariantAnnotationTables = VariantAnnotationTableNames.split(","); 
-			
-			if(!VariantannotationCanonicalizerefNames.isEmpty()){
-				VariantannotationCanonicalize = VariantannotationCanonicalizerefNames.split(","); 
-				if (VariantannotationCanonicalize.length != VariantAnnotationTables.length)
-					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
-			}
-		}
-		
-		//////////VCF Files/////////////
-		/*Check if the VCF table contains any prefix for the reference fields (e.g., chr => chr17 )*/
-		if(!VCFTableNames.isEmpty()){
-			VCFTables = VCFTableNames.split(","); 
-		
-			if(!VCFCanonicalizeRefNames.isEmpty()){
-				VCFCanonicalize = VCFCanonicalizeRefNames.split(","); 
-				if (VCFCanonicalize.length != VCFTables.length)
-					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
-			}
-			else{
-				System.out.println("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
-			}
-		}
-		
-				
-		/*#######################Prepare VCF queries#######################*/
-		String VCFQuery=" ( SELECT * from ";
-		for (int index=0; index< VCFTables.length; index++){
-			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality  ";
-			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality ";
-
-			if (index+1<VCFTables.length)
-				VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
-			else
-				VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ) ";
-		}
-		VCFQuery +=" ) as VCF ";
-
-		 	 
-		String AllFields=""; // Use to 
-		String AnnotationQuery="";
-		int AnnotationIndex=1; // Use for creating alias names
-		
-		/*#######################Prepare VCF queries#######################*/
-		if(VariantAnnotationTables!=null){
-			for (int index=0; index< VariantAnnotationTables.length; index++,AnnotationIndex++){
-						
-						/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
-						 * ProjectId: gbsc-gcp-project-cba
-						 * DatasetId: PublicAnnotationSets
-						 * TableId: hg19_GME
-						 * Features: GME_AF:GME_NWA:GME_NEA
-						 */
-						
-						String [] TableInfo = VariantAnnotationTables[index].split(":");
-												
-						String RequestedFields="";
-						String AliasTableName= "Annotation" + AnnotationIndex; 
-						String TableName = TableInfo[0]+":"+TableInfo[1];
-						
-						for (int index2=2; index2<TableInfo.length; index2++){
-							RequestedFields +=  " , " + AliasTableName +"." + TableInfo[index2] ;
-							if(index2==2){
-								if (GroupBy)
-									AllFields += ", MAX ( CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[index2] + " )) ";
-								else
-									AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[index2] + " ) ";
-
-								//CONCAT("hg19_cosmic70: ",Annotation1.CosmicID )
-							}
-							else{
-								if (GroupBy)
-									AllFields +=  " , MAX ( " + AliasTableName +"." + TableInfo[index2] + ") ";
-								else
-									AllFields +=  " , " + AliasTableName +"." + TableInfo[index2];
-
-							}
-						}
-												
-						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, COUNT(VCF.call.call_set_name) AS number_samples, VCF.quality " + RequestedFields
-							+ " FROM " + VCFQuery 
-							+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-						AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
-
-						AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) "
-									+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, VCF.quality " + RequestedFields;
-						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
-							AnnotationQuery +=  "), ";
-						else
-							AnnotationQuery +=  ") ";
-			}
-		}
-		
-		 
-		if(TranscriptAnnotations!=null){
-			for (int index=0; index< TranscriptAnnotations.length; index++, AnnotationIndex++){
-
-//				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
-//				 * ProjectId: gbsc-gcp-project-cba
-//				 * DatasetId: PublicAnnotationSets
-//				 * TableId: hg19_refGene_chr17
-//				 * Features: exonCount:exonStarts:exonEnds:score
-//				 */
-//				String [] TableInfo = TranscriptAnnotations[index].split(":");
-//				
-//				String RequestedFields="";
-//				String AliasTableName= "Annotation" + AnnotationIndex; 
-//				String TableName = TableInfo[0]+":"+TableInfo[1];
-//				
-//				for (int index2=2; index2<TableInfo.length; index2++){
-//					RequestedFields += " , " + AliasTableName +"." + TableInfo[index2];
-//					if(index2==2)
-//						AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[index2] + " ) ";
-//					else
-//						AllFields += " , " + AliasTableName +"." + TableInfo[index2] ;
-//				}
-//				
-//				
-//				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, GROUP_CONCAT_UNQUOTED(VCF.call.call_set_name) AS sample_names," + RequestedFields
-//					+ " FROM " + VCFQuery 
-//					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-//				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
-//
-//				AnnotationQuery += " WHERE "
-//						+ "((("+ AliasTableName +".start >= VCF.start) AND ("+ AliasTableName +".start <= VCF.END)) OR "
-//						+ " (("+ AliasTableName +".END >= VCF.start) AND ("+ AliasTableName +".END <= VCF.END)) OR "
-//						+ " (("+ AliasTableName +".start <= VCF.start) AND ("+ AliasTableName +".END >= VCF.start)) OR "
-//						+ " (("+ AliasTableName +".start <= VCF.END) AND ("+ AliasTableName +".END >= VCF.END))) "
-//						+ "), ";				
-			}
-			
-		}		
-	
-		String Query= "  SELECT "
-				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases, number_samples, quality " + AllFields 
-				+ " FROM ";
-		
-		Query += AnnotationQuery;
-		if(GroupBy)
-			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases, number_samples, quality "; 
-		
-		return Query;
-	}
-	
-	
-
-	
 	public static String prepareAnnotateVariantQueryConcatFields_mVCF(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
-			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, String VariantannotationCanonicalizerefNames, boolean GroupBy) {
+			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
+			  String VariantannotationCanonicalizerefNames, boolean TempVCF) {
 
 				
 		String[] TranscriptAnnotations=null;
@@ -919,10 +481,14 @@ public class BigQueryFunctions {
 			else
 				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases ";
 
-			if (index+1<VCFTables.length)
-				VCFQuery += " FROM ["+ VCFTables[index]  +"] OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
-			else
-				VCFQuery += " FROM ["+ VCFTables[index]  +"] OMIT RECORD IF EVERY(call.genotype <= 0) ) ";
+			if (index+1<VCFTables.length) {
+				VCFQuery += " FROM ["+ VCFTables[index]  +"] ";
+					VCFQuery += "OMIT RECORD IF EVERY(call.genotype <= 0) ), ";  
+				}
+			else {
+				VCFQuery += " FROM ["+ VCFTables[index]  +"] ";
+					VCFQuery	 += "OMIT RECORD IF EVERY(call.genotype <= 0) )";
+				}
 		}
 		VCFQuery +=" ) as VCF ";
 
@@ -1076,16 +642,16 @@ public class BigQueryFunctions {
 				+ " FROM ";
 		
 		Query += AnnotationQuery;
-		if(GroupBy)
-			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases, number_samples, quality "; 
-		
+//		if(TempVCF)
+//			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases, number_samples, quality "; 
+//		
 		return Query;
 	}
 
 	
 	
 	public static String prepareAnnotateVariantQueryWithSampleNames(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
-			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, String VariantannotationCanonicalizerefNames, String SampleNames, boolean GroupBy) {
+			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, String VariantannotationCanonicalizerefNames, String SampleNames, boolean GroupBy, boolean customizedVCF) {
 
 		String[] TranscriptAnnotations=null;
 		String[] VariantAnnotationTables=null;
@@ -1135,17 +701,30 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name  ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END ";
 
-			if (index+1<VCFTables.length)
-				VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
-			else
-				VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ) ";
+			if(VariantAnnotationTableNames!=null){
+				VCFQuery += ", reference_bases, alternate_bases";
+			}
+			
+			if(!SampleNames.isEmpty())
+				VCFQuery +=  ", call.call_set_name  ";
+			
+			if (!customizedVCF) {
+				if (index+1<VCFTables.length)
+					VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
+				else
+					VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ) ";
+			}else //CustomizedVCF
+			{
+					VCFQuery += " FROM ["+ VCFTables[index]  +"] )) as VCF ";
+			}
 		}
-		VCFQuery +=" where call.call_set_name = \""+ SampleNames + "\") as VCF ";
-
+		if (!customizedVCF) {
+			VCFQuery +=" where call.call_set_name = \""+ SampleNames + "\") as VCF ";
+		}
 		 	 
 		String AllFields=""; // Use to 
 		String AnnotationQuery="";
@@ -1205,41 +784,12 @@ public class BigQueryFunctions {
 		
 		 
 		if(TranscriptAnnotations!=null){
-//			for (int index=0; index< TranscriptAnnotations.length; index++, AnnotationIndex++){
-//
-//				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
-//				 * ProjectId: gbsc-gcp-project-cba
-//				 * DatasetId: PublicAnnotationSets
-//				 * TableId: hg19_refGene_chr17
-//				 * Features: exonCount:exonStarts:exonEnds:score
-//				 */
-//				String [] TableInfo = TranscriptAnnotations[index].split(":");
-//				
-//				String RequestedFields="";
-//				String AliasTableName= "Annotation" + AnnotationIndex; 
-//				String TableName = TableInfo[0]+":"+TableInfo[1];
-//				
-//				for (int index2=2; index2<TableInfo.length; index2++){
-//					RequestedFields += " , " + AliasTableName +"." + TableInfo[index2];
-//					if(index2==2)
-//						AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[index2] + " ) ";
-//					else
-//						AllFields += " , " + AliasTableName +"." + TableInfo[index2] ;
-//				}
-//				
-//				
-//				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, GROUP_CONCAT_UNQUOTED(VCF.call.call_set_name) AS sample_names," + RequestedFields
-//					+ " FROM " + VCFQuery 
-//					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-//				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
-//
-//				AnnotationQuery += " WHERE "
-//						+ "((("+ AliasTableName +".start >= VCF.start) AND ("+ AliasTableName +".start <= VCF.END)) OR "
-//						+ " (("+ AliasTableName +".END >= VCF.start) AND ("+ AliasTableName +".END <= VCF.END)) OR "
-//						+ " (("+ AliasTableName +".start <= VCF.start) AND ("+ AliasTableName +".END >= VCF.start)) OR "
-//						+ " (("+ AliasTableName +".start <= VCF.END) AND ("+ AliasTableName +".END >= VCF.END))) "
-//						+ "), ";				
-//			}
+				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+				 * ProjectId: gbsc-gcp-project-cba
+				 * DatasetId: PublicAnnotationSets
+				 * TableId: hg19_refGene_chr17
+				 * Features: exonCount:exonStarts:exonEnds:score
+				 */
 
 			for (int index=0; index< TranscriptAnnotations.length; index++,AnnotationIndex++){
 				
@@ -1269,7 +819,11 @@ public class BigQueryFunctions {
 					}
 				}
 										
-				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields
+				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END ";
+						if(VariantAnnotationTableNames!=null){
+							AnnotationQuery += ", VCF.reference_bases, VCF.alternate_bases " ;
+						}
+				AnnotationQuery +=RequestedFields
 					+ " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
 				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
@@ -1278,33 +832,30 @@ public class BigQueryFunctions {
 				//		x1 <= y2 && y1 <= x2
 				+ "((("+ AliasTableName +".start <= VCF.end) AND ("+ AliasTableName +".end >= VCF.start)))";
 
-
-//				+ "((("+ AliasTableName +".start >= VCF.start) AND ("+ AliasTableName +".start <= VCF.END)) OR "
-//				+ " (("+ AliasTableName +".END >= VCF.start) AND ("+ AliasTableName +".END <= VCF.END)) OR "
-//				+ " (("+ AliasTableName +".start <= VCF.start) AND ("+ AliasTableName +".END >= VCF.start)) OR "
-//				+ " (("+ AliasTableName +".start <= VCF.END) AND ("+ AliasTableName +".END >= VCF.END))) ";
-
-				
+		
 				if(index+1 <  TranscriptAnnotations.length)
 					AnnotationQuery +=  "), ";
 				else
 					AnnotationQuery += ") ";
 			}
 		
-		
-		
-		
 		}		
 	
-		String Query= "  SELECT "
-				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, "
-				+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases " + AllFields 
-				+ " FROM ";
+		String Query= "  SELECT VCF.reference_name as chrm, VCF.start as start, VCF.END as end ";
+				if(VariantAnnotationTableNames!=null){
+					 Query+= ", VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases ";
+				}
+				
+		Query += AllFields + " FROM ";
 		
 		Query += AnnotationQuery;
-		if(GroupBy)
-			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases "; 
-		
+		if (GroupBy) {
+			Query += " GROUP BY  chrm, start, END "; 
+			
+			if(VariantAnnotationTableNames!=null){
+				Query += ", reference_bases, alternate_bases";
+			}
+		}
 		return Query;
 	}
 	
@@ -2537,8 +2088,7 @@ public class BigQueryFunctions {
 
 									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
 								}
-							}
-														
+							}										
 						}
 						
 						//IF the number of fields is more that 1 -> then concat all of them
@@ -2683,7 +2233,47 @@ public class BigQueryFunctions {
 		return Query;
 	}
 	
-	
-	
+
+	public static String createTempVCFTable(List<String[]> listVA, String TempVCFTable, boolean VariantBased) {
+		
+		String Query="WITH "+ TempVCFTable +" AS ( ";
+		boolean setFields=true;
+		for(int index=0; index<listVA.size(); index++)
+		{
+			String [] va = listVA.get(index);
+			String chrm= "\"" + va[0] + "\"";
+			int start= (Integer.parseInt(va[1])-1)  ; //Convert to 0-based
+			int end=  Integer.parseInt(va[2]);
+					
+			if (setFields) {
+				Query += "SELECT " + chrm + " reference_name, " + start + " start, " + end + " `END` ";
+				if (VariantBased) {
+					String RefBases= "\"" + va[3] + "\"";
+					String AltBase= "\"" + va[4] + "\"";
+					Query += ", " + RefBases + " reference_bases ," +  AltBase + " alternate_bases ";
+				}
+				setFields= false;
+			}
+			else {
+				Query += " \n SELECT " + chrm + ", " + start + ", " + end;
+				if (VariantBased) {
+					String RefBases= "\"" + va[3] + "\"";
+					String AltBase= "\"" + va[4] + "\"";
+					Query += ", " + RefBases + "," +  AltBase;
+
+				}				
+			}
+			if (index+1!=listVA.size())
+				Query += " UNION ALL ";
+		}
+		if (VariantBased) {
+			Query += ") \nSELECT reference_name, start, `END`, reference_bases, alternate_bases FROM " + TempVCFTable;
+		}
+		else {
+			Query += ") \nSELECT reference_name, start, `END` FROM " + TempVCFTable;
+			
+		}
+		return Query;
+	}	
 	
 }

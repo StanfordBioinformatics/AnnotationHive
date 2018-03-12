@@ -1,7 +1,7 @@
 package com.google.cloud.genomics.cba;
 
 /*
- * Copyright (C) 2016-2017 Stanford University.
+ * Copyright (C) 2016-2018 Stanford University.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -140,14 +140,8 @@ public class CloudStorage {
 		
 		// Do the get
 		Storage client = StorageFactory.getService();
-//		boolean getMetadata = false;
 		
 		Storage.Objects.Get getObject = client.objects().get(bucketName, objectName);
-
-//		if (getMetadata == true) {
-//		  StorageObject object = getObject.execute();
-//		} else {
-		  // Downloading data.
 		  ByteArrayOutputStream out = new ByteArrayOutputStream();
 		  // If you're not in AppEngine, download the whole thing in one request, if possible.
 		  getObject.getMediaHttpDownloader().setDirectDownloadEnabled(!IS_APP_ENGINE);
@@ -156,7 +150,6 @@ public class CloudStorage {
 			try(OutputStream outputStream = new FileOutputStream(localFilename)) {
 				out.writeTo(outputStream);
 			}
-//		}
 	}
 	
 	/**
