@@ -204,3 +204,18 @@ Users can also submit a list of variants as VCF file to AnnotationHive using
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --gcpTempLocation=gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID>  --outputBigQueryTable=<YOUR_Output_Table> --variantAnnotationTables=<>  --inputRegion=chr11:25900005:25900405,chrY:9323748:9323848 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --localOutputFilePath=<Local_Dir>/YOUR_filename.vcf --bigQuerySort=true" -Pdataflow-runner
    ```
 
+# Experiments #
+
+### Importing Annotation Source Files (UCSC Browser v37 Mappability) ###
+
+![Importing UCSC Browser v37 Mappability Source](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_UCSC_Browser_v37_Mappability.png "Importing UCSC Browser v37 Mappability Source")
+
+***
+
+### Importing Annotation Source Files (hg19_dbnsfp30a Source) ###
+![Annotating NA12877 Genome Using UCSC_Browser_v37_Mappability Transcript](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_hg19_dbnsfp30a.png "Importing hg19_dbnsfp30a Source")
+
+---
+---
+
+
