@@ -144,14 +144,14 @@ After creating AnnotationList Table successfully, then you can import your annot
    ```
 
    ```--columnSeparator```
-You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces. If you only have tab the set it to `\t`)   
+You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces. If you only have tab then set this option to `\t`)   
 
    ```--forceUpdate```
 If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
 
  
 There are two options for sorting the annotated VCF file: 1) DataFlow Sort and 2) BigQuery Sort. 
-If you have a small input file (e.g., one sample VCF file), we recommend you use BigQury Sort. If it is mVCF file or there are many annotation reference files are involved, we recommend to use Dataflow Sort solution. 
+If you have a small input file (e.g., one sample VCF file), we recommend you use the BigQury Sort solution. However, if you have a mVCF file or many annotation reference files involved in the annotation process, then we recommend to use Dataflow Sort solution (Documentation: under development). 
 
 * Dataflow Sort
    ```
