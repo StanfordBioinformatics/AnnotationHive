@@ -216,20 +216,22 @@ the following five annotation datasets:
 ![Annotation Datasets](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Annotations.png "Annotation Datasets")
 
 
+* Execution Time
+
 Over 16B annotation records were processed. The y-axis is logarithmic and represents the execution time in minutes. 
 The number of variants is depicted on the x-axis. In both cases, AnnotationHive is around two orders of magnitude faster 
 than Annovar. 
 
-We compared the annotated VCF files for BRCA1 region. All records are the same except three records w/ 
-genotype values of 0 where Annovar considered them in the output. We filter out variants w/ every genotype
-value less than or equal 0.
- 
 ![AnnotationHive vs. Annovar](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Experiment_AnnotationHive_BigQuery.png "AnnotationHive vs. Annovar")
 
-
-
-
 ---
+
+* Accuracy
+
+We compared the annotated VCF files for BRCA1 region. All records are the same except three records with 
+genotype values of 0 where Annovar considered them in the output. We filter out variants with every genotype
+value less than or equal 0.
+ 
 ---
 
 
