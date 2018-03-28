@@ -222,7 +222,7 @@ the following five annotation datasets:
 
 Over 16B annotation records were processed. The y-axis is logarithmic and represents the execution time in minutes. 
 The number of variants is depicted on the x-axis. In both cases, AnnotationHive is around two orders of magnitude faster 
-than Annovar. 
+than Annovar. For this experiment, we used n1-highmem-16 instances for Annovar and AnnotationHive's Dataflow sort function. 
 
 ![AnnotationHive vs. Annovar](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Experiment_AnnotationHive_BigQuery.png "AnnotationHive vs. Annovar")
 
