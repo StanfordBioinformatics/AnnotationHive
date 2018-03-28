@@ -216,6 +216,8 @@ the following five annotation datasets:
 ![Annotation Datasets](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Annotations.png "Annotation Datasets")
 
 
+---
+
 * Execution Time
 
 Over 16B annotation records were processed. The y-axis is logarithmic and represents the execution time in minutes. 
@@ -232,6 +234,5 @@ We compared the annotated VCF files for BRCA1 region. All records are the same e
 genotype values of 0 where Annovar considered them in the output. We filter out variants with every genotype
 value less than or equal 0.
  
----
 
 
