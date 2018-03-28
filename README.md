@@ -206,14 +206,28 @@ Users can also submit a list of variants as VCF file to AnnotationHive using
 
 # Experiments #
 
-### Importing Annotation Source Files (UCSC Browser v37 Mappability) ###
+### AnnotationHive vs. Annovar ###
 
-![Importing UCSC Browser v37 Mappability Source](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_UCSC_Browser_v37_Mappability.png "Importing UCSC Browser v37 Mappability Source")
+In the following experiment, we tested AnnotationHive and 
+Annovar for one sample (HG00096) of 1000 genomes with over 4.2M 
+variants, and for all 1000 samples with over 85.2M variants against 
+the following five annotation datasets:
 
-***
+![Annotation Datasets](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Annotations.png "Annotation Datasets")
 
-### Importing Annotation Source Files (hg19_dbnsfp30a Source) ###
-![Annotating NA12877 Genome Using UCSC_Browser_v37_Mappability Transcript](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/ImportAnnotation_hg19_dbnsfp30a.png "Importing hg19_dbnsfp30a Source")
+
+Over 16B annotation records were processed. The y-axis is logarithmic and represents the execution time in minutes. 
+The number of variants is depicted on the x-axis. In both cases, AnnotationHive is around two orders of magnitude faster 
+than Annovar. 
+
+We compared the annotated VCF files for BRCA1 region. All records are the same except three records w/ 
+genotype values of 0 where Annovar considered them in the output. We filter out variants w/ every genotype
+value less than or equal 0.
+ 
+![AnnotationHive vs. Annovar](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Experiment_AnnotationHive_BigQuery.png "AnnotationHive vs. Annovar")
+
+
+
 
 ---
 ---
