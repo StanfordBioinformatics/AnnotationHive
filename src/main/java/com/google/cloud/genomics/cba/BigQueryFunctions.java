@@ -229,23 +229,29 @@ public class BigQueryFunctions {
 	}
 
 	public static void runQueryPermanentTable(String queryString, String destinationDataset, String destinationTable,
-			boolean allowLargeResults, int MaximumBillingTier, boolean LegacySql ) throws TimeoutException, InterruptedException {
+			boolean allowLargeResults, int MaximumBillingTier, boolean LegacySql, boolean Update) throws TimeoutException, InterruptedException {
 		QueryJobConfiguration queryConfig;
 		
-		if (MaximumBillingTier>1)
+		if (Update) {
 			queryConfig = QueryJobConfiguration.newBuilder(queryString)
+					.setUseLegacySql(LegacySql)
+					.build();
+		}
+		else {
+			if (MaximumBillingTier>1)
+				queryConfig = QueryJobConfiguration.newBuilder(queryString)
+					.setDestinationTable(TableId.of(destinationDataset, destinationTable))
+					.setAllowLargeResults(allowLargeResults)
+					.setMaximumBillingTier(MaximumBillingTier)
+					.build();
+			else {
+				queryConfig = QueryJobConfiguration.newBuilder(queryString)
 				.setDestinationTable(TableId.of(destinationDataset, destinationTable))
 				.setAllowLargeResults(allowLargeResults)
-				.setMaximumBillingTier(MaximumBillingTier)
+				.setUseLegacySql(LegacySql)
 				.build();
-		else {
-			queryConfig = QueryJobConfiguration.newBuilder(queryString)
-			.setDestinationTable(TableId.of(destinationDataset, destinationTable))
-			.setAllowLargeResults(allowLargeResults)
-			.setUseLegacySql(LegacySql)
-			.build();
+			}
 		}
-		
 		queryConfig.allowLargeResults();
 		BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
 
@@ -2338,15 +2344,15 @@ public class BigQueryFunctions {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
 							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
 					
-					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
+					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "")
+									+ "\") OR " ;
 				}
 				else {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
 							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
 					
-					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ")" ;
+					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "") 
+									+ "\")" ;
 				}
 			}
 			
@@ -2553,6 +2559,14 @@ public class BigQueryFunctions {
 					+ " ) GROUP BY  chrm, start, end, reference_bases, alternate_bases " ; 
 		}
 		return Query;
+	}
+
+	public static void incrementStart(String projectId, String bigQueryDatasetId, String outputBigQueryTable) throws Exception  {
+	
+		String queryStat = "UPDATE   " + "`" + projectId + "."
+				+ bigQueryDatasetId + "." + outputBigQueryTable + "` "
+				+ " SET start = start + 1 WHERE chrm <>\"\" ";
+		QueryResponse response = runquery(queryStat);
 	}
 	
 }

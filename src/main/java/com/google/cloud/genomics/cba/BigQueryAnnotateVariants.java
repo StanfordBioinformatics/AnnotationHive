@@ -104,9 +104,12 @@ import com.google.common.base.Function;
  *            using BigQuery itself.
  * @param maximumBillingTier
  *            Users can specify the maximum billing tier.
- *            
  * @param searchRegions  
  *            specify the regions of interest (i.e., chr13:32889610:32973808,chr17:41196311:41277499 ) 
+ * @param tableExists
+ * 			  If table exists, then set this true
+ * @param keepOutputTable
+ * 			  If users want to keep the output table, they need to set this true	
  *            
  * @version 1.0
  * @since 2018-02-01
@@ -250,6 +253,17 @@ public final class BigQueryAnnotateVariants {
 		@Default.String("")
 		String getSearchRegions();
 		void setSearchRegions(String regions);
+		
+		@Description("If users want to keep the output table, they need to set this true")
+		@Default.Boolean(false)
+		boolean getKeepOutputTable();
+		void setKeepOutputTable(boolean keepOutputTable);
+
+		@Description("If table exists, then set this true")
+		@Default.Boolean(false)
+		boolean getTableExists();
+		void setTableExists(boolean tableExists);
+		
 	}
 
 	private static Options options;
@@ -345,9 +359,7 @@ public final class BigQueryAnnotateVariants {
 							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 							options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
 				
-					
-					
-					
+						
 					LegacySql = true;
 				}
 			} else { // e.g., LP6005038-DNA_H11
@@ -399,7 +411,7 @@ public final class BigQueryAnnotateVariants {
 				queryString = BigQueryFunctions.createTempVCFTable(listVA, tempTableName, true);
 				// Create the temp VCF table
 				runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
-						options.getMaximumBillingTier(), LegacySql);
+						options.getMaximumBillingTier(), LegacySql, false);
 
 				String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
 						+ "AnnotationHiveTempVCFTable";
@@ -442,7 +454,7 @@ public final class BigQueryAnnotateVariants {
 				queryString = BigQueryFunctions.createTempVCFTable(listRegions, tempTableName, false);
 				// Create the temp VCF table
 				runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
-						options.getMaximumBillingTier(), LegacySql);
+						options.getMaximumBillingTier(), LegacySql, false);
 
 				String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
 						+ "AnnotationHiveTempVCFTable";
@@ -460,8 +472,9 @@ public final class BigQueryAnnotateVariants {
 
 		////////////////////////////////// STEP1/////////////////////////////////////
 		////////////////////////////////// Joins/////////////////////////////////////
-		runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
-				options.getMaximumBillingTier(), LegacySql);
+		if(!options.getTableExists())
+			runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
+				options.getMaximumBillingTier(), LegacySql, false);
 
 		long tempEstimatedTime = System.currentTimeMillis() - startTime;
 		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
@@ -484,7 +497,8 @@ public final class BigQueryAnnotateVariants {
 			///////////////// STEP3: Delete the Intermediate
 			///////////////// Table///////////////////////////
 			// TODO: Add a new condition here
-			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
+			if(!options.getKeepOutputTable())
+				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
 		}
 	}
 	
@@ -576,11 +590,11 @@ public final class BigQueryAnnotateVariants {
 	}
 
 	private static void runQuery(String queryString, String bigQueryDatasetId, String outputBigQueryTable,
-			boolean allowLargeResults, int maximumBillingTier, boolean LegacySql) {
+			boolean allowLargeResults, int maximumBillingTier, boolean LegacySql, boolean Update) {
 
 		try {
 			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDatasetId, outputBigQueryTable,
-					allowLargeResults, maximumBillingTier, LegacySql);
+					allowLargeResults, maximumBillingTier, LegacySql, Update);
 		} catch (TimeoutException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -950,52 +964,6 @@ public final class BigQueryAnnotateVariants {
 										}
 									}
 
-									// Solution: When there is not much space available -> remember if you do this
-									// Then it would take much longer, that means you have to pay more. So, always
-									// better
-									// To reserve large memory instances to handle these cases.
-
-									// Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
-									// .getValue();
-									//
-									//
-									// for (int chrm = 1; chrm < 26; chrm++) {
-									// for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
-									// LOG.warning("Chrm: " + chrm + " ChromLevel.getKey().intValue(): " +
-									// ChromLevel.getKey().intValue());
-									// if(Integer.compare(chrm, ChromLevel.getKey().intValue()) == 0) {
-									// for (KV<Long, Iterable<String>> BinLevel : ChromLevel.getValue()) {
-									// for (String ItemLevel : BinLevel.getValue()) {
-									// c.output(ItemLevel);
-									// }
-									// }
-									// }
-									// }
-									// }
-
-									// This is another method for handling this case,
-									// HashMap<Integer, Iterable<KV<Long, Iterable<String>>>> hmap =
-									// new HashMap<Integer, Iterable<KV<Long, Iterable<String>>>>();
-									//
-									// Iterable<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> x = c.element()
-									// .getValue();
-									//
-									//
-									// //for (int chrm = 1; chrm < 26; chrm++) {
-									// for (KV<Integer, Iterable<KV<Long, Iterable<String>>>> ChromLevel : x) {
-									// hmap.put(ChromLevel.getKey().intValue(), ChromLevel.getValue());
-									// }
-									//
-									// for (int chrm = 1; chrm < 26; chrm++) {
-									// if(hmap.containsKey(chrm)) {
-									// for (KV<Long, Iterable<String>> BinLevel : hmap.get(chrm)) {
-									// for (String ItemLevel : BinLevel.getValue()) {
-									// c.output(ItemLevel);
-									// }
-									// }
-									// }
-									// }
-
 								}
 							}))
 					.apply("VCF", TextIO.write().to(options.getBucketAddrAnnotatedVCF()));
@@ -1048,6 +1016,15 @@ public final class BigQueryAnnotateVariants {
 			////////////////////////////////// Output is a local
 			////////////////////////////////// file/////////////////////////////////////
 			try {
+				
+				if (!options.getTableExists()) {
+					String queryStat = "UPDATE   " + "`" + options.getProject() + "."
+							+ options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable() + "` "
+							+ " SET start = start + 1 WHERE chrm <>\"\" ";
+					LOG.warning(queryStat);
+					 runQuery(queryStat, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
+							options.getMaximumBillingTier(), false, true);				
+				}
 				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDatasetId(),
 						options.getOutputBigQueryTable(), options.getLocalOutputFilePath(), options.getBinSize());
 			} catch (Exception e) {
