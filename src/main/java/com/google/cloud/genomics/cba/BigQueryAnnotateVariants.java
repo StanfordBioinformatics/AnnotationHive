@@ -104,6 +104,10 @@ import com.google.common.base.Function;
  *            using BigQuery itself.
  * @param maximumBillingTier
  *            Users can specify the maximum billing tier.
+ *            
+ * @param searchRegions  
+ *            specify the regions of interest (i.e., chr13:32889610:32973808,chr17:41196311:41277499 ) 
+ *            
  * @version 1.0
  * @since 2018-02-01
  */
@@ -241,7 +245,11 @@ public final class BigQueryAnnotateVariants {
 		String getInputRegion();
 
 		void setInputRegion(String value);
-
+		
+		@Description("specify the regions of interest (i.e., chr13:32889610:32973808,chr17:41196311:41277499 )")
+		@Default.String("")
+		String getSearchRegions();
+		void setSearchRegions(String regions);
 	}
 
 	private static Options options;
@@ -289,6 +297,21 @@ public final class BigQueryAnnotateVariants {
 							+ " OR a variant (e.g., chr13:68482097:68482098:CC:TT) \n"
 							+ " OR a region (e.g., chr17:1000:2001) \n");
 		}
+		
+		
+		if (options.getSearchRegions().isEmpty()) {
+			checkRegions(options.getSearchRegions());
+			
+		}
+		
+		if (options.getBigQuerySort()) {
+			
+			// check whether user provided VCF tables IDs
+			if (options.getLocalOutputFilePath().isEmpty()) {
+				throw new IllegalArgumentException(
+						"Please specify the path to the local output file \n");
+			}	
+		}
 
 		long startTime = System.currentTimeMillis();
 
@@ -311,10 +334,20 @@ public final class BigQueryAnnotateVariants {
 				} else {// Variant-based or Interval-based annotation
 					LOG.info(
 							"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
-					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
+//					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
+//							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+//							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+//							options.getVariantAnnotationCanonicalizeRefNames(), false);
+					
+					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_GroupBy(
+							options.getVCFTables(),
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-							options.getVariantAnnotationCanonicalizeRefNames(), false);
+							options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
+				
+					
+					
+					
 					LegacySql = true;
 				}
 			} else { // e.g., LP6005038-DNA_H11
@@ -454,6 +487,20 @@ public final class BigQueryAnnotateVariants {
 			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
 		}
 	}
+	
+	/**
+	 * <h1>This function is checks the input searchRegions
+	 */
+	private static void checkRegions(String searchRegions) {
+		String[] regions = searchRegions.split(",");
+		for (String rs : regions ) {
+			String [] temp = rs.split(":");
+			if(temp.length!=3 || (Integer.parseInt(temp[1])>Integer.parseInt(temp[2])))
+			{
+				throw new IllegalArgumentException("Input Search Regions is not correct (e.g., chr13:32889610:32973808,chr17:41196311:41277499)");
+			}
+		}
+	}
 
 	private static String[] QC_Test_Input_Variant(String inputVariant, boolean region_based) {
 
@@ -553,7 +600,8 @@ public final class BigQueryAnnotateVariants {
 	private static void runSort() {
 
 		if (!options.getBigQuerySort()) {
-
+			
+			
 			////////////////////////////////// STEP2: Run Dataflow
 			////////////////////////////////// Sort/////////////////////////////////////
 			PCollection<TableRow> variantData = p
@@ -598,7 +646,7 @@ public final class BigQueryAnnotateVariants {
 																	// 1-base]
 													{
 														long tempStart = Long.parseLong(fieldValues[index].toString())
-																+ 1;
+																+ 1; //convert to 1-based
 														temp += tempStart + "\t";
 													} else {
 														if (index == 5) // chrm, start, end, ref, alt => first 5 columns
