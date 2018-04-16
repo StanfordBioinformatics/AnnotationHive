@@ -1,0 +1,66 @@
+{#
+# Copyright 2015 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#}
+
+{% extends "base.html" %}
+
+{% block db_list %}
+
+<h4>Database List</h4>
+<div>Database Count: 3</div>
+<div class="row">
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
+</div>
+<div class="row">
+  <div class="col-sm-5" style="font-weight: bold; font-size: 16px;">Name</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Size</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Type</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Build</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Experiment Group</div>   
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Signal</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Source</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Tissue</div>
+</div>
+<div class="row">
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
+</div>
+
+{% for object in objects %}
+<div class="row">
+  <div class="col-sm-5"><input type="checkbox" name="db" /> {{object.annotation_set_name}}</div>
+  <div class="col-sm-1">{{object.annotation_set_size}}</div>
+  <div class="col-sm-1">{{object.annotation_set_type}}</div>
+  <div class="col-sm-1">{{object.build}}</div>
+  <div class="col-sm-1">{{object.experiment_group}}</div>
+  <div class="col-sm-1">{{object.signal}}</div>   
+  <div class="col-sm-1">{{object.source}}</div>  
+  <div class="col-sm-1">{{object.tissue}}</div> 
+</div>
+<div class="row">
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
+</div>
+{% else %}
+<p>No data objects found</p>
+{% endfor %}
+
+{% if next_page_token %}
+<nav>
+  <ul class="pager">
+    <li><a href="?page_token={{next_page_token}}">More</a></li>
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

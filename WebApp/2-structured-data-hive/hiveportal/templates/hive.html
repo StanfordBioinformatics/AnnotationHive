@@ -1,0 +1,137 @@
+{#
+# Copyright 2015 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#}
+
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2 style="display: inline-block;">Annotation Hive<h2>
+
+<!--
+<div class="row">
+  <div class="col-sm-10" style="background-color:white; height:2px;"></div>
+</div>
+-->
+
+<h3 style="display: inline-block;">Step 1: Choose Annotation Databases</h3>
+<button type="button" class="btn btn-success" style="float: right;">Step 2: Choose Parameters</button>
+
+<!--
+<div id="step1">
+  <h3 style="display: inline-block;">Step 1: Choose Annotation Databases</h3>
+  <button type="button" class="btn btn-success" style="float: right;">Choose Parameters</button>
+</div>
+-->
+
+<div class="row">
+  <div class="col-sm-10" style="background-color:white; height:2px;"></div>
+</div>
+
+<fieldset>
+  <legend>Choose reference genome build</legend>
+  <div>
+    <input type="checkbox" id="hg19" name="build" value="hg19" checked>
+    <label for="hg19">hg19</label>
+  </div>
+  <div>
+    <input type="checkbox" id="hg38" name="build" value="hg38" checked>
+    <label for="hg38">hg38</label>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Choose source</legend>
+  <div>
+    <input type="checkbox" id="hg19" name="source" value="hg19" checked>
+    <label for="hg19">ucsc</label>
+  </div>
+  <div>
+    <input type="checkbox" id="hg38" name="source" value="hg38" checked>
+    <label for="hg38">cosmic</label>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Tissue</legend>
+  <div>
+    <input type="checkbox" id="heart" name="tissue" value="heart" checked>
+    <label for="heart">heart</label>
+  </div>
+  <div>
+    <input type="checkbox" id="lung" name="tissue" value="lung" checked>
+    <label for="lung">lung</label>
+  </div>
+  <div>
+    <input type="checkbox" id="ovary" name="tissue" value="ovary" checked>
+    <label for="ovary">lung</label>
+  </div>
+</fieldset>
+
+<nav>
+  <ul class="pager">
+    <li><a href="hive">Refresh</a></li>
+    <li><a href="hive">Download Annotation List</a></li>
+    <li><a href="hive">Upload Annotation List</a></li>
+  </ul>
+</nav>
+
+<!-- Header rows -->
+<h4>Database List</h4>
+<div>Database Count: 3</div>
+<div class="row">
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
+</div>
+<div class="row">
+  <div class="col-sm-5" style="font-weight: bold; font-size: 16px;">Name</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Size</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Type</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Build</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Experiment Group</div>   
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Signal</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Source</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Tissue</div>
+</div>
+<div class="row">
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
+</div>
+
+{% for object in objects %}
+<div class="row">
+  <div class="col-sm-5"><input type="checkbox" name="db" /> {{object.annotation_set_name}}</div>
+  <div class="col-sm-1">{{object.annotation_set_size}}</div>
+  <div class="col-sm-1">{{object.annotation_set_type}}</div>
+  <div class="col-sm-1">{{object.build}}</div>
+  <div class="col-sm-1">{{object.experiment_group}}</div>
+  <div class="col-sm-1">{{object.signal}}</div>   
+  <div class="col-sm-1">{{object.source}}</div>  
+  <div class="col-sm-1">{{object.tissue}}</div> 
+</div>
+<div class="row">
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
+</div>
+{% else %}
+<p>No data objects found</p>
+{% endfor %}
+
+{% if next_page_token %}
+<nav>
+  <ul class="pager">
+    <li><a href="?page_token={{next_page_token}}">More</a></li>
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

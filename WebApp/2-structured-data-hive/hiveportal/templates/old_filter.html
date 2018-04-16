@@ -1,0 +1,182 @@
+{#
+# Copyright 2015 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#}
+
+{# [START form] #}
+{% extends "base.html" %}
+
+{% block content %}
+
+
+<h2 style="display: inline-block;">Annotation Hive<h2>
+
+<!--
+<div class="row">
+  <div class="col-sm-10" style="background-color:white; height:2px;"></div>
+</div>
+-->
+
+<h3 style="display: inline-block;">Step 1: Filter Annotation Databases</h3>
+<button type="button" class="btn btn-success" style="float: right;">Step 2: Choose Parameters</button>
+
+<!--
+<div id="step1">
+  <h3 style="display: inline-block;">Step 1: Choose Annotation Databases</h3>
+  <button type="button" class="btn btn-success" style="float: right;">Choose Parameters</button>
+</div>
+-->
+
+<div class="row">
+  <div class="col-sm-10" style="background-color:white; height:2px;"></div>
+</div>
+
+<!-- TODO: this is broken. I think I need to implement a fix 
+  that involves something related to... 
+  
+  https://stackoverflow.com/questions/24018629/how-can-i-create-a-form-from-a-list-of-models-using-wtforms
+
+  https://stackoverflow.com/questions/28375565/add-input-fields-dynamically-with-wtforms?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+-->
+  
+<form method="POST" enctype="multipart/form-data">
+  {% for section in sections %}
+    <legend>{{section.legend}}</legend>
+      {% for entry in section.checked_entries %}
+        <input type="{{entry['type']}}" id="{{entry['id']}}" name="{{entry['name']}}" value="{{entry['value']}}" checked>
+        <label for="{{entry['name']}}">{{entry['name']}}</label>
+      {% endfor %}
+      {% for entry in section.unchecked_entries %}
+        <input type="{{entry['type']}}" id="{{entry['id']}}" name="{{entry['name']}}" value="{{entry['value']}}" checked>
+        <label for="{{entry['name']}}">{{entry['name']}}</label>
+      {% endfor %}
+  {% endfor %}
+  <button type="submit" class="btn btn-success">Save</button>
+</form>
+
+{% endblock %}
+{# [END form] #}
+
+
+
+
+<!--
+<fieldset>
+  <form method=post action="">
+    <legend>Choose reference genome build</legend>
+      <label>
+        <td>{{ form.Hg19.label }}</td>
+        <td>{{ form.Hg19 }}</td>
+      </label>
+      <label>
+        <td>{{ form.Hg38.label }}</td>
+        <td>{{ form.Hg38 }}</td>
+      </label>
+    <legend>Organ system</legend>
+      <label>
+        <td>{{ form.Digestive.label }}</td>
+        <td>{{ form.Digestive }}</td>
+      </label>
+      <label>
+        <td>{{ form.Endocrine.label }}</td>
+        <td>{{ form.Endocrine }}</td>
+      </label>
+      <label>
+        <td>{{ form.Nervous.label }}</td>
+        <td>{{ form.Nervous }}</td> 
+      </label><label>
+        <td>{{ form.Muscular.label }}</td>
+        <td>{{ form.Muscular }}</td> 
+      </label>
+    <legend>Programmatic</legend>
+    {% for organ in form.organ_systems %}
+      <label>
+        <td>{{ organ.label }}</td>
+        <td>{{ organ }}</td>
+      </label>
+    {% endfor %}
+  <p><input type=submit value=Filter></form></p>
+</fieldset>
+
+{% endblock %}
+-->
+
+<!--
+<fieldset>
+  <legend>Choose reference genome build</legend>
+  <div>
+    <input type="checkbox" id="hg19" name="build" value="hg19" checked>
+    <label for="hg19">hg19</label>
+  </div>
+  <div>
+    <input type="checkbox" id="hg38" name="build" value="hg38" checked>
+    <label for="hg38">hg38</label>
+  </div>
+</fieldset>
+-->
+
+<!--
+<fieldset>
+  <legend>Organ system</legend>
+  <label>
+    <td>{{ form.endocrine.label }}</td>
+    <td>{{ form.endocrine }}</td>
+  </label>
+  <label>
+    <td>{{ form.nervous.label }}</td>
+    <td>{{ form.nervous }}</td> 
+  </label><label>
+    <td>{{ form.muscular.label }}</td>
+    <td>{{ form.muscular }}</td> 
+  </label>
+</fieldset>
+
+<fieldset>
+  <legend>Choose source</legend>
+  <div>
+    <input type="checkbox" id="ucsc" name="source" value="ucsc" checked>
+    <label for="ucsc">ucsc</label>
+  </div>
+  <div>
+    <input type="checkbox" id="cosmic" name="source" value="cosmic" checked>
+    <label for="cosmic">cosmic</label>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Tissue</legend>
+  <div>
+    <input type="checkbox" id="heart" name="tissue" value="heart" checked>
+    <label for="heart">heart</label>
+  </div>
+  <div>
+    <input type="checkbox" id="lung" name="tissue" value="lung" checked>
+    <label for="lung">lung</label>
+  </div>
+  <div>
+    <input type="checkbox" id="ovary" name="tissue" value="ovary" checked>
+    <label for="ovary">lung</label>
+  </div>
+</fieldset>
+
+
+<nav>
+  <ul class="pager">
+    <li><a href="filter">Submit</a></li>
+    <li><a href="hive">Download Annotation List</a></li>
+    <li><a href="hive">Upload Annotation List</a></li>
+  </ul>
+</nav>
+-->
+
