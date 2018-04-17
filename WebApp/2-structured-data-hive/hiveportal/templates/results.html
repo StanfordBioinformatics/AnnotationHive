@@ -1,0 +1,96 @@
+{#
+# Copyright 2015 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#}
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+{% extends "base.html" %}
+
+{% block results %}
+
+<h3>Annotated VCF Result</h3>
+
+<!--
+<a href="/objects/add" class="btn btn-success btn-sm">
+  <i class="glyphicon glyphicon-plus"></i>
+  Add object
+</a>
+-->
+
+<div class="row">
+  <div class="col-sm-28" style="background-color:white; height:2px;"></div>
+</div>
+
+<!-- Header rows -->
+<div class="row">
+  <div class="col-sm-28" style="background-color:black; height:2px;"></div>
+</div>
+
+<div class="row" style="overflow-x:scroll; white-space:nowrap">
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">chr</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">start</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">end</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">ref</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">alt</div>
+  <div class="col-sm-2" style="font-weight: bold; font-size: 16px;">pancreas_variant</div> 
+  <div class="col-sm-2" style="font-weight: bold; font-size: 16px;">pancreas_gene</div> 
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">pancreas_effectSize</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">pancreas_pVal</div>
+</div>
+
+<!--
+<div class="container testimonial-group">
+  <div class="row">
+    <div class="col-xs-4">chr</div>
+    <div class="col-xs-4">start</div>
+    <div class="col-xs-4">end</div>
+    <div class="col-xs-4">ref</div>
+    <div class="col-xs-4">alt</div>
+  </div>
+</div>
+-->
+
+<div class="row">
+  <div class="col-sm-28" style="background-color:black; height:2px;"></div>
+</div>
+
+{% for object in objects %}
+<div class="row">
+  <div class="col-sm-1">{{object[0]}}</div>
+  <div class="col-sm-1">{{object[1]}}</div>
+  <div class="col-sm-1">{{object[2]}}</div>
+  <div class="col-sm-1">{{object[3]}}</div>  
+  <div class="col-sm-1">{{object[4]}}</div> 
+  <div class="col-sm-1">{{object[30]}}</div> 
+  <div class="col-sm-2">{{object[32]}}</div> 
+  <div class="col-sm-1">{{object[34]}}</div> 
+  <div class="col-sm-1">{{object[35]}}</div>
+</div>
+<div class="row">
+  <div class="col-sm-28" style="background-color:black; height:2px;"></div>
+</div>
+{% else %}
+<p>No data objects found</p>
+{% endfor %}
+
+{% if next_page_token %}
+<nav>
+  <ul class="pager">
+    <li><a href="?page_token={{next_page_token}}">More</a></li>
+  </ul>
+</nav>
+{% endif %}
+
+<!--{% endblock %}-->

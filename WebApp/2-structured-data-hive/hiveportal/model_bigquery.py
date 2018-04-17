@@ -309,13 +309,20 @@ def filter(data):
     query = """
             SELECT 
                 AnnotationSetName,
+                AnnotationSetVersion,
+                AnnotationSetType,
+                AnnotationSetFields,
+                CreationDate,
                 Build,
+                AnnotationSetSize,
+                Info,
                 Source,
+                Project,
                 Signal,
                 Tissue,
                 OrganSystem
             FROM
-                `gbsc-gcp-project-cba.annotation.annotation_gtex_curated`
+                `gbsc-gcp-project-cba.annotation.annotation_gtex_curated2`
             WHERE
                 Source IN UNNEST(@sources)
                 AND Signal IN UNNEST(@signals)

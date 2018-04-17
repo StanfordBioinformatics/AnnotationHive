@@ -90,11 +90,24 @@ FILTER_CONFIG = [
                                                 'Digestive'])]
 '''
 FILTER_CONFIG = [
+                 #{
+                  #"name": "annotation_type",
+                  #"input_type": "radio",
+                  #"legend": "Annotation Type",
+                  #"options": [
+                  #            "Variant-based", 
+                  #            "Region-based",
+                  #            "Gene-based"]
+                 #},
                  {
                   "name": "build",
                   "input_type": "radio",
-                  "legend" : "Human Reference Builds",
-                  "options" : ["hg19", "hg38"]
+                  "legend" : "Reference Genomes",
+                  "options" : [
+                               "hg19", "hg38", "mm10", "papAnu2", "equCab2", 
+                               "eboVir3", "loxAfr3", "melGal5", "cavPor3", 
+                               "ailMel1", "canFam3", "gorGor5", "panTro5", 
+                               "bosTau8", "chlSab2", "rhiRox1"]
                  },
                  {
                   "name": "source",
@@ -120,6 +133,7 @@ FILTER_CONFIG = [
 # Not sure I even need this
 FILTER_DEFAULTS = {
                    # radio options
+                   #"annotation_type": "Variant-based",
                    "build": "hg19",
                    # checkbox options
                    "UCSC": "UCSC",

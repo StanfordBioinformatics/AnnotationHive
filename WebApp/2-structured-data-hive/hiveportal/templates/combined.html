@@ -19,10 +19,19 @@
 
 {% block filter %}
 {# [START form] #}
+<!--
 <h2 style="display: inline-block;">Annotation Hive<h2>
+-->
 
 <h3 style="display: inline-block;">Step 1: Filter Annotation Databases</h3>
+<a href="/objects/parameters" class="btn btn-success" style="float: right;">
+  <i class="glyphicon glyphicon-plus"></i>
+  Step 2: Choose Parameters
+</a>
+
+<!--
 <button type="button" class="btn btn-success" style="float: right;">Step 2: Choose Parameters</button>
+-->
 
 <div class="row">
   <div class="col-sm-10" style="background-color:white; height:2px;"></div>
@@ -75,32 +84,38 @@
 <h3>Annotation Databases</h3>
 
 <div class="row">
-  <div class="col-sm-10" style="background-color:white; height:2px;"></div>
+  <div class="col-sm-12" style="background-color:white; height:2px;"></div>
 </div>
 
 <!-- Header rows -->
 <div class="row">
-  <div class="col-sm-10" style="background-color:black; height:2px;"></div>
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
 </div>
 <div class="row">
   <div class="col-sm-4" style="font-weight: bold; font-size: 16px;">Annotation Set</div>
-  <div class="col-sm-2" style="font-weight: bold; font-size: 16px;">Build</div>
-  <div class="col-sm-2" style="font-weight: bold; font-size: 16px;">Source</div>
-  <div class="col-sm-4" style="font-weight: bold; font-size: 16px;">Group</div>   
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Build</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Source</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Project</div> 
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Signal</div>
+  <div class="col-sm-2" style="font-weight: bold; font-size: 16px;">Tissue</div>
+  <div class="col-sm-1" style="font-weight: bold; font-size: 16px;">Organ System</div>  
 </div>
 <div class="row">
-  <div class="col-sm-10" style="background-color:black; height:2px;"></div>
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
 </div>
 
 {% for object in objects %}
 <div class="row">
   <div class="col-sm-4">{{object[0]}}</div>
-  <div class="col-sm-2">{{object[5]}}</div>
-  <div class="col-sm-2">{{object[8]}}</div>
-  <div class="col-sm-4">{{object[9]}}</div>   
+  <div class="col-sm-1">{{object[5]}}</div>
+  <div class="col-sm-1">{{object[8]}}</div>
+  <div class="col-sm-1">{{object[9]}}</div>  
+  <div class="col-sm-1">{{object[10]}}</div> 
+  <div class="col-sm-2">{{object[11]}}</div>
+  <div class="col-sm-1">{{object[12]}}</div>
 </div>
 <div class="row">
-  <div class="col-sm-10" style="background-color:black; height:2px;"></div>
+  <div class="col-sm-12" style="background-color:black; height:2px;"></div>
 </div>
 {% else %}
 <p>No data objects found</p>

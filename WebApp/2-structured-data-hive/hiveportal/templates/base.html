@@ -25,22 +25,22 @@
     <div class="navbar navbar-default">
       <div class="container">
         <div class="navbar-header">
-          <div class="navbar-brand">Annotation Hive</div>
+          <div class="navbar-brand">Annotation Hive (Pre-alpha)</div>
         </div>
-        <ul class="nav navbar-nav">
+        <!--<ul class="nav navbar-nav">
           <li><a href="/objects/">Database List</a></li>
         </ul>
         <ul class="nav navbar-nav">
           <li><a href="/objects/combined">Combined</a></li>
+        </ul>-->
+        <ul class="nav navbar-nav">
+          <li><a href="/objects/combined">Step 1: Pick Databases</a></li>
         </ul>
         <ul class="nav navbar-nav">
-          <li><a href="/objects/filter">Step 1: Pick Databases</a></li>
+          <li><a href="/objects/parameters">Step 2: Choose Parameters</a></li>
         </ul>
         <ul class="nav navbar-nav">
-          <li><a href="/objects/parameters">Step 2: Pick Parameters</a></li>
-        </ul>
-        <ul class="nav navbar-nav">
-          <li><a href="/objects/annotate">Step 3: Annotate VCF</a></li>
+          <li><a href="/objects/results">Step 3: Results</a></li>
         </ul>
       </div>
     </div>
@@ -52,6 +52,9 @@
     </div>
     <div class="container">
       {% block list %}{% endblock %}
+    </div>
+    <div class="container" style="overflow-x:scroll; white-space:nowrap">
+      {% block results %}{% endblock %}
     </div>
     {{user}}
   </body>

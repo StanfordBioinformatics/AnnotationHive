@@ -39,7 +39,7 @@ def list():
 
 @crud.route("/")
 def home():
-    table_id = "annotation_gtex_curated"
+    table_id = "annotation_gtex_curated2"
     return redirect(url_for('.list', table_id=table_id))
 
 
@@ -59,6 +59,21 @@ def list(table_id):
 
     return render_template(
                            "list.html",
+                           objects=objects,
+                           next_page_token=next_page_token)
+# [END list]
+
+# [START results]
+@crud.route('/results/<table_id>')
+def results(table_id):
+    token = request.args.get('page_token', None)
+
+    objects, next_page_token = get_model().list(
+                                                table_id = table_id, 
+                                                cursor = token)
+
+    return render_template(
+                           "results.html",
                            objects=objects,
                            next_page_token=next_page_token)
 # [END list]
@@ -85,23 +100,12 @@ def filter_static():
 
 @crud.route("/filter", methods=['GET', 'POST'])
 def filter(): 
-    #form = get_model().FilterForm(request.form)
-
     if request.method == 'POST':
         data = request.form.to_dict(flat=True)
-        #table_id = 'gbsc-gcp-project-cba.annotation.annotation_gtex_curated'
         get_model().filter(data)
-        
-        #table_id = 'webportal_results'
-        #objects, next_page_token = get_model().list(
-        #                                            table_id = table_id)
+
         return redirect(url_for('.list', table_id='webportal_results'))
-        #return render_template(
-        #                       "list.html", 
-        #                       objects=objects, 
-        #                       next_page_token=next_page_token)
     else:
-        #form = get_model().FilterForm()
         radio_sections, checkbox_sections = get_model().populate_form()
         return render_template(
                                "filter.html", 
@@ -170,6 +174,21 @@ def hive():
 # [END list]
 '''
 
+# [START add]
+@crud.route('/parameters', methods=['GET', 'POST'])
+def parameters():
+    if request.method == 'POST':
+        #data = request.form.to_dict(flat=True)
+
+        #ds_object = get_model().create(data)
+
+        #return redirect(url_for('.view', id=ds_object['id']))
+        table_id = "gtextEqtlTissue_7GenericAnnotations_1000Genomes_1000_BRAC1_BRAC2_Sep"
+        return redirect(url_for('.results', table_id=table_id))
+
+    return render_template("parameters.html", action="Add", object={})
+# [END add]
+
 @crud.route("/combined", methods=['GET', 'POST'])
 def combined(): 
     token = request.args.get('page_token', None)
@@ -196,7 +215,7 @@ def combined():
         #token = request.args.get('page_token', None)
         radio_sections, checkbox_sections = get_model().populate_form()
 
-        table_id = 'annotation_gtex_curated'
+        table_id = 'annotation_gtex_curated2'
         objects, next_page_token = get_model().list(
                                                     table_id = table_id,
                                                     cursor = token)
