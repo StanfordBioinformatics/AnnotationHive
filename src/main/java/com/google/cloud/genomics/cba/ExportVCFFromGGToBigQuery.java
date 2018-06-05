@@ -67,10 +67,10 @@ public class ExportVCFFromGGToBigQuery {
 		String getVariantSetId();
 		void setVariantSetId(String VariantSetId);
 		
-		@Description("This provides BigqueryDataSetId. This is a required field.")
+		@Description("This provides BigqueryDatasetId. This is a required field.")
 		@Default.String("")
-		String getBigQueryDataSetId();
-		void setBigQueryDataSetId(String BigqueryDataSetId);
+		String getBigQueryDatasetId();
+		void setBigQueryDatasetId(String BigqueryDatasetId);
 	}
 
 	/**
@@ -93,7 +93,7 @@ public class ExportVCFFromGGToBigQuery {
 			throw new IllegalArgumentException("variantSetId must be specified");
 		}
 
-		if (options.getBigQueryDataSetId().isEmpty()) {
+		if (options.getBigQueryDatasetId().isEmpty()) {
 			throw new IllegalArgumentException("bigqueryDataSetId must be specified");
 		}
 		
@@ -107,7 +107,7 @@ public class ExportVCFFromGGToBigQuery {
 	
 		    ExportVariantSetRequest requestBody = new ExportVariantSetRequest();
 		    requestBody.setBigqueryTable(options.getBigQueryTableId());
-		    requestBody.setBigqueryDataset(options.getBigQueryDataSetId());
+		    requestBody.setBigqueryDataset(options.getBigQueryDatasetId());
 		    requestBody.setProjectId(options.getProject());
 
 		    
