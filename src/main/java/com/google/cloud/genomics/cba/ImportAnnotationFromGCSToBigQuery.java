@@ -162,6 +162,11 @@ public class ImportAnnotationFromGCSToBigQuery {
 		String getColumnSeparator();	
 		void setColumnSeparator(String ColumnSeparator);
 		
+		@Description("This provides whether the file contains POS field [true] instead of Start and End [false].")
+		@Default.Boolean(false)
+		boolean getPOS();
+		void setPOS(boolean POS);
+	
 	}
 
 	private static Options options;
@@ -252,7 +257,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 		if (VariantAnnotation){
 			System.out.println("Variant Annotation Pipeline");
 			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator())))
+			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
 			.apply(
 		            BigQueryIO.writeTableRows()
 		                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
@@ -264,7 +269,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 			System.out.println("Generic Annotation Pipeline");
 
 			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator())))
+			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
 			.apply(
 		            BigQueryIO.writeTableRows()
 		                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
@@ -539,14 +544,16 @@ public class ImportAnnotationFromGCSToBigQuery {
 		private final boolean is_0_Based;
 		private String columnOrder="";
 		private String columnSeparator="";
+		private final boolean POS;
 		private static final long serialVersionUID = 7700800981719306804L;
 
-		public FormatFn(String [] _inputFields, boolean _VA, boolean _zeroBased, String _columnOrder, String _columnSeparator) {
+		public FormatFn(String [] _inputFields, boolean _VA, boolean _zeroBased, String _columnOrder, String _columnSeparator, boolean _POS) {
 			this.inputFields = _inputFields;
 			this.VariantAnnotation = _VA;
 			this.is_0_Based = _zeroBased;
 			this.columnOrder=_columnOrder;
 			this.columnSeparator=_columnSeparator;
+			this.POS=_POS;
 			
 		}
 
@@ -583,14 +590,15 @@ public class ImportAnnotationFromGCSToBigQuery {
 							row.set("start", Integer.parseInt(vals[startIndex]));
 						}
 						
-						row.set("end", vals[endIndex]);
-						
+						int RefSize=0; 
 						/*Make sure to handle special cases for reference bases [insertion]*/
 						//For those cases that annotation reference file does not support refBase column 
 						if (refIndex>=vals.length || vals[refIndex] == null || vals[refIndex].isEmpty() || vals[refIndex].equals("-"))
 							row.set("base", "");
-						else
+						else {
 							row.set("base", vals[refIndex]);
+							RefSize= vals[refIndex].length()-1;
+						}
 						
 						if (this.columnOrder.isEmpty()) {						
 							for (int index=5; index<vals.length; index++ )
@@ -601,6 +609,14 @@ public class ImportAnnotationFromGCSToBigQuery {
 								&& index!=endIndex && index!=refIndex && index!=altIndex)
 									row.set(inputFields[index], vals[index]);
 						}
+						
+						//In case, there is no field for Start and End; then we need to calc End based on the number of ref bases 
+						if (!this.POS)
+							row.set("end", vals[endIndex]);
+						else {
+							row.set("end", Integer.parseInt(vals[endIndex]) + RefSize);
+						}
+						
 						
 						/*Make sure to handle special cases for alternate bases [deletion] */
 						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
