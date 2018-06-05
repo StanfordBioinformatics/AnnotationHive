@@ -35,6 +35,7 @@ public class StartAnnotationHiveEngine {
 					+ "\t\tGGAnnotateVariants\n"
 					+ "\t\tExportVCFFromGGToBigQuery\n"
 					+ "\t\tImportAnnotationFromGCSToBigQuery\n"
+					+ "\t\tImportVCFFromGCSToBigQuery\n"
 					+ "\t\tBigQueryAnnotateVariants\n"
 					+ "\t\tBigQueryAnnotationRepository\n"
 					+ "##################AnnotationHive#####################\n\n");	
@@ -59,6 +60,9 @@ public class StartAnnotationHiveEngine {
 			else 	if (args[0].equalsIgnoreCase("ImportAnnotationFromGCSToBigQuery")){
 				ImportAnnotationFromGCSToBigQuery.run(Arrays.copyOfRange(args, 1, args.length));
 			}
+			else 	if (args[0].equalsIgnoreCase("ImportVCFFromGCSToBigQuery")){
+				ImportVCFFromGCSToBigQuery.run(Arrays.copyOfRange(args, 1, args.length));
+			}
 			else 
 				if (args[0].equalsIgnoreCase("BigQueryAnnotateVariants")){
 				BigQueryAnnotateVariants.run(Arrays.copyOfRange(args, 1, args.length));
@@ -76,6 +80,7 @@ public class StartAnnotationHiveEngine {
 					+ "\t\tGGAnnotateVariants\n"
 					+ "\t\tExportVCFFromGGToBigQuery\n"
 					+ "\t\tImportAnnotationFromGCSToBigQuery\n"
+					+ "\t\tImportVCFFromGCSToBigQuery\n"
 					+ "\t\tBigQueryAnnotateVariants\n"
 					+ "\t\tBigQueryAnnotationRepository\n"
 					+ "##################AnnotationHive#####################\n\n");	
