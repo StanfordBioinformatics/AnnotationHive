@@ -263,6 +263,12 @@ public final class BigQueryAnnotateVariants {
 		@Default.Boolean(false)
 		boolean getTableExists();
 		void setTableExists(boolean tableExists);
+
+		@Description("If Google generated the VCF table, then set this true")
+		@Default.Boolean(false)
+		boolean getGoogleVCF();
+		void setGoogleVCF(boolean googleVCF);
+
 		
 	}
 
@@ -313,7 +319,7 @@ public final class BigQueryAnnotateVariants {
 		}
 		
 		
-		if (options.getSearchRegions().isEmpty()) {
+		if (!options.getSearchRegions().isEmpty()) {
 			checkRegions(options.getSearchRegions());
 			
 		}
@@ -343,22 +349,30 @@ public final class BigQueryAnnotateVariants {
 							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
 							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
 							options.getProximityThreshold(), options.getOnlyIntrogenic(),
-							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
 
 				} else {// Variant-based or Interval-based annotation
 					LOG.info(
 							"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
-//					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
-//							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-//							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-//							options.getVariantAnnotationCanonicalizeRefNames(), false);
-					
-					queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_GroupBy(
-							options.getVCFTables(),
+					if (options.getSearchRegions().isEmpty()) {
+						queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-							options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
-				
+							options.getVariantAnnotationCanonicalizeRefNames(), false, options.getGoogleVCF());
+					}else {
+						
+						queryString = BigQueryFunctions.prepareAnnotateVariantQueryRegion_Name(options.getVCFTables(),
+							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getVariantAnnotationCanonicalizeRefNames(), "", true, false, options.getSearchRegions(), options.getGoogleVCF());
+						
+						//TODO:change it back
+//						queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_GroupBy(
+//								options.getVCFTables(),
+//								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+//								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+//								options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
+					}
 						
 					LegacySql = true;
 				}
@@ -375,7 +389,7 @@ public final class BigQueryAnnotateVariants {
 							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
 							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
 							options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(),
-							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation());
+							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
 				} else {
 					LOG.info(
 							"<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
@@ -383,7 +397,7 @@ public final class BigQueryAnnotateVariants {
 							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 							options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
-							options.getOutputFormatTable(), false);
+							options.getOutputFormatTable(), false, options.getGoogleVCF());
 					LegacySql = true;
 				}
 			}
@@ -393,7 +407,7 @@ public final class BigQueryAnnotateVariants {
 			// QC
 			String[] VAs = options.getInputVariant().split(",");
 			List<String[]> listVA = new ArrayList<String[]>(VAs.length);
-			;
+			
 			for (String v : VAs)
 				listVA.add(QC_Test_Input_Variant(v, false));
 
@@ -419,7 +433,7 @@ public final class BigQueryAnnotateVariants {
 				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
 						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 						options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true);
+						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true, options.getGoogleVCF());
 			}
 
 			LegacySql = true;
@@ -462,7 +476,7 @@ public final class BigQueryAnnotateVariants {
 				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
 						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 						options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true);
+						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true, options.getGoogleVCF());
 			}
 			LegacySql = true;
 

@@ -19,7 +19,7 @@
    ```
    gcloud init
    ```
-1. Authentictaion
+1. Authentication
    ```
    gcloud auth application-default login
    ```
