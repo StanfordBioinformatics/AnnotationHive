@@ -241,49 +241,50 @@ public class ImportAnnotationFromGCSToBigQuery {
 		if(!options.getColumnOrder().isEmpty()) {
 			checkColumnOrder(options.getColumnOrder());
 		}
-		
-		if(checkTableExist()) {
-			if (!options.getForceUpdate()) {
-				LOG.warning(options.getBigQueryAnnotationSetTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
-				return;
-			}else {
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId());
-			}
-		}
-		
-		LOG.warning(options.getBigQueryAnnotationSetTableId() + "  is a new annotation table!");
-	
-		String [] inputFields = options.getHeader().split(",");
-		if (VariantAnnotation){
-			System.out.println("Variant Annotation Pipeline");
-			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
-			.apply(
-		            BigQueryIO.writeTableRows()
-		                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
-		                .withSchema(getVariantSchema(options.getColumnOrder()))
-		                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
-		}
-		else{ //Generic
-			System.out.println("Generic Annotation Pipeline");
-
-			p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-			.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
-			.apply(
-		            BigQueryIO.writeTableRows()
-		                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
-		                .withSchema(getTranscriptSchema(options.getColumnOrder()))
-		                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));			
-		}
 
 		try {
-			p.run().waitUntilFinish();
-
-			////////////////////////////////// End TIMER /////////////////////////////////////  
-			long tempEstimatedTime = System.currentTimeMillis() - startTime;
-			addToAnnotationSetList(tempEstimatedTime);		
+		
+			if(checkTableExist()) {
+				if (!options.getForceUpdate()) {
+					LOG.warning(options.getBigQueryAnnotationSetTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
+					return;
+				}else {
+					BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId());
+				}
+			}
+			
+			LOG.warning(options.getBigQueryAnnotationSetTableId() + "  is a new annotation table!");
+		
+			String [] inputFields = options.getHeader().split(",");
+			if (VariantAnnotation){
+				System.out.println("Variant Annotation Pipeline");
+				p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
+				.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
+				.apply(
+			            BigQueryIO.writeTableRows()
+			                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
+			                .withSchema(getVariantSchema(options.getColumnOrder()))
+			                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+			                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+			}
+			else{ //Generic
+				System.out.println("Generic Annotation Pipeline");
+	
+				p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
+				.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
+				.apply(
+			            BigQueryIO.writeTableRows()
+			                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
+			                .withSchema(getTranscriptSchema(options.getColumnOrder()))
+			                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+			                .withWriteDisposition(WriteDisposition.WRITE_APPEND));			
+			}
+	
+				p.run().waitUntilFinish();
+	
+				////////////////////////////////// End TIMER /////////////////////////////////////  
+				long tempEstimatedTime = System.currentTimeMillis() - startTime;
+				addToAnnotationSetList(tempEstimatedTime);		
 		}
 		catch (Exception e) {			
 			LOG.severe("Exception occurred");
@@ -625,8 +626,11 @@ public class ImportAnnotationFromGCSToBigQuery {
 						
 						
 						/*Make sure to handle special cases for alternate bases [deletion] */
-						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-") || vals[altIndex].equals("."))
+						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-") 
+								|| vals[altIndex].equals(".")) {
 							row.set("alt", "");
+							c.output(row);
+						}
 						else {
 							if (vals[altIndex].split("/").length>1) {
 								String[] alts = vals[altIndex].split("/");
