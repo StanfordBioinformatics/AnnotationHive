@@ -278,11 +278,17 @@ public class ImportAnnotationFromGCSToBigQuery {
 		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));			
 		}
 
-	    p.run().waitUntilFinish();
+		try {
+			p.run().waitUntilFinish();
 
-		////////////////////////////////// End TIMER /////////////////////////////////////  
-		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-		addToAnnotationSetList(tempEstimatedTime);			
+			////////////////////////////////// End TIMER /////////////////////////////////////  
+			long tempEstimatedTime = System.currentTimeMillis() - startTime;
+			addToAnnotationSetList(tempEstimatedTime);		
+		}
+		catch (Exception e) {			
+			LOG.severe("Exception occurred");
+		}
+		
 	}
 	
 	private static boolean checkTableExist() {
@@ -619,7 +625,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 						
 						
 						/*Make sure to handle special cases for alternate bases [deletion] */
-						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
+						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-") || vals[altIndex].equals("."))
 							row.set("alt", "");
 						else {
 							if (vals[altIndex].split("/").length>1) {
@@ -633,7 +639,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 									c.output(row);
 								}
 							}else {
-								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
+								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-") || vals[altIndex].equals("."))
 									row.set("alt", "");
 								else
 									row.set("alt", vals[altIndex]);
