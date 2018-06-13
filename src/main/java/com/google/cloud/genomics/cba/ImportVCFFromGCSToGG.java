@@ -127,6 +127,7 @@ public class ImportVCFFromGCSToGG {
 		}
 		catch(Exception e){
 			throw e;
+
 		}
 
 	}	

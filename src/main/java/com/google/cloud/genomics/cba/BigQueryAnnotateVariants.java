@@ -108,8 +108,8 @@ import com.google.common.base.Function;
  *            specify the regions of interest (i.e., chr13:32889610:32973808,chr17:41196311:41277499 ) 
  * @param tableExists
  * 			  If table exists, then set this true
- * @param keepOutputTable
- * 			  If users want to keep the output table, they need to set this true	
+ * @param deleteOutputTable
+ * 			  If users want to delete the output table, they need to set this true	
  *            
  * @version 1.0
  * @since 2018-02-01
@@ -231,11 +231,11 @@ public final class BigQueryAnnotateVariants {
 
 		void setSampleId(String SampleId);
 
-		@Description("User can specifiy the format of output to be a table (true/false - default is false (txt) )")
+		@Description("If user wants to get a VCF file (true/false - default is false, and it creates a table)")
 		@Default.Boolean(false)
-		Boolean getOutputFormatTable();
+		Boolean getCreateVCF();
 
-		void setOutputFormatTable(Boolean outputFormatTable);
+		void setCreateVCF(Boolean createVCF);
 
 		@Description("User can specifiy a variant in the form of \"Chromosome Id:start:end:Reference_bases:Alternate bases (e.g., chr17:1001:1001:A:C)\" )")
 		@Default.String("")
@@ -254,10 +254,10 @@ public final class BigQueryAnnotateVariants {
 		String getSearchRegions();
 		void setSearchRegions(String regions);
 		
-		@Description("If users want to keep the output table, they need to set this true")
+		@Description("If users want to delete the output table, they need to set this true")
 		@Default.Boolean(false)
-		boolean getKeepOutputTable();
-		void setKeepOutputTable(boolean keepOutputTable);
+		boolean getDeleteOutputTable();
+		void setDeleteOutputTable(boolean deleteOutputTable);
 
 		@Description("If table exists, then set this true")
 		@Default.Boolean(false)
@@ -318,202 +318,208 @@ public final class BigQueryAnnotateVariants {
 							+ " OR a region (e.g., chr17:1000:2001) \n");
 		}
 		
-		
 		if (!options.getSearchRegions().isEmpty()) {
-			checkRegions(options.getSearchRegions());
-			
+				checkRegions(options.getSearchRegions());
+
 		}
-		
-		if (options.getBigQuerySort()) {
 			
+		if (options.getBigQuerySort()) {
 			// check whether user provided VCF tables IDs
 			if (options.getLocalOutputFilePath().isEmpty()) {
 				throw new IllegalArgumentException(
 						"Please specify the path to the local output file \n");
 			}	
 		}
-
-		long startTime = System.currentTimeMillis();
-
-		String queryString = "";
-		boolean LegacySql = false;
-		if (!options.getVCFTables().isEmpty()) {
-			if (options.getSampleId().isEmpty()) {
-				if (options.getGeneBasedAnnotation()) {
-					if (options.getGeneBasedMinAnnotation()) {
-						LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
-					} else {
-						LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
-					}
-					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
-							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
-							options.getProximityThreshold(), options.getOnlyIntrogenic(),
-							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
-
-				} else {// Variant-based or Interval-based annotation
-					LOG.info(
-							"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
-					if (options.getSearchRegions().isEmpty()) {
-						queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
-							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-							options.getVariantAnnotationCanonicalizeRefNames(), false, options.getGoogleVCF());
-					}else {
-						
-						queryString = BigQueryFunctions.prepareAnnotateVariantQueryRegion_Name(options.getVCFTables(),
-							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-							options.getVariantAnnotationCanonicalizeRefNames(), "", true, false, options.getSearchRegions(), options.getGoogleVCF());
-						
-						//TODO:change it back
-//						queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_GroupBy(
-//								options.getVCFTables(),
-//								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-//								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-//								options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
-					}
-						
-					LegacySql = true;
-				}
-			} else { // e.g., LP6005038-DNA_H11
-				if (options.getGeneBasedAnnotation()) {
-					if (options.getGeneBasedMinAnnotation()) {
-						LOG.info(
-								"<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Min) ============>");
-					} else {
-						LOG.info(
-								"<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Range) ============>");
-					}
-					queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
-							options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
-							options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(),
-							options.getOutputFormatTable(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
-				} else {
-					LOG.info(
-							"<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
-					queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(options.getVCFTables(),
-							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-							options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
-							options.getOutputFormatTable(), false, options.getGoogleVCF());
-					LegacySql = true;
-				}
-			}
-		} else if (!options.getInputVariant().isEmpty()) {
-			LOG.info("<============ Variant-based Annotation ( " + options.getInputVariant() + " ) ============>");
-
-			// QC
-			String[] VAs = options.getInputVariant().split(",");
-			List<String[]> listVA = new ArrayList<String[]>(VAs.length);
 			
-			for (String v : VAs)
-				listVA.add(QC_Test_Input_Variant(v, false));
+		try {
+			long startTime = System.currentTimeMillis();
+	
+			String queryString = "";
+			boolean LegacySql = false;
+			if (!options.getVCFTables().isEmpty()) {
+				if (options.getSampleId().isEmpty()) {
+					if (options.getGeneBasedAnnotation()) {
+						if (options.getGeneBasedMinAnnotation()) {
+							LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
+						} else {
+							LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
+						}
+						queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
+								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+								options.getProximityThreshold(), options.getOnlyIntrogenic(),
+								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
+	
+					} else {// Variant-based or Interval-based annotation
+						LOG.info(
+								"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
+						if (options.getSearchRegions().isEmpty()) {
+							queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
+								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+								options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
+								false, options.getGoogleVCF());
+						}else {
+							
+							queryString = BigQueryFunctions.prepareAnnotateVariantQueryRegion_Name(options.getVCFTables(),
+								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+								options.getVariantAnnotationCanonicalizeRefNames(), "", true, false, options.getSearchRegions(), options.getGoogleVCF());
+							
+							//TODO:change it back
+	//						queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_GroupBy(
+	//								options.getVCFTables(),
+	//								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+	//								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+	//								options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
+						}
+							
+						LegacySql = true;
+					}
+				} else { // e.g., LP6005038-DNA_H11
+					if (options.getGeneBasedAnnotation()) {
+						if (options.getGeneBasedMinAnnotation()) {
+							LOG.info(
+									"<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Min) ============>");
+						} else {
+							LOG.info(
+									"<============ Gene-based Annotation (VCF - One Sample) - Closest Genes (Range) ============>");
+						}
+						queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(
+								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+								options.getSampleId(), options.getProximityThreshold(), options.getOnlyIntrogenic(),
+								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
+					} else {
+						LOG.info(
+								"<============ Variant-based Annotation OR/AND Interval-based Annotation (VCF - One Sample) ============>");
+						queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(options.getVCFTables(),
+								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+								options.getVariantAnnotationCanonicalizeRefNames(), options.getSampleId(),
+								options.getCreateVCF(), false, options.getGoogleVCF());
+						LegacySql = true;
+					}
+				}
+			} else if (!options.getInputVariant().isEmpty()) {
+				LOG.info("<============ Variant-based Annotation ( " + options.getInputVariant() + " ) ============>");
+	
+				// QC
+				String[] VAs = options.getInputVariant().split(",");
+				List<String[]> listVA = new ArrayList<String[]>(VAs.length);
+				
+				for (String v : VAs)
+					listVA.add(QC_Test_Input_Variant(v, false));
+	
+				if (listVA.isEmpty()) {
+					throw new IllegalArgumentException("Please specify a variant (e.g., chr13:68482097:68482098:CC:TT) \n");
+				}
+	
+				if (listVA.size() == 1) {
+					queryString = BigQueryFunctions.prepareOneVariantQuery_StandardSQL(listVA.get(0),
+							options.getVariantAnnotationTables(), options.getVariantAnnotationCanonicalizeRefNames());
+				} else {// >1
+						// create a small VCF table w/ the input dataset
+					String tempTableName = "`" + options.getProjectId() + "." + options.getBigQueryDatasetId() + "."
+							+ "AnnotationHiveTempVCFTable`";
+					queryString = BigQueryFunctions.createTempVCFTable(listVA, tempTableName, true);
+					// Create the temp VCF table
+					runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
+							options.getMaximumBillingTier(), LegacySql, false);
+	
+					String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
+							+ "AnnotationHiveTempVCFTable";
+	
+					queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
+							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getVariantAnnotationCanonicalizeRefNames(), "", false, true, options.getGoogleVCF());
+				}
+	
+				LegacySql = true;
+	
+			} else { // options.getInputRegion().isEmpty()
+	
+				LOG.info("<============ Region-based Annotation ( " + options.getInputVariant() + " ) ============>");
+	
+				if (options.getVariantAnnotationTables() != null) {
+					throw new IllegalArgumentException(
+							"Region-based annotation (the input regions) only accepts generic annotation!\n");
+				}
+	
+				// QC
+				String[] Regions = options.getInputRegion().split(",");
+				List<String[]> listRegions = new ArrayList<String[]>(Regions.length);
 
-			if (listVA.isEmpty()) {
-				throw new IllegalArgumentException("Please specify a variant (e.g., chr13:68482097:68482098:CC:TT) \n");
-			}
-
-			if (listVA.size() == 1) {
-				queryString = BigQueryFunctions.prepareOneVariantQuery_StandardSQL(listVA.get(0),
-						options.getVariantAnnotationTables(), options.getVariantAnnotationCanonicalizeRefNames());
-			} else {// >1
+				for (String v : Regions)
+					listRegions.add(QC_Test_Input_Variant(v, true));
+	
+				if (listRegions.isEmpty()) {
+					throw new IllegalArgumentException("Please specify a region (e.g., chr17:1000:2001) \n");
+				}
+	
+				if (listRegions.size() == 1) {
+					queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(listRegions.get(0),
+							options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames());
+				} else {// >1
 					// create a small VCF table w/ the input dataset
-				String tempTableName = "`" + options.getProjectId() + "." + options.getBigQueryDatasetId() + "."
-						+ "AnnotationHiveTempVCFTable`";
-				queryString = BigQueryFunctions.createTempVCFTable(listVA, tempTableName, true);
-				// Create the temp VCF table
-				runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
-						options.getMaximumBillingTier(), LegacySql, false);
-
-				String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
-						+ "AnnotationHiveTempVCFTable";
-
-				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
-						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-						options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true, options.getGoogleVCF());
+					String tempTableName = "`" + options.getProjectId() + "." + options.getBigQueryDatasetId() + "."
+							+ "AnnotationHiveTempVCFTable`";
+					queryString = BigQueryFunctions.createTempVCFTable(listRegions, tempTableName, false);
+					// Create the temp VCF table
+					runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
+							options.getMaximumBillingTier(), LegacySql, false);
+	
+					String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
+							+ "AnnotationHiveTempVCFTable";
+	
+					queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
+							options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+							options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+							options.getVariantAnnotationCanonicalizeRefNames(), "", false, true, options.getGoogleVCF());
+				}
+				LegacySql = true;
+	
 			}
-
-			LegacySql = true;
-
-		} else { // options.getInputRegion().isEmpty()
-
-			LOG.info("<============ Region-based Annotation ( " + options.getInputVariant() + " ) ============>");
-
-			if (options.getVariantAnnotationTables() != null) {
-				throw new IllegalArgumentException(
-						"Region-based annotation (the input regions) only accepts generic annotation!\n");
+	
+			LOG.info("Query: " + queryString);
+	
+			////////////////////////////////// STEP1/////////////////////////////////////
+			////////////////////////////////// Joins/////////////////////////////////////
+			if(!options.getTableExists())
+				runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
+					options.getMaximumBillingTier(), LegacySql, false);
+	
+			long tempEstimatedTime = System.currentTimeMillis() - startTime;
+			LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
+	
+			// Remove the temporarily VCF file created based on the input list of
+			// variants/regions
+			if (!options.getInputRegion().isEmpty() || !options.getInputVariant().isEmpty()) {
+				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable");
 			}
-
-			// QC
-			String[] Regions = options.getInputRegion().split(",");
-			List<String[]> listRegions = new ArrayList<String[]>(Regions.length);
-			;
-			for (String v : Regions)
-				listRegions.add(QC_Test_Input_Variant(v, true));
-
-			if (listRegions.isEmpty()) {
-				throw new IllegalArgumentException("Please specify a region (e.g., chr17:1000:2001) \n");
+	
+			if (options.getCreateVCF()) {
+	
+				////////////////////////////////// STEP2////////////////////////////////////
+				////////////////////////////////// Sort/////////////////////////////////////
+				startTime = System.currentTimeMillis();
+				runSort();
+				tempEstimatedTime = System.currentTimeMillis() - startTime;
+				LOG.info("Execution Time for Sort Query: " + tempEstimatedTime);
+	
+				///////////////// STEP3: Delete the Intermediate
+				///////////////// Table///////////////////////////
+				// TODO: Add a new condition here
+				if(options.getDeleteOutputTable())
+					BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
 			}
-
-			if (listRegions.size() == 1) {
-				queryString = BigQueryFunctions.prepareOneRegionQuery_StandardSQL(listRegions.get(0),
-						options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames());
-			} else {// >1
-				// create a small VCF table w/ the input dataset
-				String tempTableName = "`" + options.getProjectId() + "." + options.getBigQueryDatasetId() + "."
-						+ "AnnotationHiveTempVCFTable`";
-				queryString = BigQueryFunctions.createTempVCFTable(listRegions, tempTableName, false);
-				// Create the temp VCF table
-				runQuery(queryString, options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable", true,
-						options.getMaximumBillingTier(), LegacySql, false);
-
-				String tempTableNameLegacy = options.getProjectId() + ":" + options.getBigQueryDatasetId() + "."
-						+ "AnnotationHiveTempVCFTable";
-
-				queryString = BigQueryFunctions.prepareAnnotateVariantQueryWithSampleNames(tempTableNameLegacy,
-						options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-						options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-						options.getVariantAnnotationCanonicalizeRefNames(), "", true, true, options.getGoogleVCF());
-			}
-			LegacySql = true;
-
+			
+		}catch (Exception e) {			
+			LOG.severe(e.getMessage());
 		}
 
-		LOG.info("Query: " + queryString);
-
-		////////////////////////////////// STEP1/////////////////////////////////////
-		////////////////////////////////// Joins/////////////////////////////////////
-		if(!options.getTableExists())
-			runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
-				options.getMaximumBillingTier(), LegacySql, false);
-
-		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-		LOG.info("Execution Time for Join Query: " + tempEstimatedTime);
-
-		// Remove the temporarily VCF file created based on the input list of
-		// varainats/regions
-		if (!options.getInputRegion().isEmpty() || !options.getInputVariant().isEmpty()) {
-			BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable");
-		}
-
-		if (!options.getOutputFormatTable()) {
-
-			////////////////////////////////// STEP2////////////////////////////////////
-			////////////////////////////////// Sort/////////////////////////////////////
-			startTime = System.currentTimeMillis();
-			runSort();
-			tempEstimatedTime = System.currentTimeMillis() - startTime;
-			LOG.info("Execution Time for Sort Query: " + tempEstimatedTime);
-
-			///////////////// STEP3: Delete the Intermediate
-			///////////////// Table///////////////////////////
-			// TODO: Add a new condition here
-			if(!options.getKeepOutputTable())
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
-		}
+		
 	}
 	
 	/**
@@ -985,8 +991,10 @@ public final class BigQueryAnnotateVariants {
 			p.run().waitUntilFinish();
 
 			String Header = "";
+			int numbVariants=0;
 			if (options.getVariantAnnotationTables() != null) {
 				String[] VariantAnnotationTables = options.getVariantAnnotationTables().split(",");
+				numbVariants= VariantAnnotationTables.length;
 				for (int index = 0; index < VariantAnnotationTables.length; index++) {
 
 					/*
@@ -1003,11 +1011,13 @@ public final class BigQueryAnnotateVariants {
 			}
 
 			if (options.getGenericAnnotationTables() != null) {
+				if(numbVariants>0)
+					Header += "\t";
 				String[] TranscriptAnnotationTables = options.getGenericAnnotationTables().split(",");
 				for (int index = 0; index < TranscriptAnnotationTables.length; index++) {
 
 					String[] TableInfo = TranscriptAnnotationTables[index].split(":");
-					Header += "<" + TableInfo[1].split("\\.")[1] + "," + (index + 1) + ">";
+					Header += "<" + TableInfo[1].split("\\.")[1] + "," + (index + 1 + numbVariants) + ">";
 					if (index + 1 < TranscriptAnnotationTables.length)
 						Header += "\t";
 				}

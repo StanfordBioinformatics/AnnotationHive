@@ -441,7 +441,7 @@ public class BigQueryFunctions {
 	
 	public static String prepareAnnotateVariantQueryConcatFields_mVCF(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
 			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
-			  String VariantannotationCanonicalizerefNames, boolean TempVCF, boolean GoogleVCF) {
+			  String VariantannotationCanonicalizerefNames, boolean createVCF, boolean TempVCF, boolean GoogleVCF) {
 
 				
 		String[] TranscriptAnnotations=null;
@@ -451,12 +451,14 @@ public class BigQueryFunctions {
 		String[] TranscriptCanonicalize=null;
 		String[] VariantannotationCanonicalize=null;
 	
+		int numAnnotationDatasets=0;
 		/////////////////////Transcripts//////////////
 		if(TranscriptAnnotationTableNames!=null){
 			TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
-	
+			numAnnotationDatasets=+ TranscriptAnnotations.length;
 			if(!TranscriptCanonicalizeRefNames.isEmpty()){
 				TranscriptCanonicalize = TranscriptCanonicalizeRefNames.split(","); 
+				
 				if (TranscriptAnnotations.length != TranscriptCanonicalize.length)
 					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and transcript tables");
 			}
@@ -465,13 +467,23 @@ public class BigQueryFunctions {
 		////////////Variant Annotations///////
 		if(VariantAnnotationTableNames!=null){
 			VariantAnnotationTables = VariantAnnotationTableNames.split(","); 
-			
+			numAnnotationDatasets=+ VariantAnnotationTables.length;
+
 			if(!VariantannotationCanonicalizerefNames.isEmpty()){
 				VariantannotationCanonicalize = VariantannotationCanonicalizerefNames.split(","); 
 				if (VariantannotationCanonicalize.length != VariantAnnotationTables.length)
 					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
 			}
 		}
+		
+		
+		//BigQuery Limit
+		boolean GroupBy;
+		if(numAnnotationDatasets<=64)
+			GroupBy=true;
+		else
+			GroupBy=false;
+		
 		
 		//////////VCF Files/////////////
 		/*Check if the VCF table contains any prefix for the reference fields (e.g., chr => chr17 )*/
@@ -536,33 +548,45 @@ public class BigQueryFunctions {
 						
 						for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
 							if (TableInfo.length>3){ // Creating CONCAT
-								if (fieldIndex+1 < TableInfo.length)
-									RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+								if (fieldIndex+1 < TableInfo.length) { // This will add "/" after fields => not the last field CONCAT(X, "/", Y, "/", Z) 
+									if(createVCF)
+										RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+									else 
+										RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" ,";
+								}
 								else
 									RequestedFields += AliasTableName +"." + TableInfo[fieldIndex];
 							}
 							else //If there is only one feature
 								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] ;
 							
-							if(fieldIndex==2){
-	
-								if (TableInfo.length>3){ //Top Select 
-									//(e.g.,     CONCAT(Annotation3.name, "/",Annotation3.name2) AS Annotation3.Annotation3)
-									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+							if(fieldIndex==2 && createVCF){ //Special case where we add an index to the first field 
+									if (TableInfo.length>3){ //Top Select 
+										//(e.g.,     CONCAT(1: Annotation3.Annotation) 
+											AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+									}
+									else{//(e.g.,     CONCAT(1: Annotation3.name2) 
+											AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+									}
 								}
-								else{
-									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-									//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-								}
-							}
-														
+							else if (!createVCF) {// in case of creating Table  
+								if (GroupBy)
+									AllFields += ", max("+ AliasTableName +"." + TableInfo[fieldIndex] + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex];
+								else	
+									AllFields += ", "+ AliasTableName +"." + TableInfo[fieldIndex] + " as " +  TableInfo[1] +"." + TableInfo[fieldIndex];
+							}							
 						}
 						
 						//IF the number of fields is more that 1 -> then concat all of them
-						if (TableInfo.length>3)
-							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
-									+ "CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+						if (TableInfo.length>3) {
+							
+							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+							if(createVCF)
+								AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+							else 
+								AnnotationQuery += ", " + RequestedFields ;
+
+						}
 						else
 							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
 								    + RequestedFields;
@@ -603,36 +627,58 @@ public class BigQueryFunctions {
 				
 				for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
 					if (TableInfo.length>3){ // Creating CONCAT
-						if (fieldIndex+1 < TableInfo.length)
-							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+						if (fieldIndex+1 < TableInfo.length){
+							if(createVCF)
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+							else
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" ,";
+						}
 						else
 							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex];
 					}
 					else //If there is only one feature
 						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] ;
-					
-					if(fieldIndex==2){
-						if (TableInfo.length>3){ //Top Select 
-							if(VariantAnnotationTables!=null)
-								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-							else
-								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
 
+								
+					
+					if(fieldIndex==2 && createVCF){
+						if (TableInfo.length>3){ //Top Select 
+							if(VariantAnnotationTables!=null) {
+									AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+							}
+							else {
+									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+							}
 						}
 						else{
-							if(VariantAnnotationTables!=null)
-								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-							else	
-								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-
+							if(VariantAnnotationTables!=null) {
+									AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+								
+							}
+							else	 {
+									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";								
+							}
 						}
-					}												
+					}	
+					else if (!createVCF) {// in case of creating Table  
+						if (GroupBy)
+							AllFields += ", max("+ AliasTableName +"." + TableInfo[fieldIndex] + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex];
+						else	
+							AllFields += ", "+ AliasTableName +"." + TableInfo[fieldIndex] +" as " + TableInfo[1] +"." + TableInfo[fieldIndex] ;
+					}
 				}
 
 				//IF the number of fields is more that 1 -> then concat all of them
-				if (TableInfo.length>3)
+				if (TableInfo.length>3) {
 					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
-							+ "VCF.alternate_bases, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+					+ "VCF.alternate_bases ";
+					
+					if(createVCF)
+						AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+					else 
+						AnnotationQuery += ", " + RequestedFields ;				
+						//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+				}
 				else
 					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
 						    + RequestedFields;
@@ -652,7 +698,6 @@ public class BigQueryFunctions {
 					AnnotationQuery +=  ") ";
 			
 			}
-			
 		}		
 	
 		String Query= "  SELECT "
@@ -661,9 +706,10 @@ public class BigQueryFunctions {
 				+ " FROM ";
 		
 		Query += AnnotationQuery;
-//		if(TempVCF)
-//			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases, number_samples, quality "; 
-//		
+		
+		if(!createVCF && GroupBy)
+			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases "; 
+		
 		return Query;
 	}
 
@@ -671,7 +717,7 @@ public class BigQueryFunctions {
 	
 	public static String prepareAnnotateVariantQueryWithSampleNames(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
 			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, String VariantannotationCanonicalizerefNames, 
-			  String SampleNames, boolean GroupBy, boolean customizedVCF, boolean GoogleVCF) {
+			  String SampleNames, boolean createVCF, boolean customizedVCF, boolean GoogleVCF) {
 
 		String[] TranscriptAnnotations=null;
 		String[] VariantAnnotationTables=null;
@@ -769,7 +815,7 @@ public class BigQueryFunctions {
 						
 						for (int index2=2; index2<TableInfo.length; index2++){
 							RequestedFields +=  " , " + AliasTableName +"." + TableInfo[index2] ;
-							if(index2==2 && !GroupBy){
+							if(index2==2 && createVCF){
 //								if (GroupBy)
 //									AllFields += ", MAX ( CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[index2] + " )) ";
 //								else
@@ -779,7 +825,7 @@ public class BigQueryFunctions {
 								//CONCAT("hg19_cosmic70: ",Annotation1.CosmicID )
 							}
 							else{
-								if (GroupBy)
+								if (!createVCF)
 									AllFields +=  " , MAX( " + AliasTableName +"." + TableInfo[index2] + ") as " + TableInfo[1].split("\\.")[1] +"_"+ TableInfo[index2];
 								else
 									AllFields +=  " , " + AliasTableName +"." + TableInfo[index2];
@@ -828,11 +874,11 @@ public class BigQueryFunctions {
 				
 				for (int index2=2; index2<TableInfo.length; index2++){
 					RequestedFields +=  " , " + AliasTableName +"." + TableInfo[index2] ;
-					if(index2==2 && !GroupBy){
+					if(index2==2 && createVCF){
 						AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[index2] + " ) ";
 					}
 					else{
-						if (GroupBy)
+						if (!createVCF)
 							AllFields +=  " , MAX( " + AliasTableName +"." + TableInfo[index2] + ") as " + TableInfo[1].split("\\.")[1] +"_"+ TableInfo[index2];
 						else
 							AllFields +=  " , " + AliasTableName +"." + TableInfo[index2];
@@ -869,7 +915,7 @@ public class BigQueryFunctions {
 		Query += AllFields + " FROM ";
 		
 		Query += AnnotationQuery;
-		if (GroupBy) {
+		if (!createVCF) {
 			Query += " GROUP BY  chrm, start, END "; 
 			
 			if(VariantAnnotationTableNames!=null){
@@ -1627,7 +1673,7 @@ public class BigQueryFunctions {
 
 	public static String prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(String VCFTableNames,
 			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
-			String TranscriptCanonicalizeRefNames, int Threashold, boolean onlyIntrogenic, boolean OutputASTable,
+			String TranscriptCanonicalizeRefNames, int Threashold, boolean onlyIntrogenic, boolean createVCF,
 			boolean MIN, String searchRegions, boolean GoogleVCF) {
 
 		String[] TranscriptAnnotations = null;
@@ -1739,7 +1785,7 @@ public class BigQueryFunctions {
 			RequestedFields += " , " + TableInfo[index2];
 
 			if (index2 == 2) {
-				if (!OutputASTable)
+				if (createVCF)
 					AllFields += " CONCAT(\"1: \"," + "AN" + "." + TableInfo[index2] + " ) ";
 				else
 					AllFields += "AN" + "." + TableInfo[index2];
@@ -2109,7 +2155,8 @@ public class BigQueryFunctions {
 				+ "  ON VCF.reference_name = AN.chrm ";
 				if (OnlyIntrogenic)
 					Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
-				Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status";
+				Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+						+ "alternate_bases, Status";
 				
 			//:TODO M and MT case
 			
@@ -2120,7 +2167,7 @@ public class BigQueryFunctions {
 	public static String prepareGeneBasedQueryConcatFields_Range_Min_StandardSQL(String VCFTableNames,
 			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
 			String TranscriptCanonicalizeRefNames, String SampleId, int Threashold, boolean onlyIntrogenic,
-			boolean OutputASTable, boolean MIN, String searchRegions, boolean GoogleVCF) {
+			boolean createVCF, boolean MIN, String searchRegions, boolean GoogleVCF) {
 
 		String[] TranscriptAnnotations = null;
 		String[] VCFTables = null;
@@ -2233,7 +2280,7 @@ public class BigQueryFunctions {
 			RequestedFields += " , " + TableInfo[index2];
 
 			if (index2 == 2) {
-				if (!OutputASTable)
+				if (createVCF)
 					AllFields += " CONCAT(\"1: \"," + "AN" + "." + TableInfo[index2] + " ) ";
 				else
 					AllFields += "AN" + "." + TableInfo[index2];

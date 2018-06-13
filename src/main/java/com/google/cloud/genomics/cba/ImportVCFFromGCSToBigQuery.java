@@ -240,11 +240,16 @@ public class ImportVCFFromGCSToBigQuery {
 		                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
 		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
 		
-	    p.run().waitUntilFinish();
-
-		////////////////////////////////// End TIMER /////////////////////////////////////  
-		long tempEstimatedTime = System.currentTimeMillis() - startTime;
-		addToVCFList(tempEstimatedTime);			
+		try {
+			p.run().waitUntilFinish();
+			////////////////////////////////// End TIMER /////////////////////////////////////  
+			long tempEstimatedTime = System.currentTimeMillis() - startTime;
+			addToVCFList(tempEstimatedTime);			
+		}
+		catch (Exception e) {			
+			LOG.severe("Exception occurred");
+		}	
+				
 	}
 	
 	private static boolean checkTableExist() {
@@ -536,7 +541,6 @@ public class ImportVCFFromGCSToBigQuery {
 									else
 										//row.set("alternate_bases", allele);
 										listAlt.add(allele);									
-									//c.output(row);
 								}
 							}else {
 								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
@@ -546,7 +550,6 @@ public class ImportVCFFromGCSToBigQuery {
 									//row.set("alternate_bases", vals[altIndex]);
 									listAlt.add(vals[altIndex]);
 
-								//c.output(row);
 							}
 						}
 						row.set("alternate_bases", listAlt.toArray());
