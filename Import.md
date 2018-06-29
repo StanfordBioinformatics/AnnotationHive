@@ -36,7 +36,7 @@ The first step in importing VCF/annotation files is to upload your local files t
 There are two ways to import VCF files from Google Storage to Google BigQuery: 1) Using Google Genomics API, 2) Using AnnotationHive's API. In order to calaulte number of samples with a genotype larger than 0, the mVCF file must be in 
 the Google Genomics format. So, if you have a mVCF file, and want AnnotationHive to calcaule the number of samples, please use Google Genomics solution.
 
-<---! * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search. --->
+<!--- * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search. --->
 
 * Import mVCF/VCF files using the API provided by Google Genomics ([More Info](https://cloud.google.com/genomics/docs/how-tos/load-variants))
 * Import mVCF/VCF files using the API provided by AnnotationHives 
