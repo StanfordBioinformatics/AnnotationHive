@@ -2,11 +2,11 @@
 
 ### AnnotationHive ###
 
-* Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be automatically derived from diverse genomes (e.g., ANNOVAR, SnpEff). The first problem using the existing tools is about downloading the software and the large build files. The second problem is scalability. Because current tools are mainly sequential or parallel only at the node level (requires large machine w/ many cores), the annotation of large numbers of patients is tedious and takes a significant amount of time. 
+* Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be automatically derived from diverse genomes (e.g., ANNOVAR, SnpEff). The first problem using the existing tools is about downloading the software and the large build files. The second problem is scalability. Because current tools are mainly sequential or parallel only at the node level (requires large machine with many cores and large main memory), the annotation of large numbers of patients is tedious and takes a significant amount of time. 
 
 * The pay-as-you-go model of cloud computing, which removes the maintenance effort required for a high performance computing (HPC) facility while simultaneously offering elastic scalability, is well suited for genomic analysis.
 
-* In this project, we developed a cloud-based annotation engine that automatically annotates the user’s input datasets (e.g., VCF, avinput files) in the cloud.
+* In this project, we developed a cloud-based annotation engine that annotates input datasets (e.g., VCF, mVCF files) in the cloud using distributed algorithms.
 
 * Version 1.0
 
@@ -31,6 +31,7 @@
 
 1. Install [Maven](http://maven.apache.org/).
 
+<!---
 1. [Reference Sets](https://cloud.google.com/genomics/v1/reference-sets) with Google Genomics
 
    ```
@@ -43,6 +44,7 @@
    {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
    ``` 
 1. To create and manage Google Genomics datasets click [here](https://cloud.google.com/genomics/)
+--->
 
 1. To run:
 
@@ -230,7 +232,7 @@ than Annovar. For this experiment, we used n1-highmem-16 instances for Annovar a
 
 * Accuracy
 
-We compared the annotated VCF files for BRCA1 region. All records are the same except three records with 
+We compared the annotated VCF files for the BRCA1 region. All records are the same except three records with 
 genotype values of 0 where Annovar considered them in the output. We filter out variants with every genotype
 value less than or equal 0.
  
