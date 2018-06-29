@@ -1,8 +1,11 @@
 ## Section 1: Import VCF/mVCF/Annotation Files
-This section explains how to import VCF, mVCF and annotation files to BigQuery.
+This section explains how to import VCF, mVCF and annotation files to BigQuery. AnnotationHive uses Google Dataflow to import Annotation and VCF/mVCF files
+to BigQuery.
 
 
 ### Upload ###
+The first step in importing VCF/annotation files is to upload your local files to a bucket in Google.
+
 
 * Upload the sample transcript annotation (Samples/sample_transcript_annotation_chr17.bed)
  
@@ -27,11 +30,22 @@ This section explains how to import VCF, mVCF and annotation files to BigQuery.
    ```
    gsutil cp Samples/NA12877-chr17.vcf gs://<Your_Google_Cloud_Bucket_Name>/<DIR>
    ``` 
-### Import ###
 
-* Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search.
+### Import mVCF/VCF ###
 
-* Import your VCF files into Google Genomics
+There are two ways to import VCF files from Google Storage to Google BigQuery: 1) Using Google Genomics API, 2) Using AnnotationHive's API. In order to calaulte number of samples with a genotype larger than 0, the mVCF file must be in 
+the Google Genomics format. So, if you have a mVCF file, and want AnnotationHive to calcaule the number of samples, please use Google Genomics solution.
+
+<---! * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search. --->
+
+* Import mVCF/VCF files using the API provided by Google Genomics ([More Info](https://cloud.google.com/genomics/docs/how-tos/load-variants))
+* Import mVCF/VCF files using the API provided by AnnotationHives 
+If this is the first time, you want to import a VCF file using AnnotationHive, please run the following command. This command will create a new table called VCFList that stores metadata and keeps track of your VCF files.
+
+   ```
+   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportVCFFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/  --bigQueryDatasetId=<Google_Genomics_DatasetId> --runner=DataflowRunner --createVCFListTable=true" -Pdataflow-runner
+   ```
+
 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportVCFFromGCSToGG --datasetId=<Your_Google_GEnomics_DatasetId> --URIs=gs://<YOUR_Google_Bucket_Name>/NA12877-chr17.vcf --variantSetName=NA12877-chr17 --runner=DataflowRunner" -Pdataflow-runner
