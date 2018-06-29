@@ -109,8 +109,12 @@ import com.google.common.base.Function;
  * @param tableExists
  * 			  If table exists, then set this true
  * @param deleteOutputTable
- * 			  If users want to delete the output table, they need to set this true	
- *            
+ * 			  If users want to delete the output table, they need to set this true
+ * @param googleVCF
+ * 			  If users have a VCF table imported using Google APIs; they need to set this true
+ * @param numberSamples           
+ * 			  If users have a VCF table imported using Google APIs, and they want to gget the number of samples 
+ * 		 from the multiple VCF file, then they need to set this true
  * @version 1.0
  * @since 2018-02-01
  */
@@ -269,7 +273,10 @@ public final class BigQueryAnnotateVariants {
 		boolean getGoogleVCF();
 		void setGoogleVCF(boolean googleVCF);
 
-		
+		@Description("If Google generated the VCF table and want to count the number of samples, then you can set this true")
+		@Default.Boolean(false)
+		boolean getNumberSamples();
+		void setNumberSamples(boolean numberSamples);
 	}
 
 	private static Options options;
@@ -309,6 +316,11 @@ public final class BigQueryAnnotateVariants {
 			}
 		}
 
+		if (options.getNumberSamples() && !options.getGoogleVCF()) {
+			throw new IllegalArgumentException(
+					"To get the number of samples, you need to import mVCF file using Google APIs, and set --googleVCF=true");
+		}
+		
 		// check whether user provided VCF tables IDs
 		if (options.getVCFTables().isEmpty() && options.getInputVariant().isEmpty()
 				&& options.getInputRegion().isEmpty()) {
@@ -348,7 +360,9 @@ public final class BigQueryAnnotateVariants {
 								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
 								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
 								options.getProximityThreshold(), options.getOnlyIntrogenic(),
-								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), options.getSearchRegions(), options.getGoogleVCF());
+								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+								options.getSearchRegions(), 
+								options.getGoogleVCF());
 	
 					} else {// Variant-based or Interval-based annotation
 						LOG.info(
@@ -358,7 +372,8 @@ public final class BigQueryAnnotateVariants {
 								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 								options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
-								false, options.getGoogleVCF());
+								false, options.getGoogleVCF(),
+								options.getNumberSamples());
 						}else {
 							
 							queryString = BigQueryFunctions.prepareAnnotateVariantQueryRegion_Name(options.getVCFTables(),

@@ -441,7 +441,8 @@ public class BigQueryFunctions {
 	
 	public static String prepareAnnotateVariantQueryConcatFields_mVCF(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
 			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
-			  String VariantannotationCanonicalizerefNames, boolean createVCF, boolean TempVCF, boolean GoogleVCF) {
+			  String VariantannotationCanonicalizerefNames, 
+			  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples) {
 
 				
 		String[] TranscriptAnnotations=null;
@@ -504,22 +505,58 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index< VCFTables.length; index++){
 			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases  ";
 			else
 				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases ";
-
+			
+			if (numSamples && GoogleVCF) {
+				VCFQuery += ", count(*) AS num_samples ";
+			}
+			
 			if (index+1<VCFTables.length) {
-				VCFQuery += " FROM ["+ VCFTables[index]  +"] ";
-					if(GoogleVCF)
-						VCFQuery += " OMIT RECORD IF EVERY(call.genotype <= 0) ";
-					VCFQuery += " ), ";  
+				if (GoogleVCF) { // Google VCF files -> filter out non-variants
+					if (numSamples) // Skip homozygous reference calls
+						VCFQuery += " FROM flatten(["+ VCFTables[index]  +"], call) ";
+					else
+						VCFQuery += " FROM ["+ VCFTables[index]  +"] ";
+					//Skip no-calls
+					VCFQuery += " OMIT RECORD IF EVERY(call.genotype <= 0)";
+					if(numSamples) { 
+						VCFQuery += 
+							 " Group by reference_name," + 
+							"  start," + 
+							"  END," + 
+							"  reference_bases," + 
+							"  alternate_bases ";
+					}
+					VCFQuery += "), ";
+				}else { //AnnotationHive VCF Template
+					VCFQuery += " FROM ["+ VCFTables[index]  +"]), ";
 				}
+			}
 			else {
-				VCFQuery += " FROM ["+ VCFTables[index]  +"] ";
-					if(GoogleVCF)
-						VCFQuery	 += " OMIT RECORD IF EVERY(call.genotype <= 0) ";
-				VCFQuery	 += " ) ";
+				if (GoogleVCF) { // Google VCF files -> filter out non-variants
+					if (numSamples) // Skip homozygous reference calls
+						VCFQuery += " FROM flatten(["+ VCFTables[index]  +"], call) ";
+					else
+						VCFQuery += " FROM ["+ VCFTables[index]  +"] ";		
+
+					//Skip no-calls
+					VCFQuery += " OMIT RECORD IF EVERY(call.genotype <= 0)";
+					
+					if(numSamples) { 
+						VCFQuery += 
+							 " Group by reference_name," + 
+							"  start," + 
+							"  END," + 
+							"  reference_bases," + 
+							"  alternate_bases ";
+					}
+					VCFQuery += ") ";
+				}else { //AnnotationHive VCF Template
+					VCFQuery += " FROM ["+ VCFTables[index]  +"]) ";
 				}
+			}
 		}
 		VCFQuery +=" ) as VCF ";
 
@@ -581,16 +618,24 @@ public class BigQueryFunctions {
 						if (TableInfo.length>3) {
 							
 							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+							if (numSamples && GoogleVCF) {
+								AnnotationQuery += ", num_samples ";
+							}
+							
 							if(createVCF)
 								AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 							else 
 								AnnotationQuery += ", " + RequestedFields ;
 
 						}
-						else
-							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
-								    + RequestedFields;
-
+						else {
+							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+							if (numSamples && GoogleVCF) {
+								AnnotationQuery += " num_samples, ";
+							}
+							AnnotationQuery +=  RequestedFields;
+						}
+						
 						AnnotationQuery +=
 							 " FROM " + VCFQuery 
 							+ " JOIN [" + TableName +"] AS " + AliasTableName ;
@@ -672,6 +717,10 @@ public class BigQueryFunctions {
 				if (TableInfo.length>3) {
 					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
 					+ "VCF.alternate_bases ";
+
+					if (numSamples && GoogleVCF) {
+						AnnotationQuery += ", num_samples ";
+					}
 					
 					if(createVCF)
 						AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
@@ -679,10 +728,13 @@ public class BigQueryFunctions {
 						AnnotationQuery += ", " + RequestedFields ;				
 						//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 				}
-				else
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
-						    + RequestedFields;
-
+				else {
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+					if (numSamples && GoogleVCF) {
+						AnnotationQuery += " num_samples, ";
+					}	
+					AnnotationQuery += RequestedFields;
+				}
 				AnnotationQuery +=
 					 " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
@@ -700,6 +752,9 @@ public class BigQueryFunctions {
 			}
 		}		
 	
+		if (numSamples && GoogleVCF) {
+			AllFields = ",  num_samples " + AllFields ;
+		}
 		String Query= "  SELECT "
 				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, VCF.reference_bases as reference_bases, "
 				+ "VCF.alternate_bases as alternate_bases " + AllFields 
@@ -707,9 +762,12 @@ public class BigQueryFunctions {
 		
 		Query += AnnotationQuery;
 		
-		if(!createVCF && GroupBy)
+		if(!createVCF && GroupBy) {
 			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases "; 
-		
+			if (numSamples) {
+				Query += ",  num_samples " ;
+			}
+		}
 		return Query;
 	}
 
