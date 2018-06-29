@@ -1,4 +1,4 @@
-## Section 1: [Import VCF/mVCF/Annotation Files](./Import.md)
+## Section 1: Import VCF/mVCF/Annotation Files
 This section explains how to import VCF, mVCF and annotation files to BigQuery.
 
 
