@@ -1,3 +1,7 @@
+## Section 1: [Import VCF/mVCF/Annotation Files](./Import.md)
+This section explains how to import VCF, mVCF and annotation files to BigQuery.
+
+
 ### Upload ###
 
 * Upload the sample transcript annotation (Samples/sample_transcript_annotation_chr17.bed)

@@ -61,6 +61,7 @@ This section demonstrates how to run our gene-based annotation process for a VCF
 ## Section 7: [Sample Experiments](./Experiments.md)
 This section provides sevarl experiments on scalability and the cost of the system.
 
+<!---
 ### Annotate Variants Using Google Genomics (GG) APIs ###
 
 * Local Sort (AnnotationHive will print local sort instructions at the end of the execution)
@@ -83,6 +84,7 @@ This section provides sevarl experiments on scalability and the cost of the syst
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ExportVCFFromGGToBigQuery --project=<Your_Google_cloud_Project> --stagingLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address>  --bigQueryTableId=<BigQuery_Table_ID> --variantSetId=<Your_Google_cloud_Project> --bigQueryDataSetId=<BigQuery_Google_Dataset_ID>"
    ```
+--->
 
 ### Annotate Variants Using BigQuery APIs ####
 
