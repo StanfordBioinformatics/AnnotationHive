@@ -46,6 +46,14 @@
 1. To create and manage Google Genomics datasets click [here](https://cloud.google.com/genomics/)
 --->
 
+## Part 1: Import VCF/mVCF/Annotation Files
+## Part 2: Variant-based Annotation
+## Part 3: Interval-based Annotation
+## Part 4: Variant-based and Interval-based Annotation
+## Part 5: Gene-based Annotation
+## Part 6: Sample Experiments
+
+
 1. To run:
 
 ### Upload ###
