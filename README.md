@@ -54,7 +54,7 @@ This part of the code demosntrates how to list AnnotationHive's public datasets.
 This section explains how to annotate a VCF/mVCF table against any number of variant-based annotation datasets. 
 ## Section 4: [Interval-based Annotation](./Interval-Annotation.md)
 This section explains how to annotate a VCF/mVCF table against any number of interval-based annotation datasets. 
-## Section 5: [Variant-based and Interval-based Annotation](./Varaint-Interval-Annotation.md)
+## Section 5: [Variant-based and Interval-based Annotation](./Variant-Interval-Annotation.md)
 This section explains how to run a combincation of interval-based and variant-based annotation datasets. 
 ## Section 6: [Gene-based Annotation](./Gene-Annotation.md)
 This section demonstrates how to run our gene-based annotation process for a VCF/mVCF table.
