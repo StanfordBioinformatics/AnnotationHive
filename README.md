@@ -88,36 +88,6 @@ This section provides sevarl experiments on scalability and the cost of the syst
 
 ### Annotate Variants Using BigQuery APIs ####
 
-* Import Annotation files to BigQuery
-Make sure to run the following command first to create a table for tracking annotation sets inside your BigQuery Dataset; the following command creates a table inside your BigQuery dataset called "AnnotationList".  
-
-   ```
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotationRepository --project=<Your_Google_cloud_Project> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --runner=DataflowRunner " -Pdataflow-runner
-   ```
-
-
-After creating AnnotationList Table successfully, then you can import your annotation sets from Google Storage:
-
-   ```--annotationType```
-   ```--bigQueryDatasetId```
-   ```--annotationInputTextBucketAddr```
-   ```--annotationSetInfo```
-   ```--assemblyId```
-   ```--base0```
-   ```--bigQueryAnnotationSetTableId```
-   ```--header```
-   ```--annotationType```
-   ```--annotationSetVersion```
-
-   ```
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4 --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17.bed --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Link=..., Date=DD-MM-YYYY'" -Pdataflow-runner
-   ```
-
-   ```--columnSeparator```
-You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces. If you only have tab then set this option to `\t`)   
-
-   ```--forceUpdate```
-If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
 
  
 There are two options for sorting the annotated VCF file: 1) DataFlow Sort and 2) BigQuery Sort. 
@@ -173,36 +143,5 @@ Users can also submit a list of variants as VCF file to AnnotationHive using
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --gcpTempLocation=gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID>  --outputBigQueryTable=<YOUR_Output_Table> --variantAnnotationTables=<>  --inputRegion=chr11:25900005:25900405,chrY:9323748:9323848 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --localOutputFilePath=<Local_Dir>/YOUR_filename.vcf --bigQuerySort=true" -Pdataflow-runner
    ```
-
-# Experiments #
-
-### AnnotationHive vs. Annovar ###
-
-In the following experiment, we tested AnnotationHive and 
-Annovar for one sample (HG00096) of 1000 genomes with over 4.2M 
-variants, and for all 1000 samples with over 85.2M variants against 
-the following five annotation datasets:
-
-![Annotation Datasets](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Annotations.png "Annotation Datasets")
-
-
----
-
-* Execution Time
-
-Over 16B annotation records were processed. The y-axis is logarithmic and represents the execution time in minutes. 
-The number of variants is depicted on the x-axis. In both cases, AnnotationHive is around two orders of magnitude faster 
-than Annovar. For this experiment, we used n1-highmem-16 instances for Annovar and AnnotationHive's Dataflow sort function. 
-
-![AnnotationHive vs. Annovar](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/Experiment_AnnotationHive_BigQuery.png "AnnotationHive vs. Annovar")
-
----
-
-* Accuracy
-
-We compared the annotated VCF files for the BRCA1 region. All records are the same except three records with 
-genotype values of 0 where Annovar considered them in the output. We filter out variants with every genotype
-value less than or equal 0.
- 
 
 
