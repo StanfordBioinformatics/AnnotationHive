@@ -33,8 +33,8 @@ The first step in importing VCF/annotation files is to upload your local files t
 
 ### Import mVCF/VCF ###
 
-There are two ways to import VCF files from Google Storage to Google BigQuery: 1) Using Google Genomics API, 2) Using AnnotationHive's API. In order to calaulte number of samples with a genotype larger than 0, the mVCF file must be in 
-the Google Genomics format. So, if you have a mVCF file, and want AnnotationHive to calcaule the number of samples, please use Google Genomics solution.
+There are two ways to import VCF files from Google Storage to Google BigQuery: 1) Using Google Genomics API, 2) Using AnnotationHive's API. In order to calculate number of samples with a genotype larger than 0, the mVCF file must be in 
+the Google Genomics format. So, if you have a mVCF file, and want AnnotationHive to calculate the number of samples, please use Google Genomics solution.
 
 * Import mVCF/VCF files using the API provided by Google Genomics (Please follow instructions provided by [this link](https://cloud.google.com/genomics/docs/how-tos/load-variants))
 * Import mVCF/VCF files using the API provided by AnnotationHive 
@@ -59,7 +59,7 @@ In order to import annotation datasets to BigQuery, first run the following comm
 
 After creating AnnotationList Table successfully, then you can import your annotation sets from Google Storage. Here are the main options:
 
-* **--annotationType**: This provides whether the annotation is Varaiant or Generic annotation dataset. This is a required field. 
+* **--annotationType**: This provides whether the annotation is Variant or Generic annotation dataset. This is a required field. 
 * **--bigQueryDatasetId**: This provides a BigQuery dataset ID 
 * **--annotationInputTextBucketAddr**: This provides the URI of inputfile which contains annotations. This is a required field.
 * **--annotationSetInfo**: This provides more info about the annotationset (e.g., Link='http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/ensGene.txt.gz'). This is an optional filed.
@@ -68,23 +68,22 @@ After creating AnnotationList Table successfully, then you can import your annot
 * **--bigQueryAnnotationSetTableId**: This provides the name of the BigQuery Table for the new annotation dataset. 
 * **--header**: This provides the header for the Annotations. This is a required field (e.g., "Chrom,start,end,ref,alter,all other fileds"). 
 * **--annotationSetVersion**: This provides the version annotationset (e.g., v1.0). This is a required field. 
-* **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can specify the order using this option. For example, if `header` is `bin,chrom,info1,start,end,infor2` then `--columnOrder=2,4,5`. AnnotationHive automatically, reorder the fileds.    
-* **--columnSeparator**: You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces.`Note`, if you only have tab, then set this option to `\t`).
+* **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can specify the order using this option. For example, if `header` is `bin,chrom,info1,start,end,infor2` then `--columnOrder=2,4,5`. AnnotationHive automatically, reorder the fields.    
+* **--columnSeparator**: You can specify separator character between columns (default value is '\\s+' that covers all type of spaces.`Note`, if you only have tab, then set this option to `\t`).
 * **--forceUpdate**:If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
-* **--POS**: This provides whether the file contains POS field [true] instead of Start and End [false]. AnnotationHive calcultes start and end automatically based on the size of `refrence bases`. 
+* **--POS**: This provides whether the file contains POS field [true] instead of Start and End [false]. AnnotationHive calculates start and end automatically based on the size of `reference bases`. 
 
-To import `Samples/sample_transcript_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the follwoing command using:
+To import `Samples/sample_transcript_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the following command using:
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_transcript_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=generic --header=chrom,txStart,txEnd,bin,name,strand,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds,score,name2,cdsStartStat,cdsEndStat,exonFrames --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_transcript_annotation_chr17 --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Source: AnnotationHive/Samples'" -Pdataflow-runner
    ```
-To import `Samples/sample_variant_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the follwoing command using:
+To import `Samples/sample_variant_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the following command using:
 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17 --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Source: AnnotationHive/Samples'" -Pdataflow-runner
    ```
 
  
-
 
 <!--- * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search.
 
