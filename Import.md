@@ -62,7 +62,7 @@ After creating AnnotationList Table successfully, then you can import your annot
 * **--annotationType**: This provides whether the annotation is Varaiant or Generic annotation dataset. This is a required field. 
 * **--bigQueryDatasetId**: This provides a BigQuery dataset ID 
 * **--annotationInputTextBucketAddr**: This provides the URI of inputfile which contains annotations. This is a required field.
-* **--annotationSetInfo**: This provides more info about the annotationset (e.g., Source='http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/ensGene.txt.gz'). This is an optional filed.
+* **--annotationSetInfo**: This provides more info about the annotationset (e.g., Link='http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/ensGene.txt.gz'). This is an optional filed.
 * **--assemblyId**: This provides assemblyId (e.g., "hg19"). This is a required field.
 * **--base0**: This provides whether the base is 0 or 1. This is a required field. 
 * **--bigQueryAnnotationSetTableId**: This provides the name of the BigQuery Table for the new annotation dataset. 
@@ -71,7 +71,18 @@ After creating AnnotationList Table successfully, then you can import your annot
 * **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can specify the order using this option. For example, if `header` is `bin,chrom,info1,start,end,infor2` then `--columnOrder=2,4,5`. AnnotationHive automatically, reorder the fileds.    
 * **--columnSeparator**: You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces.`Note`, if you only have tab, then set this option to `\t`).
 * **--forceUpdate**:If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
+* **--POS**: This provides whether the file contains POS field [true] instead of Start and End [false]. AnnotationHive calcultes start and end automatically based on the size of `refrence bases`. 
 
+To import `Samples/sample_transcript_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the follwoing command using:
+   ```
+   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_transcript_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=generic --header=chrom,txStart,txEnd,bin,name,strand,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds,score,name2,cdsStartStat,cdsEndStat,exonFrames --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_transcript_annotation_chr17 --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Source: AnnotationHive/Samples'" -Pdataflow-runner
+   ```
+To import `Samples/sample_variant_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the follwoing command using:
+    ```
+   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17 --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Source: AnnotationHive/Samples'" -Pdataflow-runner
+   ```
+
+ 
 
 
    ```
