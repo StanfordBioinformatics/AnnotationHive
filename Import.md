@@ -57,7 +57,22 @@ In order to import annotation datasets to BigQuery, first run the following comm
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotationRepository --project=<Your_Google_cloud_Project> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --createAnnotationSetListTable=true --runner=DataflowRunner " -Pdataflow-runner
    ```
 
-After creating AnnotationList Table successfully, then you can import your annotation sets from Google Storage:
+After creating AnnotationList Table successfully, then you can import your annotation sets from Google Storage. Here are the main options:
+
+* **--annotationType**: relative paths to files. The only mandatory option.
+  It could be a path `"index.js"`, a pattern `"dist/app-*.js"`
+  or an array `["index.js", "dist/app-*.js"]`.
+* **--bigQueryDatasetId**: size limit for files from `path` option. It should be a string
+  with a number and unit (`100 B`, `10 KB`, etc).
+* **--annotationInputTextBucketAddr**: the name of this section. It will be useful only
+  if you have multiple sections.
+* **--annotationSetInfo**: with `false` will disable webpack.
+* **--assemblyId**: with `false` will disable gzip compression.
+* **--base0**: a path to custom webpack config. 
+* **--bigQueryAnnotationSetTableId**: a path to custom webpack config. 
+* **--header**: a path to custom webpack config. 
+* **--annotationType**: a path to custom webpack config. 
+* **--annotationSetVersion**: a path to custom webpack config. 
 
    ```--annotationType```
    ```--bigQueryDatasetId```
