@@ -68,19 +68,15 @@ After creating AnnotationList Table successfully, then you can import your annot
 * **--bigQueryAnnotationSetTableId**: This provides the name of the BigQuery Table for the new annotation dataset. 
 * **--header**: This provides the header for the Annotations. This is a required field (e.g., "Chrom,start,end,ref,alter,all other fileds"). 
 * **--annotationSetVersion**: This provides the version annotationset (e.g., v1.0). This is a required field. 
-* **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can spcify the order using this option. For example, if header is "bin,chrom,info1,start,end,infor2" then --columnOrder=2,4,5. AnnotationHive automatically, reorder the fileds.    
+* **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can specify the order using this option. For example, if `header` is `bin,chrom,info1,start,end,infor2` then `--columnOrder=2,4,5`. AnnotationHive automatically, reorder the fileds.    
+* **--columnSeparator: You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces.`Note`, if you only have tab, then set this option to `\t`).
+* **--forceUpdate:If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
+
 
 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4 --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17.bed --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Link=..., Date=DD-MM-YYYY'" -Pdataflow-runner
    ```
-
-   ```--columnSeparator```
-You can specify sepatator character between columns (default value is '\\s+' that covers all type of spaces. 
-*Note: If you only have tab, then set this option to `\t`)   
-
-   ```--forceUpdate```
-If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
 
 <!--- * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search.
 
