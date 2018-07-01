@@ -59,31 +59,17 @@ In order to import annotation datasets to BigQuery, first run the following comm
 
 After creating AnnotationList Table successfully, then you can import your annotation sets from Google Storage. Here are the main options:
 
-* **--annotationType**: relative paths to files. The only mandatory option.
-  It could be a path `"index.js"`, a pattern `"dist/app-*.js"`
-  or an array `["index.js", "dist/app-*.js"]`.
-* **--bigQueryDatasetId**: size limit for files from `path` option. It should be a string
-  with a number and unit (`100 B`, `10 KB`, etc).
-* **--annotationInputTextBucketAddr**: the name of this section. It will be useful only
-  if you have multiple sections.
-* **--annotationSetInfo**: with `false` will disable webpack.
-* **--assemblyId**: with `false` will disable gzip compression.
-* **--base0**: a path to custom webpack config. 
-* **--bigQueryAnnotationSetTableId**: a path to custom webpack config. 
-* **--header**: a path to custom webpack config. 
-* **--annotationType**: a path to custom webpack config. 
-* **--annotationSetVersion**: a path to custom webpack config. 
+* **--annotationType**: This provides whether the annotation is Varaiant or Generic annotation dataset. This is a required field. 
+* **--bigQueryDatasetId**: This provides a BigQuery dataset ID 
+* **--annotationInputTextBucketAddr**: This provides the URI of inputfile which contains annotations. This is a required field.
+* **--annotationSetInfo**: This provides more info about the annotationset (e.g., Source='http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/ensGene.txt.gz'). This is an optional filed.
+* **--assemblyId**: This provides assemblyId (e.g., "hg19"). This is a required field.
+* **--base0**: This provides whether the base is 0 or 1. This is a required field. 
+* **--bigQueryAnnotationSetTableId**: This provides the name of the BigQuery Table for the new annotation dataset. 
+* **--header**: This provides the header for the Annotations. This is a required field (e.g., "Chrom,start,end,ref,alter,all other fileds"). 
+* **--annotationSetVersion**: This provides the version annotationset (e.g., v1.0). This is a required field. 
+* **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can spcify the order using this option. For example, if header is "bin,chrom,info1,start,end,infor2" then --columnOrder=2,4,5. AnnotationHive automatically, reorder the fileds.    
 
-   ```--annotationType```
-   ```--bigQueryDatasetId```
-   ```--annotationInputTextBucketAddr```
-   ```--annotationSetInfo```
-   ```--assemblyId```
-   ```--base0```
-   ```--bigQueryAnnotationSetTableId```
-   ```--header```
-   ```--annotationType```
-   ```--annotationSetVersion```
 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4 --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17.bed --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Link=..., Date=DD-MM-YYYY'" -Pdataflow-runner
