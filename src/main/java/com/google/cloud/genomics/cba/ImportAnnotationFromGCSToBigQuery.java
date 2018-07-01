@@ -287,7 +287,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 				addToAnnotationSetList(tempEstimatedTime);		
 		}
 		catch (Exception e) {			
-			LOG.severe("Exception occurred");
+			LOG.severe(e.getMessage());
 		}
 		
 	}

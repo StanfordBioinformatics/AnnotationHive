@@ -226,8 +226,9 @@ public class ImportVCFFromGCSToBigQuery {
 				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryVCFTableId());
 			}
 		}
-		
-		LOG.warning(options.getBigQueryVCFTableId() + "  is a new VCF table!");
+		else{
+			LOG.warning(options.getBigQueryVCFTableId() + "  is a new VCF table!");
+		}
 	
 		String [] inputFields = options.getHeader().split(",");
 		LOG.warning("VCF Pipeline");
@@ -247,7 +248,8 @@ public class ImportVCFFromGCSToBigQuery {
 			addToVCFList(tempEstimatedTime);			
 		}
 		catch (Exception e) {			
-			LOG.severe("Exception occurred");
+			LOG.severe(e.getMessage());
+
 		}	
 				
 	}
@@ -325,7 +327,7 @@ public class ImportVCFFromGCSToBigQuery {
 		    }
 	    }
 	    else
-	    		LOG.warning("### Table \"VCFList\" exists");
+	    		LOG.severe("### Table \"VCFList\" exists");
 	}
 
 	
@@ -359,7 +361,7 @@ public class ImportVCFFromGCSToBigQuery {
 				numVariants=row.get(0).getValue().toString();
 		}
 		
-		LOG.warning("### number of variants added: " + numVariants);
+		LOG.info("### number of variants added: " + numVariants);
 		rowContent.put("VCFSize", numVariants);
 		if(options.getNumWorkers()!=0)
 			rowContent.put("Info", options.getVCFInfo() + "\t Number of Instances: " + options.getNumWorkers() + " ExecutionTime (msec): " + tempEstimatedTime);
@@ -372,9 +374,9 @@ public class ImportVCFFromGCSToBigQuery {
 	    
 	    System.out.println(response.toString());
 	    if(!response.getInsertErrors().isEmpty())
-	    		LOG.warning("### Error in inserting a new table to VCFList Table: " + response.getInsertErrors().toString());
+	    		LOG.severe("### Error in inserting a new table to VCFList Table: " + response.getInsertErrors().toString());
 	    else
-	    		LOG.warning("### Successfully added a new VCF table: " + rowContent.toString());
+	    		LOG.info("### Successfully added a new VCF table: " + rowContent.toString());
 	}
 
 	/**
