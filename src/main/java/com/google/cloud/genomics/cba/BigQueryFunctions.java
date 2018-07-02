@@ -2446,7 +2446,6 @@ public class BigQueryFunctions {
 		    		"Build", 
 		    		"Fields");
 	        System.out.println();
-
 		}
 		
 		while (result != null) {		
