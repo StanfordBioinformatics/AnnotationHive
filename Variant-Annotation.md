@@ -18,10 +18,10 @@ Here are the key parameters:
 * **--variantAnnotationTables**: This provides the address of variant annotation tables (e.g., gbsc-gcp-project-cba:AnnotationHive.hg19_UCSC_snp144).
 * **--createVCF**: If you want to get a VCF file, then set this flag true (default value is false, and it creates a table).
 
-# AnnotationHive VCF Table #
+### AnnotationHive VCF Table ###
 If you imported mVCF or VCF file using AnnotationHive's API, then you can 
 
 
-# Google VCF Table #
+### Google VCF Table ###
 
  
