@@ -113,7 +113,7 @@ import com.google.common.base.Function;
  * @param googleVCF
  * 			  If users have a VCF table imported using Google APIs; they need to set this true
  * @param numberSamples           
- * 			  If users have a VCF table imported using Google APIs, and they want to gget the number of samples 
+ * 			  If users have a VCF table imported using Google APIs, and they want to get the number of samples 
  * 		 from the multiple VCF file, then they need to set this true
  * @version 1.0
  * @since 2018-02-01
