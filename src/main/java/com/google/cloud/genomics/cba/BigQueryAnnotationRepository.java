@@ -146,6 +146,8 @@ public class BigQueryAnnotationRepository {
 		String getSearchKeyword();
 
 		void setSearchKeyword(String value);
+		
+
 	}
 
 	private static Options options;
@@ -168,9 +170,9 @@ public class BigQueryAnnotationRepository {
 
 		if (options.getListAnnotationDatasets()) {
 			try {
-				BigQueryFunctions.listAnnotationDatasets(options.getProject(), options.getBigQueryDatasetId(),
-						"AnnotationList", options.getAnnotationDatasetBuild(), options.getPrintAllFields(),
-						options.getSearchKeyword());
+				BigQueryFunctions.listAnnotationDatasets(options.getBigQueryDatasetId(),
+						"AnnotationList", options.getAnnotationType(), options.getAnnotationDatasetBuild(), 
+						options.getPrintAllFields(), options.getSearchKeyword());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

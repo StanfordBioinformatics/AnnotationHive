@@ -66,12 +66,12 @@ After creating AnnotationList Table successfully, then you can import your annot
 * **--assemblyId**: This provides assemblyId (e.g., "hg19"). This is a required field.
 * **--base0**: This provides whether the base is 0 or 1. This is a required field. 
 * **--bigQueryAnnotationSetTableId**: This provides the name of the BigQuery Table for the new annotation dataset. 
-* **--header**: This provides the header for the Annotations. This is a required field (e.g., "Chrom,start,end,ref,alter,all other fileds"). 
+* **--header**: This provides the header for the Annotations. This is a required field (e.g., "Chrom,start,end,ref,alter,all other fields"). 
 * **--annotationSetVersion**: This provides the version annotationset (e.g., v1.0). This is a required field. 
 * **--columnOrder**: In case the input file does not follow (chrom ID, start, end, ...) for generic annotation, and (chrom ID, start, end, ref, alt, ...) for Variant annotation, then you can specify the order using this option. For example, if `header` is `bin,chrom,info1,start,end,infor2` then `--columnOrder=2,4,5`. AnnotationHive automatically, reorder the fields.    
 * **--columnSeparator**: You can specify separator character between columns (default value is '\\s+' that covers all type of spaces.`Note`, if you only have tab, then set this option to `\t`).
 * **--forceUpdate**:If your table (i.e., bigQueryAnnotationSetTableId) exists, and you want to update it, set the following option true, then it will remove the existing table and import the new version.
-* **--POS**: This provides whether the file contains POS field [true] instead of Start and End [false]. AnnotationHive calculates start and end automatically based on the size of `reference bases`. 
+* **--POS**: This provides whether the file contains POS field [true] instead of Start and End [false]. AnnotationHive calculates start and end automatically based on the size of `reference bases`. Helpful for annotation files with the VCF format.
 
 To import `Samples/sample_transcript_annotation_chr17.bed`, you need to first upload this file to Google Storage. Then, update and run the following command using:
    ```

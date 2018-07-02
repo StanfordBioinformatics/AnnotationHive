@@ -49,17 +49,17 @@
 ## Section 1: [Import VCF/mVCF/Annotation Files](./Import.md)
 This section explains how to import VCF, mVCF and annotation files to BigQuery.
 ## Section 2: [List Available Public Annotation Datasets](./List-Annotation.md)
-This part of the code demosntrates how to list AnnotationHive's public datasets.
+This part of the code demonstrates how to list AnnotationHive's public datasets.
 ## Section 3: [Variant-based Annotation](./Variant-Annotation.md)
 This section explains how to annotate a VCF/mVCF table against any number of variant-based annotation datasets. 
 ## Section 4: [Interval-based Annotation](./Interval-Annotation.md)
 This section explains how to annotate a VCF/mVCF table against any number of interval-based annotation datasets. 
 ## Section 5: [Variant-based and Interval-based Annotation](./Variant-Interval-Annotation.md)
-This section explains how to run a combincation of interval-based and variant-based annotation datasets. 
+This section explains how to run a combination of interval-based and variant-based annotation datasets. 
 ## Section 6: [Gene-based Annotation](./Gene-Annotation.md)
 This section demonstrates how to run our gene-based annotation process for a VCF/mVCF table.
 ## Section 7: [Sample Experiments](./Experiments.md)
-This section provides sevarl experiments on scalability and the cost of the system.
+This section provides several experiments on scalability and the cost of the system.
 
 <!---
 ### Annotate Variants Using Google Genomics (GG) APIs ###

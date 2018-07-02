@@ -2394,8 +2394,8 @@ public class BigQueryFunctions {
 
 
 
-	public static void listAnnotationDatasets(String projectId, String datasetId, String tableId,
-			String annotationDatasetBuild, boolean printAll, String searchKeyword) {
+	public static void listAnnotationDatasets( String datasetId, String tableId, String annotationType,
+			String annotationDatasetBuild, boolean printAll, String searchKeyword) throws InterruptedException {
 				
 		String queryStat ="";
 		
@@ -2406,39 +2406,61 @@ public class BigQueryFunctions {
 		
 		if (!annotationDatasetBuild.isEmpty())
 		{
-			queryStat ="SELECT "+ Fields + " from [" + projectId + ":"
-					+ datasetId + "." + tableId + "] "
+			queryStat ="SELECT "+ Fields + " from [" + datasetId + "." + tableId + "] "
 					+ "WHERE Build=\"" + annotationDatasetBuild + "\"";
-		}else if (!searchKeyword.isEmpty()) {
-			queryStat ="SELECT "+ Fields + " from [" + projectId + ":"
-					+ datasetId + "." + tableId + "] "
-					+ "WHERE AnnotationSetName LIKE \"%" + searchKeyword + "%\"";
 		}
-		else {
-			queryStat ="SELECT "+ Fields + "  from [" + projectId + ":"
-					+ datasetId + "." + tableId + "] "
+		
+		if (!searchKeyword.isEmpty()) {
+			if (queryStat.isEmpty()) {
+			queryStat ="SELECT "+ Fields + " from ["  + datasetId + "." + tableId + "] "
+					+ "WHERE lower(AnnotationSetName) LIKE \"%" + searchKeyword.toLowerCase() + "%\"";
+			}else 
+				queryStat += " AND lower(AnnotationSetName) LIKE \"%" + searchKeyword.toLowerCase() + "%\"";
+			
+		}
+		
+		if(!annotationType.isEmpty()) {
+			if (queryStat.isEmpty())
+				queryStat ="SELECT "+ Fields + " from ["  + datasetId + "." + tableId + "] "
+					+ "WHERE AnnotationSetType = " + annotationType;
+			else
+				queryStat += " AND AnnotationSetType = \"" + annotationType + "\"";
+
+		}
+		
+		if (annotationType.isEmpty() && searchKeyword.isEmpty() && annotationDatasetBuild.isEmpty()){
+			queryStat ="SELECT "+ Fields + "  from [" + datasetId + "." + tableId + "] "
 					+ " Order By Build";
 		}
 		
 		// Get the results.
-		System.out.println("Stat Query: " + queryStat);
+		//System.out.println("Stat Query: " + queryStat);
 		QueryResponse response = runquery(queryStat);
 		QueryResult result = response.getResult();
-		LOG.info("");
-		LOG.info("");
-		LOG.info("<============ AnnotationList ============>");
-		while (result != null) {
-			for (List<FieldValue> row : result.iterateAll()) {
-			    Integer columnsCount = row.size();
-			    StringBuilder sb = new StringBuilder();
-			    for(int i = 0; i < columnsCount; i++){
-			    		if(i+1<columnsCount)
-			    			sb.append(row.get(i).getStringValue() + " | ");
-			    		else
-			    			sb.append(row.get(i).getStringValue());
+		System.out.println("\n\n<============ AnnotationList ============>");
+		if (result!=null) {
+		    System.out.format("%-80s %-10s %-15s %-10s %s",
+		    		"Name",
+		    		"Type", 
+		    		"Size", 
+		    		"Build", 
+		    		"Fields");
+	        System.out.println();
 
-			    }
-			    System.out.println(sb.toString());
+		}
+		
+		while (result != null) {		
+			for (List<FieldValue> row : result.iterateAll()) {
+
+			    System.out.format("%-80s %-10s %-15s %-10s %s",
+			    		row.get(0).getStringValue(), 
+			    		row.get(1).getStringValue(), 
+			    		row.get(2).getStringValue(), 
+			    		row.get(3).getStringValue(), 
+			    		row.get(4).getStringValue());
+			    
+		        System.out.println();
+		        
 			}
 			result = result.getNextPage();
 		}

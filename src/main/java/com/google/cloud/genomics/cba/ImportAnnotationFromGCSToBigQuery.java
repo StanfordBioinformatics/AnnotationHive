@@ -114,7 +114,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 		String getBigQueryAnnotationSetTableId();
 		void setBigQueryAnnotationSetTableId(String BigQueryAnnotationSetTableId);
 	
-		@Description("This provides whether the annotation is Varaiant or Transcript. This is a required field.")
+		@Description("This provides whether the annotation is Varaiant or Generic. This is a required field.")
 		@Default.String("")
 		String getAnnotationType();	
 		void setAnnotationType(String VariantAnnotation);

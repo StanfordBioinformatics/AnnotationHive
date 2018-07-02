@@ -1,5 +1,5 @@
 ## Section 7: Sample Experiments
-This section provides sevarl experiments on scalability and the cost of the system.
+This section provides several experiments on scalability and the cost of the system.
 
 ### AnnotationHive vs. Annovar ###
 
