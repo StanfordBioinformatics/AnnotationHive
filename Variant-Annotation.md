@@ -32,13 +32,13 @@ mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnota
 
 
 ### Google VCF Table ###
-If users have a VCF table imported using Google APIs, and they want to get the number of samples from the multiple VCF file, then they need to set this true. Here is a test example for the 1000 Genomes mVCF file imported by Google Genomics.
+If users have a VCF table imported using Google APIs, and they need to set `--googleVCF=true`. Here is a test example for the 1000 Genomes mVCF file imported by Google Genomics.
 
 ```
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<YOUR_Project_ID> --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_Google_1000_test_chr17 --variantAnnotationTables=<YOUR_Project_ID>:test.sample_variant_annotation_chr17:alleleFreq:dbsnpid  --VCFTables=genomics-public-data:1000_genomes_phase_3.variants --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/staging --googleVCF=true" -Pdataflow-runner
 ```
 
-Now, if you want AnnotationHive to calculate the number of samples presenting variants, then set `--numberSamples`. Here is atest example for the 1000 Genomes mVCF file imported by Google Genomics (2,504 samples):
+Now, if you want AnnotationHive to calculate the number of samples presenting variants, then set `--numberSamples=true` . Here is a test example for the 1000 Genomes mVCF file imported by Google Genomics (Total number of samples in the mVCF file: 2,504). AnnotationHive will find the number of samples presenting variants:
 
 ```
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=YOUR_Project_ID --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_Google_1000_test_chr17_with_num_samples --variantAnnotationTables=<YOUR_Project_ID>:test.sample_variant_annotation_chr17:alleleFreq:dbsnpid  --VCFTables=genomics-public-data:1000_genomes_phase_3.variants --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/staging --googleVCF=true --numberSamples=true" -Pdataflow-runner
