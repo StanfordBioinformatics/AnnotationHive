@@ -18,7 +18,8 @@ INFO: 	 ~: gsutil cat gs://<Your_Google_Cloud_Project_Name>/Output.VCF* > Output
 
 INFO: To remove the output files from the cloud storage run the following command:
 INFO: 	 ~: gsutil rm gs://<Your_Google_Cloud_Project_Name>/OutputWOSample.VCF* 
-INFO: ------------------------------------------------------------------------```
+INFO: ------------------------------------------------------------------------
+```
 
 
 
