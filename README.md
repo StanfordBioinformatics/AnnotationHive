@@ -60,6 +60,9 @@ This section explains how to run a combination of interval-based and variant-bas
 This section demonstrates how to run our gene-based annotation process for a VCF/mVCF table.
 ## Section 7: [Sample Experiments](./Experiments.md)
 This section provides several experiments on scalability and the cost of the system.
+## Section 8: [Export Annotated VCF Table](./ExportVCF.md)
+This section explains how to export an annotated VCF file.
+
 
 <!---
 ### Annotate Variants Using Google Genomics (GG) APIs ###
@@ -87,21 +90,6 @@ This section provides several experiments on scalability and the cost of the sys
 --->
 
 ### Annotate Variants Using BigQuery APIs ####
-
-
- 
-There are two options for sorting the annotated VCF file: 1) DataFlow Sort and 2) BigQuery Sort. 
-If you have a small input file (e.g., one sample VCF file), we recommend you use the BigQury Sort solution. However, if you have a mVCF file or many annotation reference files involved in the annotation process, then we recommend to use Dataflow Sort solution (Documentation: under development). 
-
-* Dataflow Sort
-   ```
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4  --bigQueryDataset=<YOUR_BigQuery_Dataset_ID> --bigQueryTable=<YOUR_Annotated_VCF_Table_Name> --genericAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names>(e.g., genomics-public-data:1000_genomes_phase_3.variants_20150220_release) --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-highmem-16 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address>" -Pdataflow-runner
-   ```
-
-* BigQuery Sort
-   ```
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4 --gcpTempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --bigQueryDataset=<YOUR_BigQuery_Dataset_Name>  --bigQueryTable=<The_Output_Table_Name> --variantAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names> --output=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-standard-16 --bigQuerySort=true --localOutputFilePath=<Local_Annotated_VCF_File_Address>" -Pdataflow-runner
-   ```
 
 If you want to select a sample inside an input mVCF file, you can use the option ```--sampleId```, and set the name of the sampleId (e.g., HG01197 from 1000 genomes project).
 

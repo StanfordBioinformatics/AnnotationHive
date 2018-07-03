@@ -10,7 +10,6 @@ annotation datasets (to list annotation datasets refer to [Section 2](List-Annot
 Here are the key parameters:
 
 * **--bigQueryDatasetId**: The BigQuery dataset ID that will contain the output annotated VCF table. 
-* **--localOutputFilePath**: specify this file when you want to sort the output of BigQuery using BigQuery itself
 * **--VCFTables**: The BigQuery address of the mVCF/VCF table on BigQuery
 * **--VCFCanonicalizeRefNames**: This provides the prefix for reference field in VCF tables (e.g, "chr"). AnnotationHive automatically canonicalizes the VCF table by removing the prefix in its calculation. 
 * **--projectId**: The project ID that has access to the VCF tables.
@@ -29,7 +28,6 @@ For our test example:
 ```
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<YOUR_Project_ID> --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_test_chr17 --variantAnnotationTables=<YOUR_Project_ID>:test.sample_variant_annotation_chr17  --VCFTables=<YOUR_Project_ID>:test.NA12877_chr17 --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/staging" -Pdataflow-runner
 ``` 
-
 
 ### Google VCF Table ###
 If users have a VCF table imported using Google APIs, and they need to set `--googleVCF=true`. Here is a test example for the 1000 Genomes mVCF file imported by Google Genomics.
