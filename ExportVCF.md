@@ -8,7 +8,7 @@ If you have a small input file (e.g., one exome VCF file), we recommend you use 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_Google_1000_test_chr17_with_num_samples_Export_WO_Sample --variantAnnotationTables=<Your_Google_Cloud_Project_Name>:test.sample_variant_annotation_chr17:alleleFreq:dbsnpid  --VCFTables=genomics-public-data:1000_genomes_phase_3.variants --stagingLocation=gs://<Your_Google_Bucket_Name>/staging --googleVCF=true --workerMachineType=n1-highmem-16 --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/Output.VCF --createVCF=true" -Pdataflow-runner
    ```
-
+   After sorting process is done, then AnotationHive will populate the following output:
    ```
    INFO: ------------------------------------------------------------------------
    Header: 
