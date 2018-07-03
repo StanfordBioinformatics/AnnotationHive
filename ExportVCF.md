@@ -5,6 +5,11 @@ There are two options for sorting the annotated VCF file: 1) `DataFlow` Sort and
 If you have a small input file (e.g., one exome VCF file), we recommend you use the BigQury Sort solution. However, if you have a mVCF file or many annotation reference files involved in the annotation process, then we recommend to use Dataflow Sort solution. 
 
 * Dataflow Sort
+   Make sure to set the following key options:
+   * **--localOutputFilePath**: specify this file when you want to sort the output of BigQuery using BigQuery itself.
+   * **--createVCF**: If user wants to get a VCF file (true/false - default is false, and it creates a table).
+   * **--workerMachineType**: set this with `n1-highmem-16` so that the instance have enough main memeory to sort large VCF files.
+
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_Google_1000_test_chr17_with_num_samples_Export_WO_Sample --variantAnnotationTables=<Your_Google_Cloud_Project_Name>:test.sample_variant_annotation_chr17:alleleFreq:dbsnpid  --VCFTables=genomics-public-data:1000_genomes_phase_3.variants --stagingLocation=gs://<Your_Google_Bucket_Name>/staging --googleVCF=true --workerMachineType=n1-highmem-16 --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/Output.VCF --createVCF=true" -Pdataflow-runner
    ```
@@ -26,7 +31,7 @@ If you have a small input file (e.g., one exome VCF file), we recommend you use 
 
 
 * BigQuery Sort
-   Make sure to set the following options:
+   Make sure to set the following key options:
    * **--localOutputFilePath**: specify this file when you want to sort the output of BigQuery using BigQuery itself.
    * **--bigQuerySort**: Users can choose BigQuery to sort the output. Note, `Order By` has an upper bound for the size of table it can sort, AnnotationHive dynamically partitions the output considering the number of annotated variants and then applies the Order By to each of those partitions.
    * **--createVCF**: If user wants to get a VCF file (true/false - default is false, and it creates a table).
