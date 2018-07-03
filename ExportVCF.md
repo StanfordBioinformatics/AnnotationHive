@@ -27,8 +27,9 @@ If you have a small input file (e.g., one exome VCF file), we recommend you use 
 
 * BigQuery Sort
    Make sure to set the following options:
-* **--localOutputFilePath**: specify this file when you want to sort the output of BigQuery using BigQuery itself
-* **--bigQuerySort**: Users can choose BigQuery to sort the output. Note, `Order By` has an upper bound for the size of table it can sort, AnnotationHive dynamically partitions the output considering the number of annotated variants and then applies the Order By to each of those partitions.
+   * **--localOutputFilePath**: specify this file when you want to sort the output of BigQuery using BigQuery itself.
+   * **--bigQuerySort**: Users can choose BigQuery to sort the output. Note, `Order By` has an upper bound for the size of table it can sort, AnnotationHive dynamically partitions the output considering the number of annotated variants and then applies the Order By to each of those partitions.
+   * **--createVCF**: If user wants to get a VCF file (true/false - default is false, and it creates a table).
 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --bigQueryDataset=<YOUR_BigQuery_Dataset_Name> --outputBigQueryTable=<The_Output_Table_Name> --variantAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names> --bigQuerySort=true --localOutputFilePath=<Local_Annotated_VCF_File_Address> --googleVCF=true --numberSamples=true" -Pdataflow-runner
