@@ -112,6 +112,8 @@ import com.google.common.base.Function;
  * 			  If users want to delete the output table, they need to set this true
  * @param googleVCF
  * 			  If users have a VCF table imported using Google APIs; they need to set this true
+ * @param createVCF
+ * 			  If user wants to get a VCF file (true/false - default is false, and it creates a table)
  * @param numberSamples           
  * 			  If users have a VCF table imported using Google APIs, and they want to get the number of samples 
  * 		 from the multiple VCF file, then they need to set this true

@@ -31,20 +31,6 @@
 
 1. Install [Maven](http://maven.apache.org/).
 
-<!---
-1. [Reference Sets](https://cloud.google.com/genomics/v1/reference-sets) with Google Genomics
-
-   ```
-   $ java -jar genomics-tools-client-java-v1beta2.jar searchreferencesets \
-     --fields 'referenceSets(id,assemblyId)'
-   {"assemblyId":"GRCh37lite","id":"EJjur6DxjIa6KQ"}
-   {"assemblyId":"GRCh38","id":"EMud_c37lKPXTQ"}
-   {"assemblyId":"hs37d5","id":"EOSt9JOVhp3jkwE"}
-   {"assemblyId":"GRCh37","id":"EOSsjdnTicvzwAE"}
-   {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
-   ``` 
-1. To create and manage Google Genomics datasets click [here](https://cloud.google.com/genomics/)
---->
 
 ## Section 1: [Import VCF/mVCF/Annotation Files](./Import.md)
 This section explains how to import VCF, mVCF and annotation files to BigQuery.
@@ -96,23 +82,6 @@ If you want to select a sample inside an input mVCF file, you can use the option
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4  --bigQueryDataset=<YOUR_BigQuery_Dataset_ID> --bigQueryTable=<YOUR_Annotated_VCF_Table_Name> --genericAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names>(e.g., genomics-public-data:1000_genomes_phase_3.variants_20150220_release) --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-highmem-16 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --sampleId=<SAMPLE_ID>" -Pdataflow-runner
    ```
-* Storing the annotated VCF file as a BigQuery Table (In this case, AnnotationHive bypasses the sorting phase)
-If you would like to store the annotated VCF file as a table so that you can run other queries on your table, you can specify ```outputBigQueryTable```.
-
-* Gene-based Annotation 
-There are two functionalities supported by AnnotationHive regarding gene annotation: 1) Finding the closest gene to each varaint, 2) finding all genes overlapped with each varaiant whitin an input proximity threashold.
-
-* Finding the closest gene for each varaint [```--geneBasedAnnotation=true```, ```--geneBasedMinAnnotation=true```]
-
-   ``` 
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=64 --gcpTempLocation=gs://<>Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDataset=<YOUR_BigQuery_Dataset_ID> --genericAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names>(e.g., genomics-public-data:1000_genomes_phase_3.variants_20150220_release) --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-highmem-16 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --geneBasedAnnotation=true --geneBasedMinAnnotation=true --sampleId=<SAMPLE_ID>" -Pdataflow-runner
-   ```
-
-* Finding all overlapped genes whitin a specific proximity threashold for each varaint [```--geneBasedAnnotation=true```, ```--proximityThreshold=10000```]
-
-   ``` 
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=64 --gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDataset=<YOUR_BigQuery_Dataset_ID> --genericAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names>(e.g., genomics-public-data:1000_genomes_phase_3.variants_20150220_release) --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-highmem-16 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --geneBasedAnnotation=true --proximityThreshold=<An_Ineteger_Number> --sampleId=<SAMPLE_ID>" -Pdataflow-runner
-  ```
 
 * Input Varinats (Filter-based annotations and region-based annotations)
 
@@ -132,4 +101,18 @@ Users can also submit a list of variants as VCF file to AnnotationHive using
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --gcpTempLocation=gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID>  --outputBigQueryTable=<YOUR_Output_Table> --variantAnnotationTables=<>  --inputRegion=chr11:25900005:25900405,chrY:9323748:9323848 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --localOutputFilePath=<Local_Dir>/YOUR_filename.vcf --bigQuerySort=true" -Pdataflow-runner
    ```
 
+<!---
+1. [Reference Sets](https://cloud.google.com/genomics/v1/reference-sets) with Google Genomics
+
+   ```
+   $ java -jar genomics-tools-client-java-v1beta2.jar searchreferencesets \
+     --fields 'referenceSets(id,assemblyId)'
+   {"assemblyId":"GRCh37lite","id":"EJjur6DxjIa6KQ"}
+   {"assemblyId":"GRCh38","id":"EMud_c37lKPXTQ"}
+   {"assemblyId":"hs37d5","id":"EOSt9JOVhp3jkwE"}
+   {"assemblyId":"GRCh37","id":"EOSsjdnTicvzwAE"}
+   {"assemblyId":"hg19","id":"EMWV_ZfLxrDY-wE"}
+   ``` 
+1. To create and manage Google Genomics datasets click [here](https://cloud.google.com/genomics/)
+--->
 
