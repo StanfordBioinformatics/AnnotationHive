@@ -48,6 +48,8 @@ This section demonstrates how to run our gene-based annotation process for a VCF
 This section provides several experiments on scalability and the cost of the system.
 ## Section 8: [Export Annotated VCF Table](./ExportVCF.md)
 This section explains how to export an annotated VCF file.
+## Section 9: [A small number of variants or regions](./SmallVCF.md)
+This section explains how to annotate a small number of regions/variants.
 
 
 <!---

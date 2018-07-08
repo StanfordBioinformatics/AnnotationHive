@@ -26,7 +26,7 @@ mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnota
 
 For our test example: 
 ```
-mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<YOUR_Project_ID> --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_test_chr17 --variantAnnotationTables=<YOUR_Project_ID>:test.sample_variant_annotation_chr17  --VCFTables=<YOUR_Project_ID>:test.NA12877_chr17 --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/staging" -Pdataflow-runner
+mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<YOUR_Project_ID> --runner=DataflowRunner --bigQueryDatasetId=test  --outputBigQueryTable=annotate_variant_test_chr17 --variantAnnotationTables=<YOUR_Project_ID>:test.sample_variant_annotation_chr17:alleleFreq:dbsnpid  --VCFTables=<YOUR_Project_ID>:test.NA12877_chr17 --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/staging" -Pdataflow-runner
 ``` 
 
 ### Google VCF Table ###
