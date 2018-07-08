@@ -48,7 +48,7 @@ This section demonstrates how to run our gene-based annotation process for a VCF
 This section provides several experiments on scalability and the cost of the system.
 ## Section 8: [Export Annotated VCF Table](./ExportVCF.md)
 This section explains how to export an annotated VCF file.
-## Section 9: [A small number of variants or regions](./SmallVCF.md)
+## Section 9: [Annotate a Small Number of Variants or Regions](./SmallVCF.md)
 This section explains how to annotate a small number of regions/variants.
 
 
@@ -77,7 +77,6 @@ This section explains how to annotate a small number of regions/variants.
    ```
 --->
 
-### Annotate Variants Using BigQuery APIs ####
 
 If you want to select a sample inside an input mVCF file, you can use the option ```--sampleId```, and set the name of the sampleId (e.g., HG01197 from 1000 genomes project).
 
@@ -85,23 +84,6 @@ If you want to select a sample inside an input mVCF file, you can use the option
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --numWorkers=4  --bigQueryDataset=<YOUR_BigQuery_Dataset_ID> --bigQueryTable=<YOUR_Annotated_VCF_Table_Name> --genericAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names>(e.g., genomics-public-data:1000_genomes_phase_3.variants_20150220_release) --bucketAddrAnnotatedVCF=gs://<Your_Google_Cloud_Bucket_Name>/<annotated_VCF_name>.vcf --workerMachineType=n1-highmem-16 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --sampleId=<SAMPLE_ID>" -Pdataflow-runner
    ```
 
-* Input Varinats (Filter-based annotations and region-based annotations)
-
-Users can submit a list of variants as VCF file to AnnotationHive using ```--inputVariant=chr11:25900005:25900005:C:A,chr11:25900002:25900002:C:A,chrY:9323748:9323748:A:G```.
-
-   ```
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --gcpTempLocation=gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID>  --outputBigQueryTable=<YOUR_Output_Table> --variantAnnotationTables=<>  --inputVariant=chr11:25900005:25900005:C:A,chr11:25900002:25900002:C:A,chrY:9323748:9323748:A:G --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --localOutputFilePath=<Local_Dir>/YOUR_filename.vcf --bigQuerySort=true" -Pdataflow-runner
-   ```
-
-* Input Regions
-
-Users can also submit a list of variants as VCF file to AnnotationHive using 
-
-   ```--inputRegion=chr11:25900005:25900505,chrY:9323748:9323848```
- 
-   ```
-   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --gcpTempLocation=gcpTempLocation=gs://<Your_Google_Cloud_Bucket_Name/<temp DIR> --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID>  --outputBigQueryTable=<YOUR_Output_Table> --variantAnnotationTables=<>  --inputRegion=chr11:25900005:25900405,chrY:9323748:9323848 --tempLocation=gs://<Your_Google_Bucket_Name>/<Dataflow-staging_Address> --localOutputFilePath=<Local_Dir>/YOUR_filename.vcf --bigQuerySort=true" -Pdataflow-runner
-   ```
 
 <!---
 1. [Reference Sets](https://cloud.google.com/genomics/v1/reference-sets) with Google Genomics
