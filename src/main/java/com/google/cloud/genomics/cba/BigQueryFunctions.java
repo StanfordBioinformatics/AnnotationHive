@@ -1511,14 +1511,15 @@ public class BigQueryFunctions {
 		
 		if (!searchRegions.isEmpty()) {
 			String[] temp = searchRegions.split(",");
+			WHERE_VCF += " AND ";
 			for (int index=0; index <temp.length; index++) {
 				String [] RS = temp[index].split(":");
 				if(index+1<temp.length) {
-					WHERE_VCF += " AND (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
+					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
 							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
 				}
 				else {
-					WHERE_VCF += " AND (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
+					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
 							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
 				}
 			}
@@ -1668,12 +1669,14 @@ public class BigQueryFunctions {
 							"      chrm," + 
 							"      start, " + 
 							"      `end`, " + 
+						//TODO: Dynamic fields 
 							"      name, " + 
-							"      name2, " + 
+							"      name2, " +
+						//TODO: Dynamic exon starts and ends
 							"      CAST(StartPoint AS INT64) StartPoint, " + 
 							"      CAST(EndPoint AS INT64) EndPoint " + 
-							"    FROM\n" + 
-							"`" + TableName + "`" +
+							"    FROM " +
+							"`" + TableName + "` t, " +
 							"      UNNEST(SPLIT( exonStarts )) StartPoint " + 
 							"    WITH " + 
 							"    OFFSET " + 
@@ -2006,10 +2009,9 @@ public class BigQueryFunctions {
 					throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
 			}
 			else{
-				System.out.println("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
+				LOG.warning("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
 			}
 		}
-		
 		
 				
 		/*#######################Prepare VCF queries#######################*/
@@ -2056,44 +2058,46 @@ public class BigQueryFunctions {
 						AllFields +=  " , " + "AN" +"." + TableInfo[index2];
 				}
 
-		String Query = "SELECT " 
-				+ "    VCF.reference_name as chrm," 
-				+ "    VCF.start as start,"  
-				+ "    VCF.END as `end`," 
-				+ "    VCF.reference_bases as reference_bases," 
-				+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases,"
-				+ "	   ARRAY_AGG((" + AllFields +")"
-				+ "    ORDER BY " 
-//				"      (CASE " + 
-//				"          WHEN (ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) THEN ABS(VCF.Start-AN.END) " + 
-//				"          ELSE ABS(VCF.END-AN.Start) END) "
-				+ "     (CASE         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-				+ " (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-				+ " (ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.END)))         "
-				+ "  THEN ABS(VCF.Start-AN.END)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start)) AND         "
-				+ "(ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.start)))          "
-				+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
-				+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) "
-				+ "    LIMIT " 
-				+ "      1 )[SAFE_OFFSET(0)] names "
-				+", CASE " + 
-				"		 WHEN " + 
-				"        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + 
-				"        THEN " + 
-				"        'Closest' " + 
-				"        ELSE " + 
-				"        'Overlapped'" + 
-				"       END AS Status "
-				+ " FROM " + VCFQuery 
-				+ " JOIN `"+ TableName +"` AS AN "
-				+ "  ON VCF.reference_name = AN.chrm ";
-				if (OnlyIntrogenic)
-					Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
-				Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status";
+				String Query = "SELECT " 
+						+ "    VCF.reference_name as chrm," 
+						+ "    VCF.start as start,"  
+						+ "    VCF.END as `end`," 
+						+ "    VCF.reference_bases as reference_bases," 
+						+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases,"
+						+ "	   ARRAY_AGG((" + AllFields +")"
+						+ "    ORDER BY " 
+//						"      (CASE " + 
+//						"          WHEN (ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) THEN ABS(VCF.Start-AN.END) " + 
+//						"          ELSE ABS(VCF.END-AN.Start) END) "
+						+ "     (CASE         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
+						+ " (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
+						+ " (ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.END)))         "
+						+ "  THEN ABS(VCF.Start-AN.END)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start)) AND         "
+						+ "(ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.start)))          "
+						+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
+						+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) "
+						+ "    LIMIT " 
+						+ "      1 )[SAFE_OFFSET(0)] names "
+						+", CASE " + 
+						"		 WHEN " + 
+						"        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + 
+						"        THEN " + 
+						"        'Closest' " + 
+						"        ELSE " + 
+						"        'Overlapped'" + 
+						"       END AS Status "
+						+ " FROM " + VCFQuery 
+						+ " JOIN `"+ TableName +"` AS AN "
+						+ "  ON VCF.reference_name = AN.chrm ";
+						if (OnlyIntrogenic)
+							Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
+						Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status";
+						
+					//:TODO M and MT case				
 				
-			//:TODO M and MT case
-			
-		
+				
+				
+						
 		return Query;
 	}
 
@@ -2394,8 +2398,8 @@ public class BigQueryFunctions {
 
 
 
-	public static void listAnnotationDatasets(String projectId, String datasetId, String tableId,
-			String annotationDatasetBuild, boolean printAll, String searchKeyword) {
+	public static void listAnnotationDatasets( String datasetId, String tableId, String annotationType,
+			String annotationDatasetBuild, boolean printAll, String searchKeyword) throws InterruptedException {
 				
 		String queryStat ="";
 		
@@ -2406,39 +2410,60 @@ public class BigQueryFunctions {
 		
 		if (!annotationDatasetBuild.isEmpty())
 		{
-			queryStat ="SELECT "+ Fields + " from [" + projectId + ":"
-					+ datasetId + "." + tableId + "] "
+			queryStat ="SELECT "+ Fields + " from [" + datasetId + "." + tableId + "] "
 					+ "WHERE Build=\"" + annotationDatasetBuild + "\"";
-		}else if (!searchKeyword.isEmpty()) {
-			queryStat ="SELECT "+ Fields + " from [" + projectId + ":"
-					+ datasetId + "." + tableId + "] "
-					+ "WHERE AnnotationSetName LIKE \"%" + searchKeyword + "%\"";
 		}
-		else {
-			queryStat ="SELECT "+ Fields + "  from [" + projectId + ":"
-					+ datasetId + "." + tableId + "] "
+		
+		if (!searchKeyword.isEmpty()) {
+			if (queryStat.isEmpty()) {
+			queryStat ="SELECT "+ Fields + " from ["  + datasetId + "." + tableId + "] "
+					+ "WHERE lower(AnnotationSetName) LIKE \"%" + searchKeyword.toLowerCase() + "%\"";
+			}else 
+				queryStat += " AND lower(AnnotationSetName) LIKE \"%" + searchKeyword.toLowerCase() + "%\"";
+			
+		}
+		
+		if(!annotationType.isEmpty()) {
+			if (queryStat.isEmpty())
+				queryStat ="SELECT "+ Fields + " from ["  + datasetId + "." + tableId + "] "
+					+ "WHERE AnnotationSetType = " + annotationType;
+			else
+				queryStat += " AND AnnotationSetType = \"" + annotationType + "\"";
+
+		}
+		
+		if (annotationType.isEmpty() && searchKeyword.isEmpty() && annotationDatasetBuild.isEmpty()){
+			queryStat ="SELECT "+ Fields + "  from [" + datasetId + "." + tableId + "] "
 					+ " Order By Build";
 		}
 		
 		// Get the results.
-		System.out.println("Stat Query: " + queryStat);
+		//System.out.println("Stat Query: " + queryStat);
 		QueryResponse response = runquery(queryStat);
 		QueryResult result = response.getResult();
-		LOG.info("");
-		LOG.info("");
-		LOG.info("<============ AnnotationList ============>");
-		while (result != null) {
+		System.out.println("\n\n<============ AnnotationList ============>");
+		if (result!=null) {
+		    System.out.format("%-80s %-10s %-15s %-10s %s",
+		    		"Name",
+		    		"Type", 
+		    		"Size", 
+		    		"Build", 
+		    		"Fields");
+	        System.out.println();
+		}
+		
+		while (result != null) {		
 			for (List<FieldValue> row : result.iterateAll()) {
-			    Integer columnsCount = row.size();
-			    StringBuilder sb = new StringBuilder();
-			    for(int i = 0; i < columnsCount; i++){
-			    		if(i+1<columnsCount)
-			    			sb.append(row.get(i).getStringValue() + " | ");
-			    		else
-			    			sb.append(row.get(i).getStringValue());
 
-			    }
-			    System.out.println(sb.toString());
+			    System.out.format("%-80s %-10s %-15s %-10s %s",
+			    		row.get(0).getStringValue(), 
+			    		row.get(1).getStringValue(), 
+			    		row.get(2).getStringValue(), 
+			    		row.get(3).getStringValue(), 
+			    		row.get(4).getStringValue());
+			    
+		        System.out.println();
+		        
 			}
 			result = result.getNextPage();
 		}
