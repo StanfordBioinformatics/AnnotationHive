@@ -355,16 +355,30 @@ public final class BigQueryAnnotateVariants {
 					if (options.getGeneBasedAnnotation()) {
 						if (options.getGeneBasedMinAnnotation()) {
 							LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
+							queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL_RefGene(
+									options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+									options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+									options.getProximityThreshold(), options.getOnlyIntrogenic(),
+									options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+									options.getSearchRegions());						
+							
 						} else {
 							LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
+							queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
+									options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+									options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+									options.getProximityThreshold(), options.getOnlyIntrogenic(),
+									options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+									options.getSearchRegions(), 
+									options.getGoogleVCF());
 						}
-						queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
-								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
-								options.getProximityThreshold(), options.getOnlyIntrogenic(),
-								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
-								options.getSearchRegions(), 
-								options.getGoogleVCF());
+//						queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
+//								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+//								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+//								options.getProximityThreshold(), options.getOnlyIntrogenic(),
+//								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+//								options.getSearchRegions(), 
+//								options.getGoogleVCF());
 	
 					} else {// Variant-based or Interval-based annotation
 						LOG.info(
