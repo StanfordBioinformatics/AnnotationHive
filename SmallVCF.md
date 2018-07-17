@@ -1,7 +1,7 @@
 ## Section 9: Annotate a Small Number of Variants or Regions
-This section explains how to annotate a mall number of regions/variants.
+This section explains how to annotate a small number of regions/variants.
 
-* **Input Varinats** (variant-based annotations and interval-based annotations)
+* **Input Variants** (variant-based annotations and interval-based annotations)
 
 Users can submit a list of variants as VCF file to AnnotationHive using ```--inputVariant=chr17:40760129:40760129:A:T,chr17:40706906:40706906:G:A,chr17:40751362:40751362:T:C```.
 
