@@ -1,6 +1,5 @@
 ## Section 1: Import VCF/mVCF/Annotation Files
-This section explains how to import VCF, mVCF and annotation files to BigQuery. AnnotationHive uses Google Dataflow to import Annotation and VCF/mVCF files
-to BigQuery.
+This section explains how to import VCF, mVCF and annotation files to BigQuery, which AnnotationHive uses Google Dataflow.
 
 
 ### Upload ###
@@ -13,7 +12,7 @@ The first step in importing VCF/annotation files is to upload your local files t
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="UploadFileToGCS --project=<YOUR_Google_Cloud_Project_ID> --username=<YOUR_Google_Cloud_Registered_Email> --bucketName=<Your_Google_Cloud_Bucket_Name> --localFilenameAddr=Samples/sample_transcript_annotation_chr17.bed --cloudObjectName=sample_transcript_annotation_chr17.bed --runner=DataflowRunner" -Pdataflow-runner
    ```
 
-* Alternatively, you can easily upload/remove/read/rename files on the Google Cloud Storage using [gsutil] (https://cloud.google.com/storage/docs/gsutil) tool 
+* Alternatively, you can easily upload/remove/read/rename files in Google Cloud Storage using [gsutil] (https://cloud.google.com/storage/docs/gsutil) tool 
 
    ```
    gsutil cp Samples/sample_transcript_annotation_chr17.bed gs://<Your_Google_Cloud_Bucket_Name>/<DIR>
@@ -33,12 +32,12 @@ The first step in importing VCF/annotation files is to upload your local files t
 
 ### Import mVCF/VCF ###
 
-There are two ways to import VCF files from Google Storage to Google BigQuery: 1) Using Google Genomics API, 2) Using AnnotationHive's API. In order to calculate number of samples with a genotype larger than 0, the mVCF file must be in 
-the Google Genomics format. So, if you have a mVCF file, and want AnnotationHive to calculate the number of samples, please use Google Genomics solution.
+VCF files can be imported from Google Storage to Google BigQuery using either: 1) Using Google Genomics API, or 2) Using AnnotationHive's API. In order to calculate the number of samples having a genotype larger than 0, the mVCF file must be in 
+the Google Genomics format. So, if you have an mVCF file, and want AnnotationHive to calculate the number of samples, then use the Google Genomics solution.
 
-* Import mVCF/VCF files using the API provided by Google Genomics (Please follow instructions provided by [this link](https://cloud.google.com/genomics/docs/how-tos/load-variants))
+* Import mVCF/VCF files using the API provided by Google Genomics (Please follow instructions provided [here](https://cloud.google.com/genomics/docs/how-tos/load-variants))
 * Import mVCF/VCF files using the API provided by AnnotationHive 
-If this is the first time, you plan to import a VCF file using AnnotationHive, please run the following command. This command will create a new table called VCFList that stores metadata and keeps track of your VCF files.
+If this is the first time you are importing a VCF file using AnnotationHive, please run the following command. This command will create a new table called VCFList that stores metadata and keeps track of your VCF files.
 
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportVCFFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/  --bigQueryDatasetId=<Google_Genomics_DatasetId> --runner=DataflowRunner --createVCFListTable=true" -Pdataflow-runner
