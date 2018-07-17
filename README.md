@@ -2,9 +2,9 @@
 
 ### AnnotationHive ###
 
-* Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be automatically derived from diverse genomes (e.g., ANNOVAR, SnpEff). The first problem using the existing tools is about downloading the software and the large build files. The second problem is scalability. Because current tools are mainly sequential or parallel only at the node level (requires large machine with many cores and large main memory), the annotation of large numbers of patients is tedious and takes a significant amount of time. 
+* Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be derived automatically from diverse genomes (e.g., ANNOVAR, SnpEff). The first shortcoming of the existing tools relates to downloading the software and the large build files. The second problem is scalability. Because current tools are mainly sequential or parallel only at the node level (requiring a large machine with many cores and a large main memory), annotating of large numbers of patients is tedious and takes a significant amount of time. 
 
-* The pay-as-you-go model of cloud computing, which removes the maintenance effort required for a high performance computing (HPC) facility while simultaneously offering elastic scalability, is well suited for genomic analysis.
+* The pay-as-you-go model of cloud computing, which eliminates the maintenance effort required for a high performance computing (HPC) facility while simultaneously offering elastic scalability, is well suited for genomic analysis.
 
 * In this project, we developed a cloud-based annotation engine that annotates input datasets (e.g., VCF, mVCF files) in the cloud using distributed algorithms.
 
@@ -45,7 +45,7 @@ This section explains how to run a combination of interval-based and variant-bas
 ## Section 6: [Gene-based Annotation](./Gene-Annotation.md)
 This section demonstrates how to run our gene-based annotation process for a VCF/mVCF table.
 ## Section 7: [Sample Experiments](./Experiments.md)
-This section provides several experiments on scalability and the cost of the system.
+This section presents several experiments on scalability and the cost of the system.
 ## Section 8: [Export Annotated VCF Table](./ExportVCF.md)
 This section explains how to export an annotated VCF file.
 ## Section 9: [Annotate a Small Number of Variants or Regions](./SmallVCF.md)

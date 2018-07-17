@@ -1,9 +1,9 @@
 ## Section 6: Gene-based Annotation
 This section demonstrates how to run our gene-based annotation process for a VCF/mVCF table.
 
-There are two functionalities supported by AnnotationHive regarding gene annotation: 1) Finding the closest gene to each varaint, 2) finding all genes overlapped with each varaiant whitin an input proximity threashold.
+There are two functionalities supported by AnnotationHive regarding gene annotation: 1) finding the closest gene to each variant, and 2) finding all genes that overlap with each variant within an input proximity threshold.
 
-* Finding the closest gene for each varaint 
+* Finding the closest gene for each variant 
    Here are the key options:
    * **--geneBasedAnnotation=true**
    * **--geneBasedMinAnnotation=true**
@@ -11,7 +11,7 @@ There are two functionalities supported by AnnotationHive regarding gene annotat
    ``` 
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --genericAnnotationTables=<Table address Plus selected fields> (e.g., myProject:myPublicAnnotationSets.hg19_refGene:name:name2 - selecting name and name2 from hg19_refGene table) --VCFTables=<VCF_Table_Names>(e.g., genomics-public-data:1000_genomes_phase_3.variants_20150220_release) --outputBigQueryTable=<Output_Table_Name> --geneBasedAnnotation=true --geneBasedMinAnnotation=true --searchRegion=<chromID1:Start1:End1,Chrom2,Start2;...;ChromN:StartN:EndN>" -Pdataflow-runner
    ```
-   Here is an exmaple:
+   Here is an example:
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="BigQueryAnnotateVariants --projectId=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/statging/ --bigQueryDatasetId=test --genericAnnotationTables=<Your_Google_Cloud_Project_Name>:AnnotationHive.hg19_UCSC_refGene:name:name2 --geneBasedAnnotation=true --geneBasedMinAnnotation=true  --outputBigQueryTable=BRCA1_BRAC2_closest_genes_test_chr17 --VCFTables=<Your_Google_Cloud_Project_Name>:test.NA12877_chr17 --searchRegions=chr17:41196311:41277499" -Pdataflow-runner
    ```
@@ -30,7 +30,7 @@ mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnota
 
 --->
 
-* Finding all overlapped genes whitin a specific proximity threashold for each varaint.
+* Finding all overlapped genes within a specific proximity threshold for each variant.
    Here are the key options:
    * **--geneBasedAnnotation=true** 
    * **--proximityThreshold=10000**
