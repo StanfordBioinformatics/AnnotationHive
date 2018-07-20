@@ -50,6 +50,9 @@ This section presents several experiments on scalability and the cost of the sys
 This section explains how to export an annotated VCF file.
 ## Section 9: [Annotate a Small Number of Variants or Regions](./SmallVCF.md)
 This section explains how to annotate a small number of regions/variants.
+## Section 10: [Import Private Annotation Datasets](./Private.md)
+This section explains how to import private annotation datasets.
+
 
 
 <!---
