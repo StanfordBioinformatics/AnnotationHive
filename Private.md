@@ -5,7 +5,7 @@ This section explains how to import private annotation files to BigQuery.
 ### Upload ###
 The first step in importing annotation files is to upload your local files to a bucket in Google.
 
-* You can easily upload/remove/read/rename files in Google Cloud Storage using [gsutil] (https://cloud.google.com/storage/docs/gsutil) tool.
+* You can easily upload/remove/read/rename files in Google Cloud Storage using [gsutil](https://cloud.google.com/storage/docs/gsutil) tool.
 
 Upload one sample of COSMIC vcf file. Use `prepare_annovar_user.pl` script from Annovar to prepare the file to be imported (http://annovar.openbioinformatics.org/en/latest/user-guide/filter/#cosmic-annotations). 
    ```
