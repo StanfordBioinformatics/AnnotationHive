@@ -112,8 +112,10 @@ import com.google.common.base.Function;
  * 			  If users want to delete the output table, they need to set this true
  * @param googleVCF
  * 			  If users have a VCF table imported using Google APIs; they need to set this true
+ * @param createVCF
+ * 			  If user wants to get a VCF file (true/false - default is false, and it creates a table)
  * @param numberSamples           
- * 			  If users have a VCF table imported using Google APIs, and they want to gget the number of samples 
+ * 			  If users have a VCF table imported using Google APIs, and they want to get the number of samples 
  * 		 from the multiple VCF file, then they need to set this true
  * @version 1.0
  * @since 2018-02-01
@@ -353,16 +355,30 @@ public final class BigQueryAnnotateVariants {
 					if (options.getGeneBasedAnnotation()) {
 						if (options.getGeneBasedMinAnnotation()) {
 							LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Min) ============>");
+							queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL_RefGene(
+									options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+									options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+									options.getProximityThreshold(), options.getOnlyIntrogenic(),
+									options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+									options.getSearchRegions());						
+							
 						} else {
 							LOG.info("<============ Gene-based Annotation (mVCF) - Closest Genes (Range) ============>");
+							queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
+									options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+									options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+									options.getProximityThreshold(), options.getOnlyIntrogenic(),
+									options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+									options.getSearchRegions(), 
+									options.getGoogleVCF());
 						}
-						queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
-								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
-								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
-								options.getProximityThreshold(), options.getOnlyIntrogenic(),
-								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
-								options.getSearchRegions(), 
-								options.getGoogleVCF());
+//						queryString = BigQueryFunctions.prepareGeneBasedQueryConcatFields_mVCF_Range_Min_StandardSQL(
+//								options.getVCFTables(), options.getVCFCanonicalizeRefNames(),
+//								options.getGenericAnnotationTables(), options.getGenericCanonicalizeRefNames(),
+//								options.getProximityThreshold(), options.getOnlyIntrogenic(),
+//								options.getCreateVCF(), options.getGeneBasedMinAnnotation(), 
+//								options.getSearchRegions(), 
+//								options.getGoogleVCF());
 	
 					} else {// Variant-based or Interval-based annotation
 						LOG.info(
@@ -685,7 +701,14 @@ public final class BigQueryAnnotateVariants {
 										List<String> mergedItems = Lists.newArrayList(); // recordsString;
 										String buffer = "";
 										TableRow oldRow = null;
+										
+										//Do we have five columns before annotation fileds to 6?
+										int fixedColumns=5; // chrm, start, end, ref, alt
+										
 										for (TableRow row : records) {
+											if (row.get("num_samples")!=null)
+												fixedColumns=6; // chrm, start, end, ref, alt, number of samples
+											
 											String temp = ""; // for every row, temp would be empty
 											Object[] fieldValues = row.values().toArray();
 											for (int index = 0; index < fieldValues.length; index++) {
@@ -698,7 +721,7 @@ public final class BigQueryAnnotateVariants {
 																+ 1; //convert to 1-based
 														temp += tempStart + "\t";
 													} else {
-														if (index == 5) // chrm, start, end, ref, alt => first 5 columns
+														if (index == fixedColumns) // chrm, start, end, ref, alt => first 5 columns
 															temp += "~"; // a special character b/w annotations for the
 																			// same position
 														temp += fieldValues[index].toString() + "\t";
@@ -714,11 +737,11 @@ public final class BigQueryAnnotateVariants {
 														&& row.get("alternate_bases").toString()
 																.equals(oldRow.get("alternate_bases").toString())) {
 
-													for (int index = 5; index < fieldValues.length; index++) {
+													for (int index = fixedColumns; index < fieldValues.length; index++) {
 														if (fieldValues[index] != null) {
 															// add ";" before other
 															// annotations
-															if (index == 5)
+															if (index == fixedColumns)
 																buffer += "~" + fieldValues[index].toString() + "\t";
 															else
 																buffer += fieldValues[index].toString() + "\t";
@@ -767,9 +790,8 @@ public final class BigQueryAnnotateVariants {
 												LOG.warning("Annotation [1] = " + Annotation[1]);
 												// in case of overlap
 												if (hmap.containsKey(Integer.parseInt(Annotation[0]))) {
-													hmap.put((index + listString.length), Annotation[1]); // this case
-																											// is when
-																											// we have
+													hmap.put((index + listString.length), Annotation[1]); 
+													// this case is when we have
 													// multiple annotation from the same annotation dataset then put
 													// them at the end.
 												} else {
@@ -1005,50 +1027,19 @@ public final class BigQueryAnnotateVariants {
 
 			p.run().waitUntilFinish();
 
-			String Header = "";
-			int numbVariants=0;
-			if (options.getVariantAnnotationTables() != null) {
-				String[] VariantAnnotationTables = options.getVariantAnnotationTables().split(",");
-				numbVariants= VariantAnnotationTables.length;
-				for (int index = 0; index < VariantAnnotationTables.length; index++) {
 
-					/*
-					 * Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF
-					 * :GME_NWA:GME_NEA ProjectId: gbsc-gcp-project-cba DatasetId:
-					 * PublicAnnotationSets TableId: hg19_GME Features: GME_AF:GME_NWA:GME_NEA
-					 */
-
-					String[] TableInfo = VariantAnnotationTables[index].split(":");
-					Header += "<" + TableInfo[1].split("\\.")[1] + "," + (index + 1) + ">";
-					if (index + 1 < VariantAnnotationTables.length)
-						Header += "\t";
-				}
-			}
-
-			if (options.getGenericAnnotationTables() != null) {
-				if(numbVariants>0)
-					Header += "\t";
-				String[] TranscriptAnnotationTables = options.getGenericAnnotationTables().split(",");
-				for (int index = 0; index < TranscriptAnnotationTables.length; index++) {
-
-					String[] TableInfo = TranscriptAnnotationTables[index].split(":");
-					Header += "<" + TableInfo[1].split("\\.")[1] + "," + (index + 1 + numbVariants) + ">";
-					if (index + 1 < TranscriptAnnotationTables.length)
-						Header += "\t";
-				}
-			}
-
+			
 			Path VCF_Filename = Paths.get(options.getBucketAddrAnnotatedVCF());
 			LOG.info("");
 			LOG.info("");
-			LOG.info("[INFO]------------------------------------------------------------------------\n"
-					+ "Header: \n\n " + Header + "\n\n"
-					+ " [INFO] To download the annotated VCF file from Google Cloud, run the following command:\n"
-					+ "\t ~: gsutil cat " + options.getBucketAddrAnnotatedVCF() + "* > "
+			LOG.info("------------------------------------------------------------------------\n"
+					+ "Header: \n\n " + createHeader() + "\n\n"
+					+ "INFO: To download the annotated VCF file from Google Cloud, run the following command:\n"
+					+ "INFO: \t ~: gsutil cat " + options.getBucketAddrAnnotatedVCF() + "* > "
 					+ VCF_Filename.getFileName().toString() + "\n" + "\n"
-					+ "[INFO] To remove the output files from the cloud storage run the following command:\n"
-					+ "\t ~: gsutil rm " + options.getBucketAddrAnnotatedVCF() + "* \n"
-					+ "[INFO] ------------------------------------------------------------------------ \n\n");
+					+ "INFO: To remove the output files from the cloud storage run the following command:\n"
+					+ "INFO: \t ~: gsutil rm " + options.getBucketAddrAnnotatedVCF() + "* \n"
+					+ "INFO: ------------------------------------------------------------------------ \n\n");
 		} else {
 
 			////////////////////////////////// STEP2: Sort Per chromosome in BigQuery ->
@@ -1066,6 +1057,15 @@ public final class BigQueryAnnotateVariants {
 				}
 				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDatasetId(),
 						options.getOutputBigQueryTable(), options.getLocalOutputFilePath(), options.getBinSize());
+				
+				LOG.info("");
+				LOG.info("");
+				LOG.info("------------------------------------------------------------------------\n"
+						+ "INFO: Header: \n\n " + createHeader() + "\n\n"
+						+ "INFO: File: " + options.getLocalOutputFilePath()
+						+ "INFO: ------------------------------------------------------------------------ \n\n");
+				
+				
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1075,10 +1075,75 @@ public final class BigQueryAnnotateVariants {
 
 	}
 
+	
+	private static String createHeader() {
+		String Header = "Chrom\tStart\tEnd\tRef\tAlt\t";
+		if (options.getNumberSamples())
+		{
+			Header += "Num. of Samples\t";
+		}
+		int numbVariants=0;
+		if (options.getVariantAnnotationTables() != null) {
+			String[] VariantAnnotationTables = options.getVariantAnnotationTables().split(",");
+			numbVariants= VariantAnnotationTables.length;
+			for (int index = 0; index < VariantAnnotationTables.length; index++) {
+
+				/*
+				 * Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF
+				 * :GME_NWA:GME_NEA ProjectId: gbsc-gcp-project-cba DatasetId:
+				 * PublicAnnotationSets TableId: hg19_GME Features: GME_AF:GME_NWA:GME_NEA
+				 */
+
+				String[] TableInfo = VariantAnnotationTables[index].split(":");
+				Header += "<" + TableInfo[1].split("\\.")[1]+"(";
+				
+				for (int innerIndex=2; innerIndex<TableInfo.length; innerIndex++) {
+					if(innerIndex+1<TableInfo.length)
+						Header += TableInfo[innerIndex] + "/";
+					else
+						Header += TableInfo[innerIndex]+")";
+
+				}
+							
+				Header += "," + (index + 1) + ">";
+				if (index + 1 < VariantAnnotationTables.length)
+					Header += "\t";
+			}
+		}
+
+		if (options.getGenericAnnotationTables() != null) {
+			if(numbVariants>0)
+				Header += "\t";
+			String[] TranscriptAnnotationTables = options.getGenericAnnotationTables().split(",");
+			for (int index = 0; index < TranscriptAnnotationTables.length; index++) {
+
+				String[] TableInfo = TranscriptAnnotationTables[index].split(":");
+//				Header += "<" + TableInfo[1].split("\\.")[1] +  TableInfo[2] + "," + (index + 1 + numbVariants) + ">";
+//				if (index + 1 < TranscriptAnnotationTables.length)
+//					Header += "\t";
+				Header += "<" + TableInfo[1].split("\\.")[1]+"(";
+				
+				for (int innerIndex=2; innerIndex<TableInfo.length; innerIndex++) {
+					if(innerIndex+1<TableInfo.length)
+						Header += TableInfo[innerIndex] + "/";
+					else
+						Header += TableInfo[innerIndex]+")";
+
+				}
+							
+				Header += "," + (index + 1) + ">";
+				if (index + 1 < TranscriptAnnotationTables.length)
+					Header += "\t";
+			}
+		}
+		
+		return Header;
+	}
+
 	static final class BinVariantsFn extends DoFn<TableRow, KV<Long, TableRow>> {
 		/**
 		 * This function assign a unique ID to each variant chrId+start => 9 digits It
-		 * take cares of the padding as well. It assigns 23, 24, and 24 to chromosme X,
+		 * take cares of the padding as well. It assigns 23, 24, and 24 to chromosome X,
 		 * Y and M correspondingly.
 		 */
 		private static final long serialVersionUID = -6022090656022962093L;

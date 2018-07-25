@@ -146,6 +146,8 @@ public class BigQueryAnnotationRepository {
 		String getSearchKeyword();
 
 		void setSearchKeyword(String value);
+		
+
 	}
 
 	private static Options options;
@@ -168,16 +170,14 @@ public class BigQueryAnnotationRepository {
 
 		if (options.getListAnnotationDatasets()) {
 			try {
-				BigQueryFunctions.listAnnotationDatasets(options.getProject(), options.getBigQueryDatasetId(),
-						"AnnotationList", options.getAnnotationDatasetBuild(), options.getPrintAllFields(),
-						options.getSearchKeyword());
+				BigQueryFunctions.listAnnotationDatasets(options.getBigQueryDatasetId(),
+						"AnnotationList", options.getAnnotationType(), options.getAnnotationDatasetBuild(), 
+						options.getPrintAllFields(), options.getSearchKeyword());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-
 		}
-
 	}
 
 	static TableReference getTable(String projectId, String datasetId, String tableName) {
@@ -216,7 +216,7 @@ public class BigQueryAnnotationRepository {
 			TableDefinition tableDefinition = StandardTableDefinition.of(schema);
 			TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition).build();
 			bigquery.create(tableInfo);
-			System.out.println("### Successfully created " + options.getProject() + ":" + options.getBigQueryDatasetId()
+			LOG.info("### Successfully created " + options.getProject() + ":" + options.getBigQueryDatasetId()
 					+ ".AnnotationList table.");
 
 			Map<String, Object> rowContent = new HashMap<>();
@@ -231,11 +231,10 @@ public class BigQueryAnnotationRepository {
 			InsertAllResponse response;
 			response = bigquery.insertAll(InsertAllRequest.newBuilder(tableId).addRow("rowId", rowContent).build());
 			if (DEBUG) {
-				System.out.println(response.toString());
-				LOG.warning(response.toString());
+				LOG.info(response.toString());
 			}
 		} else
-			System.out.println("### Table \"AnnotationList\" exists");
+			LOG.severe("### Table \"AnnotationList\" exists");
 
 	}
 
@@ -270,7 +269,7 @@ public class BigQueryAnnotationRepository {
 				numAnnotations = row.get(0).getValue().toString();
 			}
 
-		System.out.println("### number of annotations added: " + numAnnotations);
+		LOG.info("### number of annotations added: " + numAnnotations);
 		rowContent.put("AnnotationSetSize", numAnnotations);
 		if (options.getNumWorkers() != 0)
 			rowContent.put("Info", options.getAnnotationSetInfo() + "\t Number of Instances: " + options.getNumWorkers()
@@ -282,12 +281,12 @@ public class BigQueryAnnotationRepository {
 		InsertAllResponse response;
 		response = bigquery.insertAll(InsertAllRequest.newBuilder(tableId).addRow(rowContent).build());
 
-		System.out.println(response.toString());
+		//System.out.println(response.toString());
 		if (!response.getInsertErrors().isEmpty())
-			System.out.println("### Error in inserting a new table to AnnotationSetList Table: "
+			LOG.severe("### Error in inserting a new table to AnnotationSetList Table: "
 					+ response.getInsertErrors().toString());
 		else
-			System.out.println("### Successfully added a new annotationSet table: " + rowContent.toString());
+			LOG.info("### Successfully added a new annotationSet table: " + rowContent.toString());
 	}
 }
 

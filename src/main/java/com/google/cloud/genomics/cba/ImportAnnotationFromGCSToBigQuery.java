@@ -114,7 +114,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 		String getBigQueryAnnotationSetTableId();
 		void setBigQueryAnnotationSetTableId(String BigQueryAnnotationSetTableId);
 	
-		@Description("This provides whether the annotation is Varaiant or Transcript. This is a required field.")
+		@Description("This provides whether the annotation is Varaiant or Generic. This is a required field.")
 		@Default.String("")
 		String getAnnotationType();	
 		void setAnnotationType(String VariantAnnotation);
@@ -287,7 +287,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 				addToAnnotationSetList(tempEstimatedTime);		
 		}
 		catch (Exception e) {			
-			LOG.severe("Exception occurred");
+			LOG.severe(e.getMessage());
 		}
 		
 	}
