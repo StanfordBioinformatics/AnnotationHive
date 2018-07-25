@@ -10,7 +10,7 @@
 
 * Version 1.0
 
-![AnnotationHive Logo](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png "AnnotationHive Logo") {:height="50%" width="50%"}
+![AnnotationHive Logo](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png =250x)
 
 
 
