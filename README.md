@@ -10,6 +10,10 @@
 
 * Version 1.0
 
+![AnnotationHive Logo](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/AnnotationHive.logo.png "AnnotationHive Logo")
+
+
+
 ## Quickstart
 
 1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/), including the [gcloud tool](https://cloud.google.com/sdk/gcloud/).
