@@ -1,8 +1,8 @@
 # README #
 
+<img src="https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png" width="200" align="right">
 ### AnnotationHive ###
 
-<img src="https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png" width="200" align="right">
 
 * Annotation is the process by which pertinent information about raw DNA sequences is added to genome databases. Multiple software applications have been developed to annotate genetic variants that can be derived automatically from diverse genomes (e.g., ANNOVAR, SnpEff). The first shortcoming of the existing tools relates to downloading the software and the large build files. The second problem is scalability. Because current tools are mainly sequential or parallel only at the node level (requiring a large machine with many cores and a large main memory), annotating of large numbers of patients is tedious and takes a significant amount of time. 
 
