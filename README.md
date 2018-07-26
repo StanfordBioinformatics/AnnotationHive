@@ -13,7 +13,7 @@
 <!---
 ![AnnotationHive Logo](https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png){:height="12px"}
 --->
-
+<img src="https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png" width="48">
 
 ## Quickstart
 
