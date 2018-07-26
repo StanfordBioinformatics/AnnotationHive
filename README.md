@@ -1,6 +1,7 @@
+<img src="https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png" width="200" align="right">
+
 # README #
 
-<img src="https://github.com/StanfordBioinformatics/cloud-based-annotation/blob/master/common/img/AnnotationHive.logo.png" width="200" align="right">
 
 ### AnnotationHive ###
 
