@@ -160,7 +160,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 		@Description("User can specify column separator.")
 		//@Default.String("\\s+")
 		@Default.String("\t")
-		String getColumnSeparator();	
+		String getColumnSeparator();	 
 		void setColumnSeparator(String ColumnSeparator);
 		
 		@Description("This provides whether the file contains POS field [true] instead of Start and End [false].")

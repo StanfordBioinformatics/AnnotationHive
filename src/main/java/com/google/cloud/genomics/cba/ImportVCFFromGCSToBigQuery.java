@@ -141,7 +141,7 @@ public class ImportVCFFromGCSToBigQuery {
 		
 		@Description("Users can force update in case the table already exists.")
 		@Default.Boolean(false)
-		boolean getForceUpdate();	
+		boolean getForceUpdate();	 
 		void setForceUpdate(boolean value);
 
 		@Description("User can specify column separator.")
