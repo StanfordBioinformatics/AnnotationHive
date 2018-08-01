@@ -145,7 +145,8 @@ public class ImportVCFFromGCSToBigQuery {
 		void setForceUpdate(boolean value);
 
 		@Description("User can specify column separator.")
-		@Default.String("\\s+")
+		//@Default.String("\\s+")
+		@Default.String("\t")
 		String getColumnSeparator();	
 		void setColumnSeparator(String ColumnSeparator);
 		
