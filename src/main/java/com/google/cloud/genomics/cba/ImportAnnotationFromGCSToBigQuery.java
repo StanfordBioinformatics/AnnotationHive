@@ -142,7 +142,6 @@ public class ImportAnnotationFromGCSToBigQuery {
 		String getColumnOrder();	
 		void setColumnOrder(String ColumnOrder);
 
-		
 		@Description("This provides the number of workers. This is a required filed.")
 		int getNumWorkers();	
 		void setNumWorkers(int value);
@@ -158,7 +157,6 @@ public class ImportAnnotationFromGCSToBigQuery {
 		void setForceUpdate(boolean value);
 
 		@Description("User can specify column separator.")
-		//@Default.String("\\s+")
 		@Default.String("\t")
 		String getColumnSeparator();	 
 		void setColumnSeparator(String ColumnSeparator);
@@ -167,7 +165,17 @@ public class ImportAnnotationFromGCSToBigQuery {
 		@Default.Boolean(false)
 		boolean getPOS();
 		void setPOS(boolean POS);
+		
+		@Description("This is for tranferring dataset file from the Cache repositority to Main repository.")
+		@Default.Boolean(false)
+		boolean getMoveToMainRepository();
+		void setMoveToMainRepository(boolean MOVE);
 	
+		@Description("This is for the address of the main repository.")
+		@Default.String("")
+		String getMainRepositoryAddr();
+		void setMainRepositoryAddr(String MainRepositoryAddr);
+		
 	}
 
 	private static Options options;
@@ -242,6 +250,12 @@ public class ImportAnnotationFromGCSToBigQuery {
 		if(!options.getColumnOrder().isEmpty()) {
 			checkColumnOrder(options.getColumnOrder());
 		}
+		
+		if(options.getMoveToMainRepository()) {
+			if(options.getMainRepositoryAddr().isEmpty()) {
+				throw new IllegalArgumentException("MoveToMainRepository needs the address of Main Repository (MainRepository); provide --mainRepositoryAddr option");
+			}
+		}
 
 		try {
 		
@@ -282,7 +296,15 @@ public class ImportAnnotationFromGCSToBigQuery {
 			}
 	
 				p.run().waitUntilFinish();
-	
+				
+				if(options.getMoveToMainRepository()) {
+					String command = "gsutil mv " + options.getAnnotationInputTextBucketAddr() + " " + options.getMainRepositoryAddr();
+					Process p;
+					p = Runtime.getRuntime().exec(command);
+					p.waitFor();
+					LOG.info("Successfully moved the input file to the main repository " + command);					
+				}
+				
 				////////////////////////////////// End TIMER /////////////////////////////////////  
 				long tempEstimatedTime = System.currentTimeMillis() - startTime;
 				addToAnnotationSetList(tempEstimatedTime);		
