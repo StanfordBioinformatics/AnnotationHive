@@ -299,9 +299,9 @@ public class ImportAnnotationFromGCSToBigQuery {
 				
 				if(options.getMoveToMainRepository()) {
 					String command = "gsutil mv " + options.getAnnotationInputTextBucketAddr() 
-					+ " " + options.getMainRepositoryAddr() + ";";
+					+ " " + options.getMainRepositoryAddr() + " ";
 					command += "gsutil mv " + options.getAnnotationInputTextBucketAddr() 
-					+ ".md5sum " + options.getMainRepositoryAddr() + ";";
+					+ ".md5sum " + options.getMainRepositoryAddr() + " ";
 					
 					Process p;
 					p = Runtime.getRuntime().exec(command);
