@@ -297,17 +297,23 @@ public class ImportAnnotationFromGCSToBigQuery {
 	
 				p.run().waitUntilFinish();
 				
-				if(options.getMoveToMainRepository()) {
-					String command = "gsutil mv " + options.getAnnotationInputTextBucketAddr() 
-					+ " " + options.getMainRepositoryAddr() + " ";
-					command += "gsutil mv " + options.getAnnotationInputTextBucketAddr() 
-					+ ".md5sum " + options.getMainRepositoryAddr() + " ";
-					
-					Process p;
-					p = Runtime.getRuntime().exec(command);
-					p.waitFor();
-					LOG.info("Successfully moved the input file to the main repository " + command);					
-				}
+			     if(options.getMoveToMainRepository()) {
+                     String command = "gsutil mv " + options.getAnnotationInputTextBucketAddr()
+                     + " " + options.getMainRepositoryAddr();
+
+                     Process p;
+                     p = Runtime.getRuntime().exec(command);
+                     p.waitFor();
+
+                     command = "gsutil mv " + options.getAnnotationInputTextBucketAddr()
+                     + ".md5sum " + options.getMainRepositoryAddr() + " ";
+
+                     Process p1;
+                     p1 = Runtime.getRuntime().exec(command);
+                     p1.waitFor();
+
+                     LOG.info("Successfully moved the input file to the main repository " + command);                          
+			     }
 				
 				////////////////////////////////// End TIMER /////////////////////////////////////  
 				long tempEstimatedTime = System.currentTimeMillis() - startTime;
