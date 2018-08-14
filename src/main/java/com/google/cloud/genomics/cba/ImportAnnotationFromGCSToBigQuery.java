@@ -51,6 +51,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -295,26 +296,27 @@ public class ImportAnnotationFromGCSToBigQuery {
 			                .withWriteDisposition(WriteDisposition.WRITE_APPEND));			
 			}
 	
-				p.run().waitUntilFinish();
+				State state = p.run().waitUntilFinish();
 				
-			     if(options.getMoveToMainRepository()) {
-                     String command = "gsutil mv " + options.getAnnotationInputTextBucketAddr()
-                     + " " + options.getMainRepositoryAddr();
+				   if(options.getMoveToMainRepository()) {
+					   if(state == State.DONE) {
+	                     String command = "gsutil mv " + options.getAnnotationInputTextBucketAddr()
+	                     + " " + options.getMainRepositoryAddr();
 
-                     Process p;
-                     p = Runtime.getRuntime().exec(command);
-                     p.waitFor();
+	                     Process p;
+	                     p = Runtime.getRuntime().exec(command);
+	                     p.waitFor();
 
-                     command = "gsutil mv " + options.getAnnotationInputTextBucketAddr()
-                     + ".md5sum " + options.getMainRepositoryAddr() + " ";
+	                     command = "gsutil mv " + options.getAnnotationInputTextBucketAddr()
+	                     + ".md5sum " + options.getMainRepositoryAddr() + " ";
 
-                     Process p1;
-                     p1 = Runtime.getRuntime().exec(command);
-                     p1.waitFor();
+	                     Process p1;
+	                     p1 = Runtime.getRuntime().exec(command);
+	                     p1.waitFor();
 
-                     LOG.info("Successfully moved the input file to the main repository " + command);                          
-			     }
-				
+	                     LOG.info("Successfully moved the input file to the main repository " + command);                          
+				     }
+				   }
 				////////////////////////////////// End TIMER /////////////////////////////////////  
 				long tempEstimatedTime = System.currentTimeMillis() - startTime;
 				addToAnnotationSetList(tempEstimatedTime);		
