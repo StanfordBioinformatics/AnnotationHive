@@ -300,6 +300,10 @@ public final class BigQueryAnnotateVariants {
 		// Here is the dataflow pipeline
 		p = Pipeline.create(options);
 
+		
+		//TODO: check if builds are the same!!!!
+		
+		
 		// check whether user provided any generic or variant annotation table IDs
 		if (options.getGenericAnnotationTables() == null && options.getVariantAnnotationTables() == null) {
 			throw new IllegalArgumentException(

@@ -1,5 +1,8 @@
 package com.google.cloud.genomics.cba;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableSchema;
+
 /*
  * Copyright (C) 2016-2018 Stanford University.
  *
@@ -31,6 +34,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 
 
 public class BigQueryFunctions {
@@ -539,7 +546,7 @@ public class BigQueryFunctions {
 					if (numSamples) // Skip homozygous reference calls
 						VCFQuery += " FROM flatten(["+ VCFTables[index]  +"], call) ";
 					else
-						VCFQuery += " FROM ["+ VCFTables[index]  +"] ";		
+						VCFQuery += " FROM ["+ VCFTables[index]  +"] "; 		
 
 					//Skip no-calls
 					VCFQuery += " OMIT RECORD IF EVERY(call.genotype <= 0)";
@@ -3310,6 +3317,75 @@ public class BigQueryFunctions {
 			//}
 		}
 		return Query;
+	}
+
+
+
+
+	public static void findNumSamples_StandardSQL(String project, String bigQueryDatasetId, String bigQueryVCFTableId,
+			String numSampleIDs, String Header) {
+
+		 
+		boolean LegacySql = false;
+		boolean Update = false; 
+		boolean allowLargeResults = false;
+		int maximumBillingTier= 0;
+		
+		
+		/*String otherFields="";
+		 
+		if (!Header.isEmpty()) {
+				String[] inputFields= Header.split(",");
+				for(int i=5; i<inputFields.length; i++){
+					if( i+1< inputFields.length)
+						otherFields += inputFields[i] + ",";
+					else
+						otherFields += inputFields[i];
+				}
+		}*/
+		 
+		String tempTableName = "`" + project + "." + bigQueryDatasetId + "."
+				+ bigQueryVCFTableId +"`";
+		
+		String outputBigQueryTable= bigQueryVCFTableId+"_With_SampleCount"; 
+		 
+		String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base, alt, ";
+		
+		//String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base,   ARRAY_AGG(alt) as alt, ";
+		
+		String[] samples = numSampleIDs.split(",");
+		 
+		String SNames = " concat( ";
+		String SCount = " ";
+		for (int index=0; index<samples.length; index++) {
+			if (index+1<samples.length) {
+				SNames += " CASE WHEN " + samples[index] + " not like \".%\" Then \"" +  samples[index] + " \" ELSE \"\" END , ";
+				SCount += " CASE WHEN " + samples[index] + " not like \".%\" Then 1 ELSE 0 END + ";
+			}else {
+				SNames += " CASE WHEN " + samples[index] + " not like \".%\" Then \" " +  samples[index] + "\" ELSE \"\" END ) as Sample_Names, ";
+				SCount += " CASE WHEN " + samples[index] + " not like \".%\" Then 1 ELSE 0 END as Num_Samples ";
+			}
+		}
+		 
+		 queryString += SNames + SCount; // + ", " + otherFields;
+		 queryString += " FROM " + tempTableName + ", UNNEST (alternate_bases) as alt ";
+		 //queryString += "Group By chrm, start, `end`, base, " + otherFields + ", Sample_Names, Num_Samples";
+		 
+		LOG.info(queryString);		 
+		        
+		try {
+			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDatasetId, outputBigQueryTable,
+					allowLargeResults, maximumBillingTier, LegacySql, Update);
+		} catch (TimeoutException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		LOG.info("To use " + outputBigQueryTable + " add it to the list of annotation in --variantAnnotationTables (e.g., --variantAnnotationTables=" + project  + ":" + bigQueryDatasetId + "." + bigQueryVCFTableId + ":Sample_Names:Num_Samples)");		 
+
+		
 	}
 	
 	

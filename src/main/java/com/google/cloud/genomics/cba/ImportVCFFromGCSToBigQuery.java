@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -154,6 +156,12 @@ public class ImportVCFFromGCSToBigQuery {
 		@Default.Boolean(false)
 		boolean getPOS();
 		void setPOS(boolean POS);
+		
+		@Description("To find number of samples presenting a varaint. e.g., numSampleIDs=ABC1,ABC2,ABC3")
+		@Default.String("")
+		String getSampleIDs();
+		void setSampleIDs(String SampleIDs);
+		
 	}
 
 	private static Options options;
@@ -243,10 +251,20 @@ public class ImportVCFFromGCSToBigQuery {
 		                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
 		
 		try {
-			p.run().waitUntilFinish();
+			State state = p.run().waitUntilFinish();
 			////////////////////////////////// End TIMER /////////////////////////////////////  
 			long tempEstimatedTime = System.currentTimeMillis() - startTime;
-			addToVCFList(tempEstimatedTime);			
+			addToVCFList(tempEstimatedTime);	
+			
+			if (!options.getSampleIDs().isEmpty()) {
+				if(state == State.DONE) {
+					
+					BigQueryFunctions.findNumSamples_StandardSQL(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryVCFTableId(), options.getSampleIDs(), options.getHeader());
+					
+				}
+			}
+			
+			
 		}
 		catch (Exception e) {			
 			LOG.severe(e.getMessage());
@@ -430,7 +448,7 @@ public class ImportVCFFromGCSToBigQuery {
 		TableSchema schema = new TableSchema().setFields(fields);
 		return schema;
 	}
-	
+		
 	
 	/**
 	 * <h1>This function remove "chr" from the beginning of referenceName
@@ -545,7 +563,17 @@ public class ImportVCFFromGCSToBigQuery {
 										//row.set("alternate_bases", allele);
 										listAlt.add(allele);									
 								}
-							}else {
+							} else if (vals[altIndex].split(",").length>1) {
+								String[] alts = vals[altIndex].split(",");
+								for(String allele : alts) {
+									if (allele == null || allele.isEmpty() || allele.equals("-"))
+										//row.set("alternate_bases", "");
+										listAlt.add("");
+									else
+										//row.set("alternate_bases", allele);
+										listAlt.add(allele);									
+								}
+							} else {
 								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
 									//row.set("alternate_bases", "");
 									listAlt.add("");

@@ -45,7 +45,7 @@ public class StartAnnotationHiveEngine {
 			if(args[0].equalsIgnoreCase("GGAnnotateVariants")){
 				GGAnnotateVariants.run(Arrays.copyOfRange(args, 1, args.length));
 			}
-			else if(args[0].equalsIgnoreCase("ImportAnnotationFromGCSToGG")){
+ 			else if(args[0].equalsIgnoreCase("ImportAnnotationFromGCSToGG")){
 				ImportAnnotationFromGCSToGG.run(Arrays.copyOfRange(args, 1, args.length));
 			}
 			else if (args[0].equalsIgnoreCase("ImportVCFFromGCSToGG")){
