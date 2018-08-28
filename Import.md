@@ -48,6 +48,14 @@ Use the following command to import mVCF/VCF files
 mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportVCFFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/  --bigQueryDatasetId=<Google_Genomics_DatasetId> --header=CHROM,POS,ID,REF,ALT,QUAL,FILTER,INFO,FORMAT,NA12877 --columnOrder=1,2,2,4,5 --base0=no --bigQueryVCFTableId=NA12877_chr17 --VCFInputTextBucketAddr=gs://<YOUR_Google_Bucket_Name>/NA12877-chr17.vcf --VCFVersion=1.0 --assemblyId=hg19 --columnSeparator=\t --POS=true  --runner=DataflowRunner" -Pdataflow-runner
 ``` 
 
+To find number of samples presenting a particular variant using AnnotationHive, use `--sampleIDs`; here is an example with a sample header:
+
+   ```
+   mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportVCFFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/  --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --header=CHROM,POS,ID,REF,ALT,QUAL,FILTER,INFO,FORMAT,RWGS_10_N,RWGS_5_T,RWGS_6_N,RWGS_8_N,RWGS_9_T,WGS_1_T,WGS_2_N,WGS_3_T,WGS_4_N,WGS_7_T --columnOrder=1,2,2,4,5 --base0=no --bigQueryVCFTableId=<VCF_Table_ID> --VCFInputTextBucketAddr=gs://<YOUR_Google_Bucket_Name>/<InputVCF>.vcf --VCFVersion=1.0 --assemblyId=hg38 --columnSeparator=\t --POS=true  --runner=DataflowRunner --sampleIDs=RWGS_10_N,RWGS_5_T,RWGS_6_N,RWGS_8_N,RWGS_9_T,WGS_1_T,WGS_2_N,WGS_3_T,WGS_4_N,WGS_7_T" -Pdataflow-runner
+   ```  
+ 
+
+
 ### Import annotation files into BigQuery ###
 
 To import annotation datasets into BigQuery, first run the following command to create an "AnnotationList" table for tracking annotation sets inside your BigQuery dataset.
@@ -82,7 +90,7 @@ To import `Samples/sample_variant_annotation_chr17.bed`, you need to first uploa
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportAnnotationFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --runner=DataflowRunner --annotationInputTextBucketAddr=gs://<Your_Google_Cloud_Bucket_Name>/sample_variant_annotation_chr17.bed --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/ --annotationType=variant --header=chrom,chromStart,chromEnd,ref,alterBases,alleleFreq,dbsnpid --base0=no --bigQueryDatasetId=<YOUR_BigQuery_Dataset_ID> --bigQueryAnnotationSetTableId=sample_variant_annotation_chr17 --annotationSetVersion=1.0 --assemblyId=hg19 --annotationSetInfo='Source: AnnotationHive/Samples'" -Pdataflow-runner
    ```
 
- 
+
 
 <!--- * Note: After submitting the following command for importing VCF and annotation files, make sure to record the "id" value corresponding to each variant or annotation set. These will be needed to submit the "Annotate Variants" job(s) and are not easily gotten, otherwise. If you do need to find them see the following search resources: https://cloud.google.com/genomics/v1beta2/reference/annotationSets/search, https://cloud.google.com/genomics/v1beta2/reference/variantsets/search.
 
