@@ -43,6 +43,7 @@ import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 
+
 public class CloudStorage {
 
 	private static final boolean IS_APP_ENGINE = false;
@@ -267,4 +268,9 @@ public class CloudStorage {
 			System.exit(1);
 		}
 	}
+	
+//	public static void runMoveFile(String FileAddr, String DestAddr) {
+//		CopyWriter copyWriter = blob.copyTo(DestAddr, FileAddr);
+//		Blob copiedBlob = copyWriter.getResult();
+//		boolean deleted = blob.delete();	}
 }

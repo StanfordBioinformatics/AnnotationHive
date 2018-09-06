@@ -30,6 +30,7 @@ import com.google.cloud.bigquery.TableId;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
@@ -3390,7 +3391,357 @@ public class BigQueryFunctions {
 	
 	
 	
+
+
+
+public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
+		  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
+		  String VariantannotationCanonicalizerefNames, 
+		  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples) {
+
+			
+	String[] TranscriptAnnotations=null;
+	String[] VariantAnnotationTables=null;
+	String[] VCFTables=null;
+	String[] VCFCanonicalize=null; 
+	String[] TranscriptCanonicalize=null;
+	String[] VariantannotationCanonicalize=null;
+
+	ArrayList<Integer> allAnnotationParams = new ArrayList<Integer>();
+	ArrayList<String []> allAnnotationParamsValues = new ArrayList<String []>();
+
+	int numAnnotationDatasets=0;
+	
+	////////////Variant Annotations///////
+	if(VariantAnnotationTableNames!=null){
+		VariantAnnotationTables = VariantAnnotationTableNames.split(","); 
+		numAnnotationDatasets=+ VariantAnnotationTables.length;
+
+		for (int index=0; index<VariantAnnotationTables.length; index++) {
+			allAnnotationParams.add(VariantAnnotationTables[index].split(":").length-2);
+			allAnnotationParamsValues.add(VariantAnnotationTables[index].split(":"));
+		}
+
+		if(!VariantannotationCanonicalizerefNames.isEmpty()){
+			VariantannotationCanonicalize = VariantannotationCanonicalizerefNames.split(","); 
+			if (VariantannotationCanonicalize.length != VariantAnnotationTables.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
+		}
+	}
+	
+	/////////////////////Transcripts//////////////
+	if(TranscriptAnnotationTableNames!=null){
+		TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
+		numAnnotationDatasets=+ TranscriptAnnotations.length;
+		for (int index=0; index<TranscriptAnnotations.length; index++) {			
+			allAnnotationParams.add(TranscriptAnnotations[index].split(":").length-2);
+			allAnnotationParamsValues.add(TranscriptAnnotations[index].split(":"));
+		}
+		if(!TranscriptCanonicalizeRefNames.isEmpty()){
+			TranscriptCanonicalize = TranscriptCanonicalizeRefNames.split(","); 
+			
+			if (TranscriptAnnotations.length != TranscriptCanonicalize.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and transcript tables");
+		}
+	}
+
+	
+	//BigQuery Limit
+	boolean GroupBy;
+	if(numAnnotationDatasets<=64)
+		GroupBy=true;
+	else
+		GroupBy=false;
+	
+	
+	//////////VCF Files/////////////
+	/*Check if the VCF table contains any prefix for the reference fields (e.g., chr => chr17 )*/
+	if(!VCFTableNames.isEmpty()){
+		VCFTables = VCFTableNames.split(","); 
+	
+		if(!VCFCanonicalizeRefNames.isEmpty()){
+			VCFCanonicalize = VCFCanonicalizeRefNames.split(","); 
+			if (VCFCanonicalize.length != VCFTables.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
+		}
+		else{
+			System.out.println("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
+		}
+	}
+			
+	/*#######################Prepare VCF queries#######################*/
+	String VCFQuery=" ( SELECT * from ";
+	for (int index=0; index< VCFTables.length; index++){
+		if(VCFCanonicalize!=null)
+			VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+		else
+			VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+		
+		VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases) ";
+
+	}
+	VCFQuery +=" ) as VCF ";
+
+	 	 
+	String AllFields=""; // Use to 
+	String AnnotationQuery="";
+	int AnnotationIndex=1; // Use for creating alias names
+	
+	/*#######################Prepare VCF queries#######################*/
+	if(VariantAnnotationTables!=null){
+		for (int index=0; index< VariantAnnotationTables.length; index++,AnnotationIndex++){
+					
+					/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
+					 * ProjectId: gbsc-gcp-project-cba
+					 * DatasetId: PublicAnnotationSets
+					 * TableId: hg19_GME
+					 * Features: GME_AF:GME_NWA:GME_NEA
+					 */
+					
+					String [] TableInfo = VariantAnnotationTables[index].split(":");
+											
+					String RequestedFields="";
+					String AliasTableName= "Annotation" + AnnotationIndex; 
+					String TableName = TableInfo[0]+"."+TableInfo[1];
+					
+					
+					for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
+						if (TableInfo.length>3){ // Creating CONCAT
+							if (fieldIndex+1 < TableInfo.length) { // This will add "/" after fields => not the last field CONCAT(X, "/", Y, "/", Z) 
+								if(createVCF)
+									RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+								else 
+									RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`,";
+							}
+							else
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+						}
+						else //If there is only one feature
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+					
+									
+						
+						//TODO: fix createVCF
+						if(fieldIndex==2 && createVCF){ //Special case where we add an index to the first field 
+								if (TableInfo.length>3){ //Top Select 
+									//(e.g.,     CONCAT(1: Annotation3.Annotation) 
+										AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+								}
+								else{//(e.g.,     CONCAT(1: Annotation3.name2) 
+										AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+								}
+							}
+						else if (!createVCF) {// in case of creating Table  
+							if (GroupBy) //ARRAY_AGG
+								AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] + "`) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex] + "`";
+							else	
+								AllFields += ", `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` as `" +  TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex] + "`";
+						}							
+					}
+					
+					//PADDING: Adjust number of fields
+					String Padding="";
+					for (int adjustIndex=0; adjustIndex<allAnnotationParams.size(); adjustIndex++) {
+
+						String[] FieldNames = allAnnotationParamsValues.get(adjustIndex);
+						
+						if(adjustIndex< index ) {
+							for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+								Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "`, " ;
+							}
+						}else if (adjustIndex > index) {
+							for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+								Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "` ";
+							}
+						}
+						else if (adjustIndex==index)
+							Padding += RequestedFields;
+					}
+					RequestedFields=Padding;
+					
+					//IF the number of fields is more that 1 -> then concat all of them
+					if (TableInfo.length>3) {
+						
+						AnnotationQuery += "  SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+						if (numSamples && GoogleVCF) {
+							AnnotationQuery += ", num_samples ";
+						}
+						
+						if(createVCF)
+							AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+						else 
+							AnnotationQuery += ", " + RequestedFields ;
+
+					}
+					else {
+						AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+						if (numSamples && GoogleVCF) {
+							AnnotationQuery += " num_samples, ";
+						}
+						AnnotationQuery +=  RequestedFields;
+					}
+					
+					AnnotationQuery +=
+						 " FROM " + VCFQuery 
+						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
+					AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+
+					AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
+						+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
+						+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+					
+					//This is the case when we have transcript annotations 
+					if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
+						AnnotationQuery +=  " UNION ALL ";
+					else
+						AnnotationQuery +=  " ";
+						
+		}
+	}
+	
+	 
+	if(TranscriptAnnotations!=null){
+		for (int index=0; index< TranscriptAnnotations.length; index++, AnnotationIndex++){
+
+			/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+			* ProjectId: gbsc-gcp-project-cba
+			* DatasetId: PublicAnnotationSets
+			* TableId: hg19_refGene_chr17
+			* Features: exonCount:exonStarts:exonEnds:score
+			*/
+			
+			String [] TableInfo = TranscriptAnnotations[index].split(":");
+							
+			String RequestedFields="";
+			String AliasTableName= "Annotation" + AnnotationIndex; 
+			String TableName = TableInfo[0]+"."+TableInfo[1];
+			
+			
+			for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
+				if (TableInfo.length>3){ // Creating CONCAT
+					if (fieldIndex+1 < TableInfo.length){
+						if(createVCF)
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+						else
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`,";
+					}
+					else
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+				}
+				else //If there is only one feature
+					RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+
+							
+				
+				if(fieldIndex==2 && createVCF){
+					if (TableInfo.length>3){ //Top Select 
+						if(VariantAnnotationTables!=null) {
+								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+						}
+						else {
+								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+						}
+					}
+					else{
+						if(VariantAnnotationTables!=null) {
+								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+							
+						}
+						else	 {
+								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";								
+						}
+					}
+				}	
+				else if (!createVCF) {// in case of creating Table  
+					if (GroupBy) //ARRAY_AGG
+						AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] + "`) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex] + "`";
+					else	
+						AllFields += ", `"+ AliasTableName +"." + TableInfo[fieldIndex] +"` as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex] + "`";
+				}
+			}
+
+
+			
+			//PADDING: Adjust number of fields
+			int padding_index=allAnnotationParams.size() - TranscriptAnnotations.length + index;
+			String Padding="";
+
+			for (int adjustIndex=0; adjustIndex<allAnnotationParams.size(); adjustIndex++) {
+				String[] FieldNames = allAnnotationParamsValues.get(adjustIndex);
+
+				if(adjustIndex < padding_index ) {
+					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+						Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "`, " ;
+					}
+				}else if (adjustIndex > padding_index) {
+					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+						Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "` ";
+					}
+				}
+				else if (adjustIndex == padding_index)
+					Padding+=RequestedFields;
+			}
+			
+			RequestedFields=Padding;
+
+			
+			
+			//IF the number of fields is more that 1 -> then concatenation all of them
+			if (TableInfo.length>3) {
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				+ "VCF.alternate_bases ";
+
+				if (numSamples && GoogleVCF) {
+					AnnotationQuery += ", num_samples ";
+				}
+				
+				if(createVCF)
+					AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+				else 
+					AnnotationQuery += ", " + RequestedFields ;				
+					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+			}
+			else {
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				if (numSamples && GoogleVCF) {
+					AnnotationQuery += " num_samples, ";
+				}	
+				AnnotationQuery += RequestedFields;
+			}
+			AnnotationQuery +=
+				 " FROM " + VCFQuery 
+				+ " JOIN `" + TableName +"` AS " + AliasTableName ;
+			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+
+
+			AnnotationQuery += " WHERE "
+					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";				
+			
+			if(index+1 <  TranscriptAnnotations.length)
+				AnnotationQuery +=  " UNION ALL ";
+			else
+				AnnotationQuery +=  " ";
+		}
+	}		
+
+	if (numSamples && GoogleVCF) {
+		AllFields = ",  num_samples " + AllFields ;
+	}
+	String Query= "  SELECT "
+			+ " reference_name, start, `end`, reference_bases, "
+			+ " alternate_bases " + AllFields 
+			+ " FROM (";
+	
+	Query += AnnotationQuery;
+	
+	if(!createVCF && GroupBy) {
+		Query += " ) GROUP BY  reference_name, start, `END`, reference_bases, alternate_bases "; 
+		if (numSamples) {
+			Query += ",  num_samples " ;
+		}
+	}
+	return Query;
 }
 
-
+}
 

@@ -177,6 +177,11 @@ public class ImportAnnotationFromGCSToBigQuery {
 		String getMainRepositoryAddr();
 		void setMainRepositoryAddr(String MainRepositoryAddr);
 		
+		@Description("This is for importing Gene Annotation. Specify the location of start and end of exons (e.g., \"5,6\" )")
+		@Default.String("")
+		String getStartEndExonsColumnOrder();
+		void setStartEndExonsColumnOrder(String StartEndExonsColumnOrder);
+		
 	}
 
 	private static Options options;
@@ -275,7 +280,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 			if (VariantAnnotation){
 				System.out.println("Variant Annotation Pipeline");
 				p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-				.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
+				.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS(), options.getStartEndExonsColumnOrder())))
 				.apply(
 			            BigQueryIO.writeTableRows()
 			                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
@@ -287,7 +292,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 				System.out.println("Generic Annotation Pipeline");
 	
 				p.apply(TextIO.read().from(options.getAnnotationInputTextBucketAddr()))
-				.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
+				.apply(ParDo.of(new FormatFn(inputFields,VariantAnnotation,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS(), options.getStartEndExonsColumnOrder())))
 				.apply(
 			            BigQueryIO.writeTableRows()
 			                .to(getTable(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId()))
@@ -587,16 +592,19 @@ public class ImportAnnotationFromGCSToBigQuery {
 		private String columnOrder="";
 		private String columnSeparator="";
 		private final boolean POS;
+		private String StartEndExonsColumnOrder="";
+
 		private static final long serialVersionUID = 7700800981719306804L;
 
-		public FormatFn(String [] _inputFields, boolean _VA, boolean _zeroBased, String _columnOrder, String _columnSeparator, boolean _POS) {
+		public FormatFn(String [] _inputFields, boolean _VA, boolean _zeroBased, 
+				String _columnOrder, String _columnSeparator, boolean _POS, String _StartEndExonsColumnOrder) {
 			this.inputFields = _inputFields;
 			this.VariantAnnotation = _VA;
 			this.is_0_Based = _zeroBased;
 			this.columnOrder=_columnOrder;
 			this.columnSeparator=_columnSeparator;
 			this.POS=_POS;
-			
+			this.StartEndExonsColumnOrder= _StartEndExonsColumnOrder;
 		}
 
 		@org.apache.beam.sdk.transforms.DoFn.ProcessElement
@@ -716,8 +724,57 @@ public class ImportAnnotationFromGCSToBigQuery {
 								&& index!=endIndex)
 									row.set(inputFields[index], vals[index]);
 						}
+						if (!this.StartEndExonsColumnOrder.isEmpty()) {
+						//Gene Annotation
+						// for each exon do
+						// set start and end 
+						// output the row
+							String[] pointsIndices = this.StartEndExonsColumnOrder.split(",");
+							int startPointsIndex = Integer.parseInt(pointsIndices[0])-1;
+							int endPointsIndex = Integer.parseInt(pointsIndices[1])-1;
+							
+							String[] startPoints = vals[startPointsIndex].split(",");
+							String[] endPoints = vals[endPointsIndex].split(",");
+
+							//Exonic Regions
+							row.set("structure", "Exonic");
+
+							for (int index=0; index < startPoints.length; index++ ) {
+								if (!this.is_0_Based){
+									row.set("start", Integer.parseInt(startPoints[index])-1);
+								}
+								else{
+									row.set("start", Integer.parseInt(startPoints[index]));
+								}
+								row.set("end", Integer.parseInt(endPoints[index]));
 								
-						c.output(row);						
+//								for (int tPOS=Integer.parseInt(startPoints[index]); index<=Integer.parseInt(endPoints[index]); tPOS++) {
+//									row.set("start", tPOS);
+//									row.set("end", tPOS);
+//									c.output(row);
+//								}
+								
+								c.output(row);
+							}
+							
+							//Intronic Regions 
+							row.set("structure", "Intronic");
+
+							for (int index=0; index < endPoints.length-1; index++ ) {
+								row.set("start", Integer.parseInt(endPoints[index])+1);
+								row.set("end", Integer.parseInt(startPoints[index+1])-1);
+//								for (int tPOS=Integer.parseInt(endPoints[index])+1; index<=Integer.parseInt(startPoints[index+1])-1; tPOS++) {
+//									row.set("start", tPOS);
+//									row.set("end", tPOS);
+//									c.output(row);
+//								}
+								
+								
+								c.output(row);
+							}
+						}else {
+							c.output(row);
+						}
 					}
 					
 				}

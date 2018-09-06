@@ -388,12 +388,24 @@ public final class BigQueryAnnotateVariants {
 						LOG.info(
 								"<============ Variant-based Annotation OR/AND Interval-based Annotation (mVCF) ============>");
 						if (options.getSearchRegions().isEmpty()) {
-							queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
-								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
-								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
-								options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
-								false, options.getGoogleVCF(),
-								options.getNumberSamples());
+							if (options.getCreateVCF() || options.getGoogleVCF()) {
+								queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF(options.getVCFTables(),
+									options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+									options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+									options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
+									false, options.getGoogleVCF(),
+									options.getNumberSamples());
+								LegacySql = true;
+
+							}else {
+							queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(options.getVCFTables(),
+									options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
+									options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
+									options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
+									false, options.getGoogleVCF(),
+									options.getNumberSamples());
+							}
+							
 						}else {
 							
 							queryString = BigQueryFunctions.prepareAnnotateVariantQueryRegion_Name(options.getVCFTables(),
@@ -407,9 +419,10 @@ public final class BigQueryAnnotateVariants {
 	//								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
 	//								options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 	//								options.getVariantAnnotationCanonicalizeRefNames(), false, true, options.getSearchRegions());
+							LegacySql = true;
+
 						}
 							
-						LegacySql = true;
 					}
 				} else { // e.g., LP6005038-DNA_H11
 					if (options.getGeneBasedAnnotation()) {
