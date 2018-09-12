@@ -3357,16 +3357,17 @@ public class BigQueryFunctions {
 		String[] samples = numSampleIDs.split(",");
 		 
 		String SNames = " concat( ";
-		String SCount = " ";
+		String SCount = "CAST ( ";
 		for (int index=0; index<samples.length; index++) {
 			if (index+1<samples.length) {
 				SNames += " CASE WHEN " + samples[index] + " not like \".%\" Then \"" +  samples[index] + " \" ELSE \"\" END , ";
 				SCount += " CASE WHEN " + samples[index] + " not like \".%\" Then 1 ELSE 0 END + ";
 			}else {
 				SNames += " CASE WHEN " + samples[index] + " not like \".%\" Then \" " +  samples[index] + "\" ELSE \"\" END ) as Sample_Names, ";
-				SCount += " CASE WHEN " + samples[index] + " not like \".%\" Then 1 ELSE 0 END as Num_Samples ";
+				SCount += " CASE WHEN " + samples[index] + " not like \".%\" Then 1 ELSE 0 END as STRING) as Num_Samples ";
 			}
 		}
+		 
 		 
 		 queryString += SNames + SCount; // + ", " + otherFields;
 		 queryString += " FROM " + tempTableName + ", UNNEST (alternate_bases) as alt ";
