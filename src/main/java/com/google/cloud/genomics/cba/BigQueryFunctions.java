@@ -45,6 +45,8 @@ public class BigQueryFunctions {
 	private static final Logger LOG = Logger.getLogger(BigQueryAnnotateVariants.class.getName());
 
 	public static boolean DEBUG = false;
+	static Query query = new Query();
+
 	
 	/**
 	 * This function receives the intermediate table ID and Bin Size and run OrderBy over 
@@ -246,7 +248,7 @@ public class BigQueryFunctions {
 	}
 
 	public static void runQueryPermanentTable(String queryString, String destinationDataset, String destinationTable,
-			boolean allowLargeResults, int MaximumBillingTier, boolean LegacySql, boolean Update) throws TimeoutException, InterruptedException {
+			boolean allowLargeResults, int MaximumBillingTier, boolean LegacySql, boolean Update, boolean DDL) throws TimeoutException, InterruptedException {
 		QueryJobConfiguration queryConfig;
 		
 		if (Update) {
@@ -262,11 +264,17 @@ public class BigQueryFunctions {
 					.setMaximumBillingTier(MaximumBillingTier)
 					.build();
 			else {
-				queryConfig = QueryJobConfiguration.newBuilder(queryString)
-				.setDestinationTable(TableId.of(destinationDataset, destinationTable))
-				.setAllowLargeResults(allowLargeResults)
-				.setUseLegacySql(LegacySql)
-				.build();
+				if (!DDL) {
+					queryConfig = QueryJobConfiguration.newBuilder(queryString)
+							.setDestinationTable(TableId.of(destinationDataset, destinationTable))
+							.setAllowLargeResults(allowLargeResults)
+							.setUseLegacySql(LegacySql)
+							.build();
+				}else {
+					queryConfig = QueryJobConfiguration.newBuilder(queryString)
+							.setUseLegacySql(LegacySql)
+							.build();
+				}
 			}
 		}
 		queryConfig.allowLargeResults();
@@ -447,20 +455,30 @@ public class BigQueryFunctions {
 		return Query;
 	}
 	
-	public static String prepareAnnotateVariantQueryConcatFields_mVCF(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
-			  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
+	public static String prepareAnnotateVariantQueryConcatFields_mVCF(String VCFTableNames, 
+			String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
+			  String TranscriptCanonicalizeRefNames, String TranscriptAnnotationTableNames_wUCSC, String VariantAnnotationTableNames, 
 			  String VariantannotationCanonicalizerefNames, 
 			  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples) {
 
-				
+
+		String[] TranscriptAnnotations_wUCSC=null;
 		String[] TranscriptAnnotations=null;
 		String[] VariantAnnotationTables=null;
 		String[] VCFTables=null;
 		String[] VCFCanonicalize=null; 
 		String[] TranscriptCanonicalize=null;
 		String[] VariantannotationCanonicalize=null;
-	
+
+		
 		int numAnnotationDatasets=0;
+		/////////////////////Transcripts_wUCSC//////////////
+		if(TranscriptAnnotationTableNames_wUCSC!=null){
+			TranscriptAnnotations_wUCSC = TranscriptAnnotationTableNames_wUCSC.split(","); 
+			numAnnotationDatasets=+ TranscriptAnnotations_wUCSC.length;
+		}
+
+		
 		/////////////////////Transcripts//////////////
 		if(TranscriptAnnotationTableNames!=null){
 			TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
@@ -654,7 +672,7 @@ public class BigQueryFunctions {
 							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
 						
 						//This is the case when we have transcript annotations 
-						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
+						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null || TranscriptAnnotations_wUCSC!=null))
 							AnnotationQuery +=  "), ";
 						else
 							AnnotationQuery +=  ") ";
@@ -695,22 +713,33 @@ public class BigQueryFunctions {
 								
 					
 					if(fieldIndex==2 && createVCF){
+						
+						int tempIndex=0; //alignment
+						if(VariantAnnotationTables!=null) {
+							tempIndex+=VariantAnnotationTables.length;
+						}
+						
 						if (TableInfo.length>3){ //Top Select 
-							if(VariantAnnotationTables!=null) {
-									AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-							}
-							else {
-									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-							}
+								
+							AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+
+//							if(VariantAnnotationTables!=null) {
+//									AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+//							}
+//							else {
+//									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+//							}
 						}
 						else{
-							if(VariantAnnotationTables!=null) {
-									AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-								
-							}
-							else	 {
-									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";								
-							}
+							AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+
+//							if(VariantAnnotationTables!=null) {
+//									AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+//								
+//							}
+//							else	 {
+//									AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";								
+//							}
 						}
 					}	
 					else if (!createVCF) {// in case of creating Table  
@@ -752,13 +781,105 @@ public class BigQueryFunctions {
 				AnnotationQuery += " WHERE "
 						+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";				
 				
-				if(index+1 <  TranscriptAnnotations.length)
+				if(index+1 <  TranscriptAnnotations.length || TranscriptAnnotations_wUCSC!=null)
 					AnnotationQuery +=  "), ";
 				else
 					AnnotationQuery +=  ") ";
 			
 			}
-		}		
+		} //end of Generic w/o UCSC
+		
+		if(TranscriptAnnotations_wUCSC!=null){
+			for (int index=0; index< TranscriptAnnotations_wUCSC.length; index++, AnnotationIndex++){
+
+				/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+				 * ProjectId: gbsc-gcp-project-cba
+				 * DatasetId: PublicAnnotationSets
+				 * TableId: hg19_refGene_chr17
+				 * Features: exonCount:exonStarts:exonEnds:score
+				 */
+				
+				String [] TableInfo = TranscriptAnnotations_wUCSC[index].split(":");
+								
+				String RequestedFields="";
+				String AliasTableName= "Annotation" + AnnotationIndex; 
+				String TableName = TableInfo[0]+":"+TableInfo[1];
+				
+				
+				for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
+					if (TableInfo.length>3){ // Creating CONCAT
+						if (fieldIndex+1 < TableInfo.length){
+							if(createVCF)
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+							else
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" ,";
+						}
+						else
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex];
+					}
+					else //If there is only one feature
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] ;
+
+					if(fieldIndex==2 && createVCF){
+						
+						int tempIndex=0; //alignment
+						if(VariantAnnotationTables!=null) {
+							tempIndex+=VariantAnnotationTables.length;
+						}
+						if (TranscriptAnnotations!=null) {
+							tempIndex+=TranscriptAnnotations.length;
+						}
+						if (TableInfo.length>3){ //Top Select for naming 
+							
+							AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+						}
+						else{
+							AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+						}
+					}	
+					else if (!createVCF) {// in case of creating Table  
+						if (GroupBy)
+							AllFields += ", max("+ AliasTableName +"." + TableInfo[fieldIndex] + ") as " + TableInfo[1] +"." + TableInfo[fieldIndex];
+						else	
+							AllFields += ", "+ AliasTableName +"." + TableInfo[fieldIndex] +" as " + TableInfo[1] +"." + TableInfo[fieldIndex] ;
+					}
+				}
+
+				//IF the number of fields is more that 1 -> then concat all of them
+				if (TableInfo.length>3) {
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					+ "VCF.alternate_bases ";
+
+					if (numSamples && GoogleVCF) {
+						AnnotationQuery += ", num_samples ";
+					}
+					
+					if(createVCF)
+						AnnotationQuery += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+					else 
+						AnnotationQuery += ", " + RequestedFields ;				
+						//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+				}
+				else {
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+					if (numSamples && GoogleVCF) {
+						AnnotationQuery += " num_samples, ";
+					}	
+					AnnotationQuery += RequestedFields;
+				}
+				AnnotationQuery +=
+					 " FROM " + VCFQuery 
+					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
+				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ "AND (\"" + AliasTableName + "\".UCSC_ID = VCF.UCSC_ID)";
+				
+				if(index+1 <  TranscriptAnnotations_wUCSC.length)
+					AnnotationQuery +=  "), ";
+				else
+					AnnotationQuery +=  ") ";
+			
+			}
+		}
 	
 		if (numSamples && GoogleVCF) {
 			AllFields = ",  num_samples " + AllFields ;
@@ -3331,7 +3452,7 @@ public class BigQueryFunctions {
 		boolean Update = false; 
 		boolean allowLargeResults = false;
 		int maximumBillingTier= 0;
-		
+		boolean DDL = false;
 		
 		/*String otherFields="";
 		 
@@ -3349,14 +3470,18 @@ public class BigQueryFunctions {
 				+ bigQueryVCFTableId +"`";
 		
 		String outputBigQueryTable= bigQueryVCFTableId+"_With_SampleCount"; 
+		String[] samples = numSampleIDs.split(",");
+		String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base, alt, ID, QUAL, FILTER, INFO, FORMAT ";
+
+		for (int index=0; index<samples.length; index++) {
+			queryString += "," + samples[index]; 
+		}
 		 
-		String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base, alt, ";
 		
 		//String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base,   ARRAY_AGG(alt) as alt, ";
 		
-		String[] samples = numSampleIDs.split(",");
 		 
-		String SNames = " concat( ";
+		String SNames = ", concat( ";
 		String SCount = "CAST ( ";
 		for (int index=0; index<samples.length; index++) {
 			if (index+1<samples.length) {
@@ -3377,7 +3502,7 @@ public class BigQueryFunctions {
 		        
 		try {
 			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDatasetId, outputBigQueryTable,
-					allowLargeResults, maximumBillingTier, LegacySql, Update);
+					allowLargeResults, maximumBillingTier, LegacySql, Update, DDL);
 		} catch (TimeoutException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -3391,16 +3516,16 @@ public class BigQueryFunctions {
 	}
 	
 	
-	
-
-
-
-public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(String VCFTableNames, String VCFCanonicalizeRefNames, String TranscriptAnnotationTableNames,
+public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(String VCFTableNames, 
+		String VCFCanonicalizeRefNames, String UCSCTranscriptAnnotationTableNames, String TranscriptAnnotationTableNames,
 		  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
 		  String VariantannotationCanonicalizerefNames, 
-		  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples) {
+		  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples, 
+		  String build, boolean LeftJoin, int binSize) {
 
-			
+	System.out.println("bin size: " + binSize );
+	
+	String[] UCSCTranscriptAnnotations=null;		
 	String[] TranscriptAnnotations=null;
 	String[] VariantAnnotationTables=null;
 	String[] VCFTables=null;
@@ -3447,6 +3572,16 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 	}
 
 	
+	/////////////////////UCSCTranscripts//////////////
+	if(UCSCTranscriptAnnotationTableNames!=null){
+		UCSCTranscriptAnnotations = UCSCTranscriptAnnotationTableNames.split(","); 
+		numAnnotationDatasets=+ UCSCTranscriptAnnotations.length;
+		for (int index=0; index<UCSCTranscriptAnnotations.length; index++) {			
+			allAnnotationParams.add(UCSCTranscriptAnnotations[index].split(":").length-2);
+			allAnnotationParamsValues.add(UCSCTranscriptAnnotations[index].split(":"));
+		}
+	}
+	
 	//BigQuery Limit
 	boolean GroupBy;
 	if(numAnnotationDatasets<=64)
@@ -3469,20 +3604,30 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 			System.out.println("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
 		}
 	}
-			
+
+		
 	/*#######################Prepare VCF queries#######################*/
 	String VCFQuery=" ( SELECT * from ";
-	for (int index=0; index< VCFTables.length; index++){
-		if(VCFCanonicalize!=null)
-			VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
-		else
-			VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
-		
-		VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases) ";
+	String UCSC_VCFQuery=" ( SELECT * from ";
 
+	for (int index=0; index< VCFTables.length; index++){
+		if(VCFCanonicalize!=null) {
+			if (!GoogleVCF)
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+			else
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+		}else {
+			if (!GoogleVCF)
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+			else
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+		}
+		//Check UCSC_VCF
+		UCSC_VCFQuery = VCFQuery + ", " + build + "_UCSC_knownGene FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`) ";
+		VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases) ";
 	}
 	VCFQuery +=" ) as VCF ";
-
+	UCSC_VCFQuery +=" ) as VCF ";
 	 	 
 	String AllFields=""; // Use to 
 	String AnnotationQuery="";
@@ -3490,6 +3635,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 	
 	/*#######################Prepare VCF queries#######################*/
 	if(VariantAnnotationTables!=null){
+		LOG.info("Variant Annotations ");
 		for (int index=0; index< VariantAnnotationTables.length; index++,AnnotationIndex++){
 					
 					/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
@@ -3583,7 +3729,8 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 					}
 					
 					AnnotationQuery +=
-						 " FROM " + VCFQuery 
+//>>>>>>>>>						 " FROM " + VCFQuery 
+						 " FROM " + UCSC_VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
 					AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
 
@@ -3603,6 +3750,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 	 
 	if(TranscriptAnnotations!=null){
 		for (int index=0; index< TranscriptAnnotations.length; index++, AnnotationIndex++){
+			LOG.info("Generic Annotations ");
 
 			/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
 			* ProjectId: gbsc-gcp-project-cba
@@ -3635,22 +3783,30 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 							
 				
 				if(fieldIndex==2 && createVCF){
+					int tempIndex=0;
+					if(VariantAnnotationTables!=null) {
+						tempIndex=VariantAnnotationTables.length;
+					}
+					
 					if (TableInfo.length>3){ //Top Select 
-						if(VariantAnnotationTables!=null) {
-								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-						}
-						else {
-								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
-						}
+						AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+
+//						if(VariantAnnotationTables!=null) {
+//								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+//						}
+//						else {
+//								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+//						}
 					}
 					else{
-						if(VariantAnnotationTables!=null) {
-								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
-							
-						}
-						else	 {
-								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";								
-						}
+						AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+
+//						if(VariantAnnotationTables!=null) {
+//								AllFields += ", CONCAT(\""+ (index+1+VariantAnnotationTables.length) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+//						}
+//						else	 {
+//								AllFields += ", CONCAT(\""+ (index+1) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";								
+//						}
 					}
 				}	
 				else if (!createVCF) {// in case of creating Table  
@@ -3686,6 +3842,167 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 			RequestedFields=Padding;
 
 			
+			String innerSelect=""; 
+			//IF the number of fields is more that 1 -> then concatenation all of them
+			if (TableInfo.length>3) {
+				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				+ "VCF.alternate_bases ";
+
+				if (numSamples && GoogleVCF) {
+					innerSelect += ", num_samples ";
+				}
+				
+				if(createVCF)
+					innerSelect += ", CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+				else 
+					innerSelect += ", " + RequestedFields ;				
+					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+			}
+			else {
+				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				if (numSamples && GoogleVCF) {
+					innerSelect += " num_samples, ";
+				}	
+				innerSelect += RequestedFields;
+			}
+
+			if (!LeftJoin) { //Everything
+				AnnotationQuery += innerSelect + " FROM " + UCSC_VCFQuery 
+						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
+				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
+				AnnotationQuery += " WHERE "
+					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
+				
+				AnnotationQuery += " UNION ALL " 
+					+ innerSelect + " FROM " + UCSC_VCFQuery
+					+ " JOIN `" + TableName +"` AS " + AliasTableName 	
+					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+				    + " WHERE "
+				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+
+				AnnotationQuery += " UNION ALL " 
+						+ innerSelect + " FROM " + UCSC_VCFQuery
+						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
+						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+					    + " WHERE "
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+				
+				AnnotationQuery += " UNION ALL " 
+						+ innerSelect + " FROM " + UCSC_VCFQuery
+						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
+						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
+					    + " WHERE "
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+
+			}
+			else { // VCF annd UCSC_knownGene
+				AnnotationQuery +=
+						innerSelect + " FROM " + VCFQuery 
+						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName ;
+				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) AND  ("+ 
+						AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";						
+
+			}
+			
+			if(index+1 <  TranscriptAnnotations.length || UCSCTranscriptAnnotations!=null)
+				AnnotationQuery +=  " UNION ALL ";
+			else
+				AnnotationQuery +=  " ";
+		}
+	}
+	
+	
+	if(UCSCTranscriptAnnotations!=null){
+		for (int index=0; index< UCSCTranscriptAnnotations.length; index++, AnnotationIndex++){
+			LOG.info("UCSC Generic Annotations " + UCSCTranscriptAnnotations[index]);
+
+			/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+			* ProjectId: gbsc-gcp-project-cba
+			* DatasetId: PublicAnnotationSets
+			* TableId: hg19_refGene_chr17
+			* Features: exonCount:exonStarts:exonEnds:score
+			*/
+			
+			String [] TableInfo = UCSCTranscriptAnnotations[index].split(":");
+							
+			String RequestedFields="";
+			String AliasTableName= "Annotation" + AnnotationIndex; 
+			String TableName = TableInfo[0]+"."+TableInfo[1];
+			
+			
+			for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
+				if (TableInfo.length>3){ // Creating CONCAT
+					if (fieldIndex+1 < TableInfo.length){
+						if(createVCF)
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+						else
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`,";
+					}
+					else
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+				}
+				else //If there is only one feature
+					RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+
+				LOG.info("RequestedFields" + RequestedFields);
+
+							
+				if(fieldIndex==2 && createVCF){
+
+					int tempIndex=0;
+					if(VariantAnnotationTables!=null) {
+						tempIndex+=VariantAnnotationTables.length;
+					}
+					if (TranscriptAnnotations!=null) {
+						tempIndex+=TranscriptAnnotations.length;
+					}
+					
+					
+					if (TableInfo.length>3){ //Top Select 
+						AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + AliasTableName + " ) ";
+					}
+					else{
+						AllFields += ", CONCAT(\""+ (index+1+tempIndex) +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
+					}
+				}	
+				
+				else if (!createVCF) {// in case of creating Table  
+
+					if (GroupBy) //ARRAY_AGG
+						AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] + "`) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex] + "`";
+					else	
+						AllFields += ", `"+ AliasTableName +"." + TableInfo[fieldIndex] +"` as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex] + "`";
+				}
+
+			}
+
+
+			//PADDING: Adjust number of fields
+			int padding_index=allAnnotationParams.size() - UCSCTranscriptAnnotations.length + index;
+			String Padding="";
+
+			for (int adjustIndex=0; adjustIndex<allAnnotationParams.size(); adjustIndex++) {
+				String[] FieldNames = allAnnotationParamsValues.get(adjustIndex);
+
+				if(adjustIndex < padding_index ) {
+					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+						Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "`, " ;
+					}
+				}else if (adjustIndex > padding_index) {
+					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+						Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "` ";
+					}
+				}
+				else if (adjustIndex == padding_index)
+					Padding+=RequestedFields;
+			}
+			
+			RequestedFields=Padding;
+
 			
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
@@ -3710,15 +4027,14 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 				AnnotationQuery += RequestedFields;
 			}
 			AnnotationQuery +=
-				 " FROM " + VCFQuery 
+				 " FROM " + UCSC_VCFQuery 
 				+ " JOIN `" + TableName +"` AS " + AliasTableName ;
-			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
-
-
-			AnnotationQuery += " WHERE "
-					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";				
 			
-			if(index+1 <  TranscriptAnnotations.length)
+			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+			AnnotationQuery += "AND (" + AliasTableName + ".UCSC_ID = VCF." + build + "_UCSC_knownGene) "
+					+ "AND VCF." + build + "_UCSC_knownGene IS NULL " ; //Intergenic Regions
+			
+			if(index+1 <  UCSCTranscriptAnnotations.length)
 				AnnotationQuery +=  " UNION ALL ";
 			else
 				AnnotationQuery +=  " ";
@@ -3744,5 +4060,576 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 	return Query;
 }
 
+public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Concat(String VCFTableNames, String VCF_UCSC_TableNames, 
+		String VCFCanonicalizeRefNames, String UCSCTranscriptAnnotationTableNames, String TranscriptAnnotationTableNames,
+		  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
+		  String VariantannotationCanonicalizerefNames, 
+		  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples, 
+		  String build, boolean LeftJoin, int binSize) {
+
+
+	System.out.println("bin size: " + binSize );
+	
+	String[] UCSCTranscriptAnnotations=null;		
+	String[] TranscriptAnnotations=null;
+	String[] VariantAnnotationTables=null;
+	String[] VCFTables=null;
+	String[] VCF_UCSC_Tables=null;
+	String[] VCFCanonicalize=null; 
+	String[] TranscriptCanonicalize=null;
+	String[] VariantannotationCanonicalize=null;
+
+	ArrayList<Integer> allAnnotationParams = new ArrayList<Integer>();
+	ArrayList<String []> allAnnotationParamsValues = new ArrayList<String []>();
+
+	int numAnnotationDatasets=0;
+	
+	////////////Variant Annotations///////
+	if(VariantAnnotationTableNames!=null){
+		VariantAnnotationTables = VariantAnnotationTableNames.split(","); 
+		numAnnotationDatasets=+ VariantAnnotationTables.length;
+
+		for (int index=0; index<VariantAnnotationTables.length; index++) {
+			allAnnotationParams.add(VariantAnnotationTables[index].split(":").length-2);
+			allAnnotationParamsValues.add(VariantAnnotationTables[index].split(":"));
+		}
+
+		if(!VariantannotationCanonicalizerefNames.isEmpty()){
+			VariantannotationCanonicalize = VariantannotationCanonicalizerefNames.split(","); 
+			if (VariantannotationCanonicalize.length != VariantAnnotationTables.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
+		}
+	}
+	
+	/////////////////////Transcripts//////////////
+	if(TranscriptAnnotationTableNames!=null){
+		TranscriptAnnotations = TranscriptAnnotationTableNames.split(","); 
+		numAnnotationDatasets=+ TranscriptAnnotations.length;
+		for (int index=0; index<TranscriptAnnotations.length; index++) {			
+			allAnnotationParams.add(TranscriptAnnotations[index].split(":").length-2);
+			allAnnotationParamsValues.add(TranscriptAnnotations[index].split(":"));
+		}
+		if(!TranscriptCanonicalizeRefNames.isEmpty()){
+			TranscriptCanonicalize = TranscriptCanonicalizeRefNames.split(","); 
+			
+			if (TranscriptAnnotations.length != TranscriptCanonicalize.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and transcript tables");
+		}
+	}
+
+	/////////////////////UCSCTranscripts//////////////
+	if(UCSCTranscriptAnnotationTableNames!=null){
+		UCSCTranscriptAnnotations = UCSCTranscriptAnnotationTableNames.split(","); 
+		numAnnotationDatasets=+ UCSCTranscriptAnnotations.length;
+		for (int index=0; index<UCSCTranscriptAnnotations.length; index++) {			
+			allAnnotationParams.add(UCSCTranscriptAnnotations[index].split(":").length-2);
+			allAnnotationParamsValues.add(UCSCTranscriptAnnotations[index].split(":"));
+		}
+	}
+	
+	//BigQuery Limit
+	boolean GroupBy;
+	if(numAnnotationDatasets<=64)
+		GroupBy=true;
+	else
+		GroupBy=false;
+	
+	
+	//////////VCF Files/////////////
+	/*Check if the VCF table contains any prefix for the reference fields (e.g., chr => chr17 )*/
+	if(!VCFTableNames.isEmpty()){
+		VCFTables = VCFTableNames.split(","); 
+		if(VCF_UCSC_TableNames!="")
+			VCF_UCSC_Tables=VCF_UCSC_TableNames.split(","); 
+		
+		if(!VCFCanonicalizeRefNames.isEmpty()){
+			VCFCanonicalize = VCFCanonicalizeRefNames.split(","); 
+			if (VCFCanonicalize.length != VCFTables.length)
+				throw new IllegalArgumentException("Mismatched between the number of submitted canonicalize parameters and variant annotation tables");
+		}
+		else{
+			System.out.println("#### Warning: the number of submitted parameters for canonicalizing VCF tables is zero! default prefix value for referenceId is ''");
+		}
+	}
+
+		
+	/*#######################Prepare VCF queries#######################*/
+	String VCFQuery=" ( SELECT * from ";
+	String UCSC_VCFQuery=" ( SELECT * from ";
+
+	for (int index=0; index< VCFTables.length; index++){
+		if(VCFCanonicalize!=null) { 
+//			if (!GoogleVCF)
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+//			else
+//				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+		}else {
+			UCSC_VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+//			if (!GoogleVCF)
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+//			else
+//				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+		}
+	
+		//Check UCSC_VCF
+		if (VCF_UCSC_Tables!=null)
+			UCSC_VCFQuery += ", " + build + "_UCSC_knownGene FROM `"+ VCF_UCSC_Tables[index].split(":")[0] + "." + VCF_UCSC_Tables[index].split(":")[1]  +"`) ";
+//		if (GoogleVCF)
+//			VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases) ";
+//		else
+			VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`) ";
+	
+	}
+	
+	System.out.println("-------------------------------");
+
+	if(VCFCanonicalize==null) {
+			System.out.println(VCFQuery);
+			System.out.println(GoogleVCF);
+	}
+	
+	VCFQuery +=" ) as VCF ";
+	UCSC_VCFQuery +=" ) as VCF ";
+	 	 
+	String AllFields=""; // Use to 
+	String AnnotationQuery="";
+	int AnnotationIndex=1; // Use for creating alias names
+	
+	/*#######################Prepare VCF queries#######################*/
+	if(VariantAnnotationTables!=null){
+		LOG.info("Variant Annotations ");
+		for (int index=0; index< VariantAnnotationTables.length; index++,AnnotationIndex++){
+					
+					/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
+					 * ProjectId: gbsc-gcp-project-cba
+					 * DatasetId: PublicAnnotationSets
+					 * TableId: hg19_GME
+					 * Features: GME_AF:GME_NWA:GME_NEA
+					 */
+					
+					String [] TableInfo = VariantAnnotationTables[index].split(":");
+											
+					//String RequestedFields="";
+					String AliasTableName= "Annotation" + AnnotationIndex; 
+					String TableName = TableInfo[0]+"."+TableInfo[1];
+						
+					int tempIndex=0;
+					if (TranscriptAnnotations!=null) {
+						tempIndex+=TranscriptAnnotations.length;
+					}
+					if (UCSCTranscriptAnnotations!=null) {
+						tempIndex+=UCSCTranscriptAnnotations.length;
+					}
+
+					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, GroupBy);
+					query.padding(allAnnotationParams, allAnnotationParamsValues, VariantAnnotationTables.length+tempIndex, index );
+
+					
+					//IF the number of fields is more that 1 -> then concat all of them
+					if (TableInfo.length>3) {
+						
+						AnnotationQuery += "  SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+						if (numSamples && GoogleVCF) {
+							AnnotationQuery += ", num_samples ";
+						}
+						
+						if(createVCF)
+							AnnotationQuery += ", CONCAT(" + query.getRequestedFields() +") as " + AliasTableName +"." + AliasTableName;
+						else 
+							AnnotationQuery += ", " + query.getRequestedFields() ;
+
+					}
+					else {
+						AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+						if (numSamples && GoogleVCF) {
+							AnnotationQuery += " num_samples, ";
+						}
+						AnnotationQuery +=  query.getRequestedFields();
+					}
+					
+					AnnotationQuery +=
+						 " FROM " + VCFQuery
+						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
+					AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+
+					AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
+						+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
+						+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+					
+					//This is the case when we have transcript annotations 
+					if(index+1 < VariantAnnotationTables.length) {
+						AnnotationQuery +=  " UNION ALL ";
+					}
+					else
+						AnnotationQuery +=  " ";					
+		}
+	}
+	
+	//This is the case when we have transcript annotations 
+	if( VariantAnnotationTables!=null && (TranscriptAnnotations!=null  || UCSCTranscriptAnnotations!=null))
+		AnnotationQuery +=  " UNION ALL ";
+	else
+		AnnotationQuery +=  " ";
+	
+	
+	if(TranscriptAnnotations!=null){
+		for (int index=0; index< TranscriptAnnotations.length; index++, AnnotationIndex++){
+			LOG.info("Generic Annotations ");
+
+			/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+			* ProjectId: gbsc-gcp-project-cba
+			* DatasetId: PublicAnnotationSets
+			* TableId: hg19_refGene_chr17
+			* Features: exonCount:exonStarts:exonEnds:score
+			*/
+			
+			String [] TableInfo = TranscriptAnnotations[index].split(":");
+			
+			//String RequestedFields="";
+			String AliasTableName= "Annotation" + AnnotationIndex;
+			String TableName = TableInfo[0]+"."+TableInfo[1];
+			
+			int tempIndex=0;
+			if (UCSCTranscriptAnnotations!=null) {
+				tempIndex+=UCSCTranscriptAnnotations.length;
+			}
+
+			
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, GroupBy);
+			query.padding(allAnnotationParams, allAnnotationParamsValues, TranscriptAnnotations.length+tempIndex, index );
+			
+			String innerSelect=""; 
+			//IF the number of fields is more that 1 -> then concatenation all of them
+			if (TableInfo.length>3) {
+				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				+ "VCF.alternate_bases ";
+
+				if (numSamples && GoogleVCF) {
+					innerSelect += ", num_samples ";
+				}
+				
+				if(createVCF)
+					innerSelect += ", CONCAT(" + query.getRequestedFields() +") as " + AliasTableName +"." + AliasTableName;
+				else 
+					innerSelect += ", " + query.getRequestedFields() ;				
+					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+			}
+			else {
+				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				if (numSamples && GoogleVCF) {
+					innerSelect += " num_samples, ";
+				}	
+				innerSelect += query.getRequestedFields();
+			}
+
+			if (!LeftJoin) { //Everything
+				AnnotationQuery += innerSelect + " FROM " + UCSC_VCFQuery 
+						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
+				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
+				AnnotationQuery += " WHERE "
+					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
+				
+				AnnotationQuery += " UNION ALL " 
+					+ innerSelect + " FROM " + UCSC_VCFQuery
+					+ " JOIN `" + TableName +"` AS " + AliasTableName 	
+					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+				    + " WHERE "
+				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+
+				AnnotationQuery += " UNION ALL " 
+						+ innerSelect + " FROM " + UCSC_VCFQuery
+						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
+						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+					    + " WHERE "
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+				
+				AnnotationQuery += " UNION ALL " 
+						+ innerSelect + " FROM " + UCSC_VCFQuery
+						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
+						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
+					    + " WHERE "
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+
+			}
+			else { // VCF annd UCSC_knownGene
+//				AnnotationQuery +=
+//						innerSelect + " FROM " + VCFQuery 
+//						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName ;
+//				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) AND  ("+ 
+//						AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";	
+				
+				AnnotationQuery += innerSelect + " FROM " + VCFQuery 
+						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName ;
+				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
+				AnnotationQuery += " WHERE "
+					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
+				
+				AnnotationQuery += " UNION ALL " 
+					+ innerSelect + " FROM " + VCFQuery
+					+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
+					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+				    + " WHERE "
+				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+
+				AnnotationQuery += " UNION ALL " 
+						+ innerSelect + " FROM " + VCFQuery
+						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
+						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+					    + " WHERE "
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+				
+				AnnotationQuery += " UNION ALL " 
+						+ innerSelect + " FROM " + VCFQuery
+						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
+						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
+					    + " WHERE "
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+
+			}
+			
+			if(index+1 < TranscriptAnnotations.length)
+				AnnotationQuery +=  " UNION ALL ";
+			else
+				AnnotationQuery +=  " ";
+		}
+	}
+	
+	if( TranscriptAnnotations!=null &&  UCSCTranscriptAnnotations!=null)
+		AnnotationQuery +=  " UNION ALL ";
+	else
+		AnnotationQuery +=  " ";
+	
+	AllFields=query.getAllFields();	
+	
+	if(UCSCTranscriptAnnotations!=null){
+		for (int index=0; index< UCSCTranscriptAnnotations.length; index++, AnnotationIndex++){
+			LOG.info("UCSC Generic Annotations " + UCSCTranscriptAnnotations[index]);
+
+			/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene_chr17:exonCount:exonStarts:exonEnds:score
+			* ProjectId: gbsc-gcp-project-cba
+			* DatasetId: PublicAnnotationSets
+			* TableId: hg19_refGene_chr17
+			* Features: exonCount:exonStarts:exonEnds:score
+			*/
+			
+			String [] TableInfo = UCSCTranscriptAnnotations[index].split(":");
+							
+//			String RequestedFields="";
+			String AliasTableName= "Annotation" + AnnotationIndex; 
+			String TableName = TableInfo[0]+"."+TableInfo[1];
+			
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, GroupBy);
+			query.padding(allAnnotationParams, allAnnotationParamsValues, UCSCTranscriptAnnotations.length, index );
+			
+			//IF the number of fields is more that 1 -> then concatenation all of them
+			if (TableInfo.length>3) {
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				+ "VCF.alternate_bases ";
+
+				if (numSamples && GoogleVCF) {
+					AnnotationQuery += ", num_samples ";
+				}
+				
+				if(createVCF)
+					AnnotationQuery += ", CONCAT(" + query.getRequestedFields() +") as " + AliasTableName +"." + AliasTableName;
+				else 
+					AnnotationQuery += ", " + query.getRequestedFields() ;				
+					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
+			}
+			else {
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				if (numSamples && GoogleVCF) {
+					AnnotationQuery += " num_samples, ";
+				}	
+				AnnotationQuery += query.getRequestedFields();
+			}
+			AnnotationQuery +=
+				 " FROM " + UCSC_VCFQuery 
+				+ " JOIN `" + TableName +"` AS " + AliasTableName ;
+			
+			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+			AnnotationQuery += "AND (" + AliasTableName + ".UCSC_ID = VCF." + build + "_UCSC_knownGene) "
+					+ "AND VCF." + build + "_UCSC_knownGene IS NULL " ; //Intergenic Regions
+			
+			if(index+1 <  UCSCTranscriptAnnotations.length)
+				AnnotationQuery +=  " UNION ALL ";
+			else
+				AnnotationQuery +=  " ";
+		}
+	}		
+	
+	AllFields=query.getAllFields();	
+
+	if (numSamples && GoogleVCF) {
+		AllFields = ",  num_samples " + AllFields ;
+	}
+	String Query= "  SELECT "
+			+ " reference_name, start, `end`, reference_bases, "
+			+ " alternate_bases " + AllFields 
+			+ " FROM (";
+	
+	Query += AnnotationQuery;
+	
+	if(!createVCF && GroupBy) {
+		Query += " ) GROUP BY  reference_name, start, `END`, reference_bases, alternate_bases " + query.getGroupByList(); 
+		if (numSamples) {
+			Query += ",  num_samples " ;
+		}
+	}
+	return Query;
 }
+
+ 	public static class Query {
+	    String RequestedFields="";
+	    String GroupByList="";
+	    String AllFields="";
+	    boolean createVCF=false;
+	    boolean GroupBy=false;
+    
+	    public void setGroupBy(boolean GB) {
+	    		GroupBy= GB;
+	    }
+	    
+	    public void padding(ArrayList<Integer> allAnnotationParams, ArrayList<String[]> allAnnotationParamsValues,
+				int length, int index) {
+	    	 	
+	    	
+	    	
+	    	//PADDING: Adjust number of fields
+	    	
+			int padding_index=allAnnotationParams.size() - length + index;
+			String Padding="";
+
+			for (int adjustIndex=0; adjustIndex<allAnnotationParams.size(); adjustIndex++) {
+				String[] FieldNames = allAnnotationParamsValues.get(adjustIndex);
+				String fieldNames="";
+				if(adjustIndex < padding_index ) {
+					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+//						Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "`, " ;
+						if(i+1<allAnnotationParams.get(adjustIndex))
+							fieldNames+=FieldNames[i+2]+"__";
+						else
+							fieldNames+=FieldNames[i+2];
+					}
+	//				Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." +  fieldNames + "`, " ;
+					Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) +  "`, " ;
+				}else if (adjustIndex > padding_index) {
+					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+						if(i+1<allAnnotationParams.get(adjustIndex))
+							fieldNames+=FieldNames[i+2]+"__";
+						else
+							fieldNames+=FieldNames[i+2];
+					}
+	//				Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "." + fieldNames + "` ";
+					Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "` ";
+				}
+				else if (adjustIndex == padding_index)
+					Padding+=RequestedFields;
+			}
+			
+			RequestedFields=Padding;
+	    	
+		}
+
+		public void buildRequestedFields(String[] TableInfo, String AliasTableName, boolean createVCF,
+				boolean GroupBy) {
+			
+	    		//String tempName="";
+	    		RequestedFields ="";
+			//per annotation table -> populate a sub-query
+			for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
+				
+				//1. Inner Query
+				if (TableInfo.length>3){ // Creating CONCAT
+					if(RequestedFields == "")
+						RequestedFields = "CONCAT ( ";
+					
+					if (fieldIndex+1 < TableInfo.length){
+						if(createVCF)
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
+						else
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] + ",'\\t',";
+			//			tempName+=TableInfo[fieldIndex]+"__";
+					}
+					else {
+			//			tempName+=TableInfo[fieldIndex];
+			//			RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +") as `" + AliasTableName +"." + tempName + "`";
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +") as `" + AliasTableName + "`";
+					}
+				}
+				else //If there is only one feature
+					RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName + "`";
+			//	RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
+	
+								
+			}
+	    	
+			if (!createVCF) {// in case of creating Table  
+				if (GroupBy) //ARRAY_AGG
+					if (TableInfo.length>3){
+						//AllFields += ", ARRAY_AGG(`"+ AliasTableName +"." + tempName + "`) as `" + TableInfo[1].split("\\.")[1] +"__" +tempName + "`";
+			//			AllFields += ", `"+ AliasTableName +"." + tempName + "` as `" + TableInfo[1].split("\\.")[1] +"__" +tempName + "`";
+						AllFields += ", `"+ AliasTableName + "` as `" + TableInfo[1].split("\\.")[1] + "`";
+			//			GroupByList+= ", `"+ AliasTableName +"." + tempName + "`";
+						GroupByList+= ", `"+ AliasTableName + "`";
+					}
+					else	{
+						AllFields += ", `"+ AliasTableName + "` as `" + TableInfo[1].split("\\.")[1] + "`";
+
+						//AllFields += ", max(`"+ AliasTableName +"." + TableInfo[2] + "`) as `" + TableInfo[1].split("\\.")[1] +"__" +TableInfo[2] + "`";
+//						AllFields += ", `"+ AliasTableName +"." + TableInfo[2] + "` as `" + TableInfo[1].split("\\.")[1] + "`";
+			//			AllFields += ", `"+ AliasTableName +"." + TableInfo[2] + "` as `" + TableInfo[1].split("\\.")[1] +"__" +TableInfo[2] + "`";
+
+			//			GroupByList+= ", `"+ AliasTableName +"." + tempName + "`";
+						GroupByList+= ", `"+ AliasTableName  + "`";
+					}
+			}
+		}
+
+		public boolean getGroupBy() {
+	    		return GroupBy;
+	    }
+	    
+	    public void setRequestedFields(String reqf) {
+	    		RequestedFields=reqf;
+	    }
+	    public void addRequestedFields(String reqf) {
+			RequestedFields+=reqf;
+	    }
+	    public String getRequestedFields() {
+    			return RequestedFields;
+	    }
+	    
+	    public void setAllFields(String allFields) {
+	    		AllFields=allFields;
+	    }
+	    public String getAllFields() {
+	    		return AllFields;	
+	    }
+	    public void addAllFields(String allFields) {
+    			AllFields+=allFields;
+	    }
+	        
+	    public void setGroupByFields(String groupby) {
+	    		GroupByList=groupby;
+	    }
+	    public void addGroupByFields(String groupby) {
+	    		GroupByList+=groupby;
+	    }
+	    public String getGroupByList() {
+			return GroupByList;
+	    }
+
+    }
+    
+}
+
 

@@ -258,8 +258,10 @@ public class ImportVCFFromGCSToBigQuery {
 			
 			if (!options.getSampleIDs().isEmpty()) {
 				if(state == State.DONE) {
-					
-					BigQueryFunctions.findNumSamples_StandardSQL(options.getProject(), options.getBigQueryDatasetId(), options.getBigQueryVCFTableId(), options.getSampleIDs(), options.getHeader());
+					LOG.warning("AnnotationHive assumed the imported VCF file has these fileds ID, QUAL, FILTER, INFO, FORMAT");					
+					BigQueryFunctions.findNumSamples_StandardSQL(options.getProject(), 
+							options.getBigQueryDatasetId(), options.getBigQueryVCFTableId(), 
+							options.getSampleIDs(), options.getHeader());
 					
 				}
 			}
