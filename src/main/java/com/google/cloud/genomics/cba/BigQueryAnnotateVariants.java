@@ -192,7 +192,7 @@ public final class BigQueryAnnotateVariants {
 		void setVariantAnnotationCanonicalizeRefNames(String VariantAnnotationCanonicalizeRefNames);
 
 		@Description("Genomic build (e.g., hg19, hg38)")
-		@Default.String("hg19")
+		@Default.String("")
 		String getBuild();
 		void setBuild(String Build);
 		
@@ -411,6 +411,7 @@ public final class BigQueryAnnotateVariants {
 
 							}else {
 								
+								//Annotate the input VCF file using UCSC_knowGene in case we have any generic or UCSCGeneric tables  
 								if (options.getUCSCGenericAnnotationTables()!=null || options.getGenericAnnotationTables()!=null) {
 									String UCSC_KnownGene="";
 									if (options.getBuild().equalsIgnoreCase("hg19"))
@@ -418,6 +419,8 @@ public final class BigQueryAnnotateVariants {
 									else if(options.getBuild().equalsIgnoreCase("hg38"))
 										UCSC_KnownGene= "gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name";
 									
+									
+									//Convert Google VCF table to AnnotationHive's VCF version
 									if(options.getGoogleVCF())
 									{
 										String Google_VCF= options.getVCFTables();
@@ -468,7 +471,7 @@ public final class BigQueryAnnotateVariants {
 										options.getNumberSamples(), options.getBuild(), false, options.getBinSize());
 								}
 							}
-						}else {
+						}else { //In case we ONLY have variant annotations
 							
 							queryString = BigQueryFunctions.prepareAnnotateVariantQueryRegion_Name(options.getVCFTables(),
 								options.getVCFCanonicalizeRefNames(), options.getGenericAnnotationTables(),
@@ -613,8 +616,13 @@ public final class BigQueryAnnotateVariants {
 				
 				LOG.info("Partition Query: " + PartitionQuery);
 
+				//Create a partitioned table 
 				runQuery(PartitionQuery, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
 						options.getMaximumBillingTier(), false, false, true);
+				
+				//Remove the temp table
+				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp");
+
 				
 			}
 			long tempEstimatedTime = System.currentTimeMillis() - startTime;

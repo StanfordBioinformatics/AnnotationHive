@@ -221,7 +221,12 @@ public class ImportVCFFromGCSToBigQuery {
 		} else {
 			throw new IllegalArgumentException("Base0 option must be either yes or no!");
 		}
-
+		
+		if(!checkVCFTableExist()) {
+			LOG.severe("Cannot Find VCFTable!");
+			return;
+		}
+	
 
 		if(!options.getColumnOrder().isEmpty()) {
 			checkColumnOrder(options.getColumnOrder());
@@ -229,7 +234,7 @@ public class ImportVCFFromGCSToBigQuery {
 		
 		if(checkTableExist()) {
 			if (!options.getForceUpdate()) {
-				LOG.warning(options.getBigQueryVCFTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
+				LOG.severe(options.getBigQueryVCFTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
 				return;
 			}else {
 				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryVCFTableId());
@@ -238,6 +243,7 @@ public class ImportVCFFromGCSToBigQuery {
 		else{
 			LOG.warning(options.getBigQueryVCFTableId() + "  is a new VCF table!");
 		}
+		
 	
 		String [] inputFields = options.getHeader().split(",");
 		LOG.warning("VCF Pipeline");
@@ -281,6 +287,13 @@ public class ImportVCFFromGCSToBigQuery {
 		    LOG.warning("DatasetId: " + options.getBigQueryDatasetId() +" TableId: " + options.getBigQueryVCFTableId() );
 		    return bigquery.getDataset(options.getBigQueryDatasetId()).get(options.getBigQueryVCFTableId()) != null;		    	    
 	}
+	
+	private static boolean checkVCFTableExist() {
+	    BigQueryOptions.Builder optionsBuilder = BigQueryOptions.newBuilder();
+	    BigQuery bigquery = optionsBuilder.build().getService();
+	    LOG.warning("DatasetId: " + options.getBigQueryDatasetId() +" TableId: " + "VCFList" );
+	    return bigquery.getDataset(options.getBigQueryDatasetId()).get("VCFList") != null;		    	    
+}
 
 	private static void checkColumnOrder(String columnOrder) {
 		  String[] Order = columnOrder.split(",");
@@ -414,7 +427,7 @@ public class ImportVCFFromGCSToBigQuery {
 		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
 		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
 		fields.add(new TableFieldSchema().setName("reference_bases").setType("STRING"));
-		fields.add(new TableFieldSchema().setName("alternate_bases").setType("STRING").setMode("REPEATED"));
+		fields.add(new TableFieldSchema().setName("alternate_bases").setType("STRING"));//.setMode("REPEATED"));
 		
 		int chromIndex=0, startIndex=1, endIndex=2, refIndex=3, altIndex=4;
 		
@@ -548,45 +561,49 @@ public class ImportVCFFromGCSToBigQuery {
 							row.set("end", Integer.parseInt(vals[endIndex]) + RefSize);
 						}
 						
-						List<String> listAlt = new ArrayList<String>();
+						/*Our focus in this version is performance not storage*/
+						//List<String> listAlt = new ArrayList<String>();
 						/*Make sure to handle special cases for alternate bases [deletion] */
 						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-")) {
-							//row.set("alternate_bases", "");
-							listAlt.add("");
+							row.set("alternate_bases", "");
+							c.output(row);
+							//listAlt.add("");
 						}
 						else {
 							if (vals[altIndex].split("/").length>1) {
 								String[] alts = vals[altIndex].split("/");
 								for(String allele : alts) {
 									if (allele == null || allele.isEmpty() || allele.equals("-"))
-										//row.set("alternate_bases", "");
-										listAlt.add("");
+										row.set("alternate_bases", "");
+										//listAlt.add("");
 									else
-										//row.set("alternate_bases", allele);
-										listAlt.add(allele);									
+										row.set("alternate_bases", allele);
+										//listAlt.add(allele);									
+									c.output(row);
 								}
 							} else if (vals[altIndex].split(",").length>1) {
 								String[] alts = vals[altIndex].split(",");
 								for(String allele : alts) {
 									if (allele == null || allele.isEmpty() || allele.equals("-"))
-										//row.set("alternate_bases", "");
-										listAlt.add("");
+										row.set("alternate_bases", "");
+										//listAlt.add("");
 									else
-										//row.set("alternate_bases", allele);
-										listAlt.add(allele);									
+										row.set("alternate_bases", allele);
+										//listAlt.add(allele);									
+									c.output(row);
 								}
 							} else {
 								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-"))
-									//row.set("alternate_bases", "");
-									listAlt.add("");
+									row.set("alternate_bases", "");
+									//listAlt.add("");
 								else
-									//row.set("alternate_bases", vals[altIndex]);
-									listAlt.add(vals[altIndex]);
-
+									row.set("alternate_bases", vals[altIndex]);
+									//listAlt.add(vals[altIndex]);
+								c.output(row);
 							}
 						}
-						row.set("alternate_bases", listAlt.toArray());
-						c.output(row);
+						//row.set("alternate_bases", listAlt.toArray());
+						//c.output(row);
 
 					}
 			}

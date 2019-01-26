@@ -3471,7 +3471,7 @@ public class BigQueryFunctions {
 		
 		String outputBigQueryTable= bigQueryVCFTableId+"_With_SampleCount"; 
 		String[] samples = numSampleIDs.split(",");
-		String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base, alt, ID, QUAL, FILTER, INFO, FORMAT ";
+		String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base, alternate_bases as alt, ID, QUAL, FILTER, INFO, FORMAT ";
 
 		for (int index=0; index<samples.length; index++) {
 			queryString += "," + samples[index]; 
@@ -3495,7 +3495,7 @@ public class BigQueryFunctions {
 		 
 		 
 		 queryString += SNames + SCount; // + ", " + otherFields;
-		 queryString += " FROM " + tempTableName + ", UNNEST (alternate_bases) as alt ";
+		 queryString += " FROM " + tempTableName; // + ", UNNEST (alternate_bases) as alt ";
 		 //queryString += "Group By chrm, start, `end`, base, " + otherFields + ", Sample_Names, Num_Samples";
 		 
 		LOG.info(queryString);		 
@@ -3510,7 +3510,7 @@ public class BigQueryFunctions {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		LOG.info("To use " + outputBigQueryTable + " add it to the list of annotation in --variantAnnotationTables (e.g., --variantAnnotationTables=" + project  + ":" + bigQueryDatasetId + "." + bigQueryVCFTableId + ":Sample_Names:Num_Samples)");		 
+		LOG.info("To use " + outputBigQueryTable + " add it to the list of annotation in --variantAnnotationTables (e.g., --variantAnnotationTables=" + project  + ":" + bigQueryDatasetId + "." + bigQueryVCFTableId + "_With_SampleCount:Sample_Names:Num_Samples)");		 
 
 		
 	}
@@ -4079,6 +4079,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	String[] TranscriptCanonicalize=null;
 	String[] VariantannotationCanonicalize=null;
 
+	query.resetVariables();
 	ArrayList<Integer> allAnnotationParams = new ArrayList<Integer>();
 	ArrayList<String []> allAnnotationParamsValues = new ArrayList<String []>();
 
@@ -4221,7 +4222,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 						tempIndex+=UCSCTranscriptAnnotations.length;
 					}
 
-					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, GroupBy);
+					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false);
 					query.padding(allAnnotationParams, allAnnotationParamsValues, VariantAnnotationTables.length+tempIndex, index );
 
 					
@@ -4295,7 +4296,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 
 			
-			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, GroupBy);
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, true);
 			query.padding(allAnnotationParams, allAnnotationParamsValues, TranscriptAnnotations.length+tempIndex, index );
 			
 			String innerSelect=""; 
@@ -4407,7 +4408,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	else
 		AnnotationQuery +=  " ";
 	
-	AllFields=query.getAllFields();	
+	//AllFields=query.getAllFields();	
 	
 	if(UCSCTranscriptAnnotations!=null){
 		for (int index=0; index< UCSCTranscriptAnnotations.length; index++, AnnotationIndex++){
@@ -4426,7 +4427,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			String AliasTableName= "Annotation" + AnnotationIndex; 
 			String TableName = TableInfo[0]+"."+TableInfo[1];
 			
-			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, GroupBy);
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false);
 			query.padding(allAnnotationParams, allAnnotationParamsValues, UCSCTranscriptAnnotations.length, index );
 			
 			//IF the number of fields is more that 1 -> then concatenation all of them
@@ -4498,11 +4499,18 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    		GroupBy= GB;
 	    }
 	    
+	    public void resetVariables() {
+		    RequestedFields="";
+		    GroupByList="";
+		    AllFields="";
+		    createVCF=false;
+		    GroupBy=false;
+	    }
+	    
 	    public void padding(ArrayList<Integer> allAnnotationParams, ArrayList<String[]> allAnnotationParamsValues,
 				int length, int index) {
 	    	 	
-	    	
-	    	
+	    
 	    	//PADDING: Adjust number of fields
 	    	
 			int padding_index=allAnnotationParams.size() - length + index;
@@ -4540,8 +4548,8 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		}
 
 		public void buildRequestedFields(String[] TableInfo, String AliasTableName, boolean createVCF,
-				boolean GroupBy) {
-			
+				boolean generic) {
+					
 	    		//String tempName="";
 	    		RequestedFields ="";
 			//per annotation table -> populate a sub-query
@@ -4573,24 +4581,18 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 	    	
 			if (!createVCF) {// in case of creating Table  
-				if (GroupBy) //ARRAY_AGG
-					if (TableInfo.length>3){
-						//AllFields += ", ARRAY_AGG(`"+ AliasTableName +"." + tempName + "`) as `" + TableInfo[1].split("\\.")[1] +"__" +tempName + "`";
-			//			AllFields += ", `"+ AliasTableName +"." + tempName + "` as `" + TableInfo[1].split("\\.")[1] +"__" +tempName + "`";
-						AllFields += ", `"+ AliasTableName + "` as `" + TableInfo[1].split("\\.")[1] + "`";
-			//			GroupByList+= ", `"+ AliasTableName +"." + tempName + "`";
-						GroupByList+= ", `"+ AliasTableName + "`";
+				if (TableInfo.length>3){
+					if(!generic)
+						AllFields += ", max(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+					else
+						AllFields += ", STRING_AGG(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
 					}
-					else	{
-						AllFields += ", `"+ AliasTableName + "` as `" + TableInfo[1].split("\\.")[1] + "`";
-
-						//AllFields += ", max(`"+ AliasTableName +"." + TableInfo[2] + "`) as `" + TableInfo[1].split("\\.")[1] +"__" +TableInfo[2] + "`";
-//						AllFields += ", `"+ AliasTableName +"." + TableInfo[2] + "` as `" + TableInfo[1].split("\\.")[1] + "`";
-			//			AllFields += ", `"+ AliasTableName +"." + TableInfo[2] + "` as `" + TableInfo[1].split("\\.")[1] +"__" +TableInfo[2] + "`";
-
-			//			GroupByList+= ", `"+ AliasTableName +"." + tempName + "`";
-						GroupByList+= ", `"+ AliasTableName  + "`";
-					}
+				else	{
+					if(!generic)
+						AllFields += ", max( `"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+					else
+						AllFields += ", STRING_AGG( `"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+				}
 			}
 		}
 
