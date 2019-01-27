@@ -4065,11 +4065,12 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		  String TranscriptCanonicalizeRefNames, String VariantAnnotationTableNames, 
 		  String VariantannotationCanonicalizerefNames, 
 		  boolean createVCF, boolean TempVCF, boolean GoogleVCF, boolean numSamples, 
-		  String build, boolean LeftJoin, int binSize) {
+		  String build, boolean LeftJoin, int binSize, boolean CONCAT) {
 
 
 	System.out.println("bin size: " + binSize );
-	
+			
+			
 	String[] UCSCTranscriptAnnotations=null;		
 	String[] TranscriptAnnotations=null;
 	String[] VariantAnnotationTables=null;
@@ -4222,8 +4223,8 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 						tempIndex+=UCSCTranscriptAnnotations.length;
 					}
 
-					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false);
-					query.padding(allAnnotationParams, allAnnotationParamsValues, VariantAnnotationTables.length+tempIndex, index );
+					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, true);
+					query.padding(allAnnotationParams, allAnnotationParamsValues, VariantAnnotationTables.length+tempIndex, index, CONCAT);
 
 					
 					//IF the number of fields is more that 1 -> then concat all of them
@@ -4296,8 +4297,8 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 
 			
-			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, true);
-			query.padding(allAnnotationParams, allAnnotationParamsValues, TranscriptAnnotations.length+tempIndex, index );
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, true, true);
+			query.padding(allAnnotationParams, allAnnotationParamsValues, TranscriptAnnotations.length+tempIndex, index, CONCAT );
 			
 			String innerSelect=""; 
 			//IF the number of fields is more that 1 -> then concatenation all of them
@@ -4427,8 +4428,8 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			String AliasTableName= "Annotation" + AnnotationIndex; 
 			String TableName = TableInfo[0]+"."+TableInfo[1];
 			
-			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false);
-			query.padding(allAnnotationParams, allAnnotationParamsValues, UCSCTranscriptAnnotations.length, index );
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, true);
+			query.padding(allAnnotationParams, allAnnotationParamsValues, UCSCTranscriptAnnotations.length, index, CONCAT );
 			
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
@@ -4508,7 +4509,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    }
 	    
 	    public void padding(ArrayList<Integer> allAnnotationParams, ArrayList<String[]> allAnnotationParamsValues,
-				int length, int index) {
+				int length, int index, boolean concat) {
 	    	 	
 	    
 	    	//PADDING: Adjust number of fields
@@ -4518,26 +4519,34 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 
 			for (int adjustIndex=0; adjustIndex<allAnnotationParams.size(); adjustIndex++) {
 				String[] FieldNames = allAnnotationParamsValues.get(adjustIndex);
-				String fieldNames="";
 				if(adjustIndex < padding_index ) {
-					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
-//						Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." + FieldNames[i+2] + "`, " ;
-						if(i+1<allAnnotationParams.get(adjustIndex))
-							fieldNames+=FieldNames[i+2]+"__";
-						else
-							fieldNames+=FieldNames[i+2];
-					}
-	//				Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) + "." +  fieldNames + "`, " ;
-					Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) +  "`, " ;
+					if (!concat) {
+						for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+							if(i+1<allAnnotationParams.get(adjustIndex)) {
+								Padding += "'' as `Annotation" + (adjustIndex+1) +"."+ FieldNames[i+2] + "`,";
+							}
+							else {
+//								if (adjustIndex+1 == padding_index)
+//									Padding += "'' as `Annotation" + (adjustIndex+1) +"."+ FieldNames[i+2] + "`,";
+//								else
+									Padding += "'' as `Annotation" + (adjustIndex+1) +"."+ FieldNames[i+2] + "`,";
+
+							}
+						}
+					}else //concat
+						Padding =  Padding + "'' as `Annotation" + (adjustIndex+1) +  "`, " ;
 				}else if (adjustIndex > padding_index) {
-					for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
-						if(i+1<allAnnotationParams.get(adjustIndex))
-							fieldNames+=FieldNames[i+2]+"__";
-						else
-							fieldNames+=FieldNames[i+2];
-					}
-	//				Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "." + fieldNames + "` ";
-					Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "` ";
+					if(!concat) {
+						for (int i=0; i< allAnnotationParams.get(adjustIndex); i++) {
+							if(i+1<allAnnotationParams.get(adjustIndex)) {
+								Padding += ",'' as `Annotation" + (adjustIndex+1) +"."+ FieldNames[i+2] + "`";
+							}
+							else {
+								Padding += ",'' as `Annotation" + (adjustIndex+1) +"."+ FieldNames[i+2] + "`";
+							}
+						}
+					} else// (concat)
+						Padding =  Padding + ",'' as `Annotation" + (adjustIndex+1) + "` ";
 				}
 				else if (adjustIndex == padding_index)
 					Padding+=RequestedFields;
@@ -4548,7 +4557,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		}
 
 		public void buildRequestedFields(String[] TableInfo, String AliasTableName, boolean createVCF,
-				boolean generic) {
+				boolean generic, boolean concat) {
 					
 	    		//String tempName="";
 	    		RequestedFields ="";
@@ -4557,33 +4566,46 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 				
 				//1. Inner Query
 				if (TableInfo.length>3){ // Creating CONCAT
-					if(RequestedFields == "")
+					if(RequestedFields == "" && concat)
 						RequestedFields = "CONCAT ( ";
 					
 					if (fieldIndex+1 < TableInfo.length){
 						if(createVCF)
 							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
-						else
-							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] + ",'\\t',";
-			//			tempName+=TableInfo[fieldIndex]+"__";
+						else {
+							if (concat)
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] + ",'\\t',";
+							else {
+								if (fieldIndex>2)
+									RequestedFields += ",";
+								RequestedFields +=  AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
+								AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + AliasTableName +"_" + TableInfo[fieldIndex]+ "`";
+							}
+						}
 					}
 					else {
-			//			tempName+=TableInfo[fieldIndex];
-			//			RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +") as `" + AliasTableName +"." + tempName + "`";
-						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +") as `" + AliasTableName + "`";
+						if(concat)
+							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +") as `" + AliasTableName + "`";
+						else {
+							RequestedFields += "," + AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
+							AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + AliasTableName +"_" + TableInfo[fieldIndex]+ "`";
+						}
 					}
 				}
 				else //If there is only one feature
-					RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName + "`";
-			//	RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";
-	
-								
+					if(concat)
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName + "`";
+					else {
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
+						AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + AliasTableName +"_" + TableInfo[fieldIndex]+ "`";
+					}		
 			}
 	    	
-			if (!createVCF) {// in case of creating Table  
+			if (!createVCF && concat) {// in case of creating Table  
 				if (TableInfo.length>3){
-					if(!generic)
+					if(!generic) {
 						AllFields += ", max(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+					}
 					else
 						AllFields += ", STRING_AGG(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
 					}

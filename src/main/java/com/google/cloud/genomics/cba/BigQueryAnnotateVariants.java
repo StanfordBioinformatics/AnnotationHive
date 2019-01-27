@@ -24,6 +24,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 
 import org.apache.beam.sdk.io.gcp.bigquery.*;
@@ -285,11 +287,18 @@ public final class BigQueryAnnotateVariants {
 		@Default.Boolean(false)
 		boolean getNumberSamples();
 		void setNumberSamples(boolean numberSamples);
+		
+		@Description("If the query is less than 1024.00K characters. Then, we can turn off concat")
+		@Default.Boolean(true)
+		boolean getConcat();
+		void setConcat(boolean _concat);
 	}
 
 	private static Options options;
 	private static Pipeline p;
 	private static final Logger LOG = Logger.getLogger(BigQueryAnnotateVariants.class.getName());
+	
+	
 
 	/**
 	 * <h1>This function is the main function that populates queries and calls
@@ -423,6 +432,8 @@ public final class BigQueryAnnotateVariants {
 									//Convert Google VCF table to AnnotationHive's VCF version
 									if(options.getGoogleVCF())
 									{
+
+										
 										String Google_VCF= options.getVCFTables();
 										
 										queryString = "SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, "
@@ -431,12 +442,14 @@ public final class BigQueryAnnotateVariants {
 
 										options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
 										
-										LOG.info("STEP 0:" + queryString);
-
-										runQuery(queryString, options.getBigQueryDatasetId(), 
-												Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" , true,
-												options.getMaximumBillingTier(), false, false, false);
+										if (!checkTableExist(options.getBigQueryDatasetId(), 
+												Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" )) {
+											LOG.info("STEP 0:" + queryString);
+											runQuery(queryString, options.getBigQueryDatasetId(), 
+													Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" , true,
+													options.getMaximumBillingTier(), false, false, false);
 										
+										}
 										options.setGoogleVCF(false);
 									}
 									
@@ -446,13 +459,15 @@ public final class BigQueryAnnotateVariants {
 											options.getGenericCanonicalizeRefNames(), null,
 											options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
 											false, options.getGoogleVCF(),
-											options.getNumberSamples(), options.getBuild(),true, options.getBinSize());
+											options.getNumberSamples(), options.getBuild(),true, options.getBinSize(), options.getConcat());
 
-									LOG.info("STEP 1:" + queryString);
-									
-									runQuery(queryString, options.getBigQueryDatasetId(), 
-									options.getOutputBigQueryTable() +"_Join_wUCSC", true,
-											options.getMaximumBillingTier(), false, false, false);
+									if (!checkTableExist(options.getBigQueryDatasetId(), 
+											options.getOutputBigQueryTable() +"_Join_wUCSC")) {
+										LOG.info("STEP 1:" + queryString);
+										runQuery(queryString, options.getBigQueryDatasetId(), 
+												options.getOutputBigQueryTable() +"_Join_wUCSC", true,
+												options.getMaximumBillingTier(), false, false, false);
+									}
 		//VCF -> alternate   
 									queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Concat(options.getVCFTables(),
 											options.getBigQueryDatasetId() + ":" + options.getOutputBigQueryTable() +"_Join_wUCSC",
@@ -460,7 +475,7 @@ public final class BigQueryAnnotateVariants {
 											options.getGenericAnnotationTables(),
 											options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 											options.getVariantAnnotationCanonicalizeRefNames(), false, 
-											false, options.getGoogleVCF(), false, options.getBuild(), false, options.getBinSize());
+											false, options.getGoogleVCF(), false, options.getBuild(), false, options.getBinSize(), options.getConcat());
 								}
 								else {
 									queryString = BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Concat(options.getVCFTables(), "",
@@ -468,7 +483,7 @@ public final class BigQueryAnnotateVariants {
 										options.getGenericCanonicalizeRefNames(), options.getVariantAnnotationTables(),
 										options.getVariantAnnotationCanonicalizeRefNames(), options.getCreateVCF(), 
 										false, options.getGoogleVCF(),
-										options.getNumberSamples(), options.getBuild(), false, options.getBinSize());
+										options.getNumberSamples(), options.getBuild(), false, options.getBinSize(), options.getConcat());
 								}
 							}
 						}else { //In case we ONLY have variant annotations
@@ -1181,6 +1196,7 @@ public final class BigQueryAnnotateVariants {
 	}
 
 	
+	
 	private static String createHeader() {
 		String Header = "Chrom\tStart\tEnd\tRef\tAlt\t";
 		if (options.getNumberSamples())
@@ -1244,6 +1260,13 @@ public final class BigQueryAnnotateVariants {
 		
 		return Header;
 	}
+	
+	private static boolean checkTableExist(String _DatasetID, String _TableID) {
+	    BigQueryOptions.Builder optionsBuilder = BigQueryOptions.newBuilder();
+	    BigQuery bigquery = optionsBuilder.build().getService();
+	    LOG.warning("DatasetId: " + _DatasetID +" TableId: " + _TableID);
+	    return bigquery.getDataset(_DatasetID).get(_TableID) != null;		    	    
+}
 
 	static final class BinVariantsFn extends DoFn<TableRow, KV<Long, TableRow>> {
 		/**
@@ -1332,5 +1355,7 @@ public final class BigQueryAnnotateVariants {
 			});
 
 	static final Comparator<KV<Integer, Iterable<KV<Long, Iterable<String>>>>> ChrmID_COMPARATOR = BY_ChrmID;
+	
+	
 
 }
