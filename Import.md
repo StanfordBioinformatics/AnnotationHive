@@ -39,9 +39,11 @@ the Google Genomics format. So, if you have an mVCF file, and want AnnotationHiv
 * Import mVCF/VCF files using the API provided by AnnotationHive 
 If this is the first time you are importing a VCF file using AnnotationHive, please run the following command. This command will create a new table called VCFList that stores metadata and keeps track of your VCF files.
 
+
    ```
    mvn compile exec:java -Dexec.mainClass=com.google.cloud.genomics.cba.StartAnnotationHiveEngine -Dexec.args="ImportVCFFromGCSToBigQuery --project=<Your_Google_Cloud_Project_Name> --stagingLocation=gs://<Your_Google_Cloud_Bucket_Name>/<Staging_Address>/  --bigQueryDatasetId=<Google_Genomics_DatasetId> --runner=DataflowRunner --createVCFListTable=true" -Pdataflow-runner
    ```
+         Your_Google_Cloud_Project_Name is the project that contains your BigQuery dataset.
 
 Use the following command to import mVCF/VCF files
 ```
