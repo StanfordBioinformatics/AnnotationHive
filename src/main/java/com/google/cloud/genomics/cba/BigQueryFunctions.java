@@ -3030,7 +3030,6 @@ public class BigQueryFunctions {
 										//AllFields += ", CONCAT(\""+ TableInfo[1].split("\\.")[1] +": \","+ AliasTableName +"." + TableInfo[fieldIndex] + " ) ";
 								}
 							}
-														
 						}
 						
 						//IF the number of fields is more that 1 -> then concat all of them
@@ -4161,35 +4160,19 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 
 	for (int index=0; index< VCFTables.length; index++){
 		if(VCFCanonicalize!=null) { 
-//			if (!GoogleVCF)
 				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
-//			else
-//				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
 		}else {
 			UCSC_VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
-//			if (!GoogleVCF)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
-//			else
-//				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+			VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
 		}
 	
 		//Check UCSC_VCF
 		if (VCF_UCSC_Tables!=null)
 			UCSC_VCFQuery += ", " + build + "_UCSC_knownGene FROM `"+ VCF_UCSC_Tables[index].split(":")[0] + "." + VCF_UCSC_Tables[index].split(":")[1]  +"`) ";
-//		if (GoogleVCF)
-//			VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases) ";
-//		else
-			VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`) ";
+		VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`) ";
 	
 	}
-	
-	System.out.println("-------------------------------");
-
-	if(VCFCanonicalize==null) {
-			System.out.println(VCFQuery);
-			System.out.println(GoogleVCF);
-	}
-	
+		
 	VCFQuery +=" ) as VCF ";
 	UCSC_VCFQuery +=" ) as VCF ";
 	 	 
@@ -4325,14 +4308,14 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 
 			if (!LeftJoin) { //Everything
-				AnnotationQuery += innerSelect + " FROM " + UCSC_VCFQuery 
+				AnnotationQuery += "(" + innerSelect + " FROM " + UCSC_VCFQuery 
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
 				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
 						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
 				AnnotationQuery += " WHERE "
 					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
 				
-				AnnotationQuery += " UNION ALL " 
+				AnnotationQuery += " UNION DISTINCT " 
 					+ innerSelect + " FROM " + UCSC_VCFQuery
 					+ " JOIN `" + TableName +"` AS " + AliasTableName 	
 					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
@@ -4340,7 +4323,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 				    + " WHERE "
 				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
 
-				AnnotationQuery += " UNION ALL " 
+				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + UCSC_VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
 						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
@@ -4348,13 +4331,13 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					    + " WHERE "
 					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
 				
-				AnnotationQuery += " UNION ALL " 
+				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + UCSC_VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
 						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
 						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end )) ";
 
 			}
 			else { // VCF annd UCSC_knownGene
@@ -4371,7 +4354,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 				AnnotationQuery += " WHERE "
 					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
 				
-				AnnotationQuery += " UNION ALL " 
+				AnnotationQuery += " UNION DISTINCT " 
 					+ innerSelect + " FROM " + VCFQuery
 					+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
 					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
@@ -4379,7 +4362,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 				    + " WHERE "
 				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
 
-				AnnotationQuery += " UNION ALL " 
+				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + VCFQuery
 						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
 						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
@@ -4387,7 +4370,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					    + " WHERE "
 					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
 				
-				AnnotationQuery += " UNION ALL " 
+				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + VCFQuery
 						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
 						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
@@ -4475,17 +4458,22 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	}
 	String Query= "  SELECT "
 			+ " reference_name, start, `end`, reference_bases, "
-			+ " alternate_bases " + AllFields 
-			+ " FROM (";
+			+ " alternate_bases ";
 	
-	Query += AnnotationQuery;
-	
-	if(!createVCF && GroupBy) {
-		Query += " ) GROUP BY  reference_name, start, `END`, reference_bases, alternate_bases " + query.getGroupByList(); 
-		if (numSamples) {
-			Query += ",  num_samples " ;
+	if (	TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg19_UCSC_knownGene:name")
+			|| TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name")) {
+			Query = AnnotationQuery.replaceAll("Annotation1.name as `Annotation1`", "Annotation1.name as `hg19_UCSC_knownGene`");
+	}else {
+		
+		Query+=AllFields + " FROM (" + AnnotationQuery;
+		if(!createVCF && GroupBy) {
+			Query += " ) GROUP BY  reference_name, start, `END`, reference_bases, alternate_bases " + query.getGroupByList(); 
+			if (numSamples) {
+				Query += ",  num_samples " ;
+			}
 		}
 	}
+	
 	return Query;
 }
 
@@ -4607,13 +4595,15 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 						AllFields += ", max(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
 					}
 					else
-						AllFields += ", STRING_AGG(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+						AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+						+ "` END) as `" + TableInfo[1].split("\\.")[1] + "`";
 					}
 				else	{
 					if(!generic)
 						AllFields += ", max( `"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
 					else
-						AllFields += ", STRING_AGG( `"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+						AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+						+ "` END) as `" + TableInfo[1].split("\\.")[1] + "`";
 				}
 			}
 		}
