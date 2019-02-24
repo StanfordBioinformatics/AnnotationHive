@@ -199,26 +199,23 @@ public final class BigQueryAnnotateVariants {
 		void setBuild(String Build);
 		
 		@Description("Genomic window \"bin\" size to use")
-		@Default.Integer(1000000)
+		@Default.Integer(2500000)
 		int getBinSize();
 		void setBinSize(int BinSize);
 
 		@Description("Proximity Threshold (i.e., Number of bps) for Gene-based annotation")
 		@Default.Integer(1000)
 		int getProximityThreshold();
-
 		void setProximityThreshold(int ProximityThreshold);
 
 		@Description("The query pricing rate has levels called “billing tiers”.")
 		@Default.Integer(1)
 		int getMaximumBillingTier();
-
 		void setMaximumBillingTier(int MaximumBillingTier);
 
 		@Description("User can decide using Dataflow or BigQuery for Sorting")
 		@Default.Boolean(false)
 		boolean getBigQuerySort();
-
 		void setBigQuerySort(boolean BigQuerySort);
 
 		@Description("In gene-based annotation, if you only want Introgenic variants to be annotated")
@@ -242,7 +239,6 @@ public final class BigQueryAnnotateVariants {
 		@Description("User can specifiy an input sample ID(e.g., callset.calset_name)")
 		@Default.String("")
 		String getSampleId();
-
 		void setSampleId(String SampleId);
 
 		@Description("If user wants to get a VCF file (true/false - default is false, and it creates a table)")
@@ -289,9 +285,10 @@ public final class BigQueryAnnotateVariants {
 		void setNumberSamples(boolean numberSamples);
 		
 		@Description("If the query is less than 1024.00K characters. Then, we can turn off concat")
-		@Default.Boolean(true)
+		@Default.Boolean(false)
 		boolean getConcat();
 		void setConcat(boolean _concat);
+
 	}
 
 	private static Options options;
@@ -314,7 +311,6 @@ public final class BigQueryAnnotateVariants {
 
 		// Here is the dataflow pipeline
 		p = Pipeline.create(options);
-
 		
 		//TODO: check if builds are the same!!!!
 		LOG.warning("NOTE: Build is " + options.getBuild());
@@ -371,9 +367,37 @@ public final class BigQueryAnnotateVariants {
 			
 		try {
 			long startTime = System.currentTimeMillis();
-	
+
+			
+			
 			String queryString = "";
 			boolean LegacySql = false;
+			
+			//Convert Google VCF table to AnnotationHive's VCF version
+			if(options.getGoogleVCF())
+			{
+				
+				String Google_VCF= options.getVCFTables();
+				
+				queryString = "SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, "
+						+ "end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
+						+ Google_VCF.split(":")[0] + "." + Google_VCF.split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases ";
+
+				options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
+				
+				if (!checkTableExist(options.getBigQueryDatasetId(), 
+						Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" )) {
+					LOG.info("STEP 0:" + queryString);
+					runQuery(queryString, options.getBigQueryDatasetId(), 
+							Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" , true,
+							options.getMaximumBillingTier(), false, false, false);
+				
+				}
+				options.setGoogleVCF(false);
+			}
+
+			
+			
 			if (!options.getVCFTables().isEmpty()) { // default empty
 				if (options.getSampleId().isEmpty()) { // default empty
 					if (options.getGeneBasedAnnotation()) { //default false
@@ -429,29 +453,28 @@ public final class BigQueryAnnotateVariants {
 										UCSC_KnownGene= "gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name";
 									
 									
-									//Convert Google VCF table to AnnotationHive's VCF version
-									if(options.getGoogleVCF())
-									{
-
-										
-										String Google_VCF= options.getVCFTables();
-										
-										queryString = "SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, "
-												+ "end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
-												+ Google_VCF.split(":")[0] + "." + Google_VCF.split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases ";
-
-										options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
-										
-										if (!checkTableExist(options.getBigQueryDatasetId(), 
-												Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" )) {
-											LOG.info("STEP 0:" + queryString);
-											runQuery(queryString, options.getBigQueryDatasetId(), 
-													Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" , true,
-													options.getMaximumBillingTier(), false, false, false);
-										
-										}
-										options.setGoogleVCF(false);
-									}
+//									//Convert Google VCF table to AnnotationHive's VCF version
+//									if(options.getGoogleVCF())
+//									{
+//										
+//										String Google_VCF= options.getVCFTables();
+//										
+//										queryString = "SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, "
+//												+ "end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
+//												+ Google_VCF.split(":")[0] + "." + Google_VCF.split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases ";
+//
+//										options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
+//										
+//										if (!checkTableExist(options.getBigQueryDatasetId(), 
+//												Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" )) {
+//											LOG.info("STEP 0:" + queryString);
+//											runQuery(queryString, options.getBigQueryDatasetId(), 
+//													Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" , true,
+//													options.getMaximumBillingTier(), false, false, false);
+//										
+//										}
+//										options.setGoogleVCF(false);
+//									}
 									
 									queryString=BigQueryFunctions.prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Concat(
 											options.getVCFTables(),options.getVCFTables(),
@@ -564,8 +587,7 @@ public final class BigQueryAnnotateVariants {
 							options.getVariantAnnotationCanonicalizeRefNames(), "", false, true, options.getGoogleVCF());
 				}
 	
-				LegacySql = true;
-	
+				LegacySql = true;	
 			} else { // options.getInputRegion().isEmpty()
 	
 				LOG.info("<============ Region-based Annotation ( " + options.getInputVariant() + " ) ============>");
@@ -607,7 +629,6 @@ public final class BigQueryAnnotateVariants {
 							options.getVariantAnnotationCanonicalizeRefNames(), "", false, true, options.getGoogleVCF());
 				}
 				LegacySql = true;
-	
 			}
 	
 			LOG.info("Query: " + queryString);
@@ -618,6 +639,22 @@ public final class BigQueryAnnotateVariants {
 			{
 				runQuery(queryString, options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp", true,
 					options.getMaximumBillingTier(), LegacySql, false, false);
+		
+				String tempTable= options.getProjectId() + "." + options.getBigQueryDatasetId() + "."+options.getOutputBigQueryTable()+"_temp";
+				
+				String VCFQuery = "(SELECT  REPLACE(reference_name, '', '') AS reference_name, "
+						+ " start, `END`, reference_bases, alternate_bases  FROM " 
+						+ "`"+tempTable+"` "  
+						+ ") AS VCF";
+				
+				//Find Exonic Regions
+				String ExonincQuery = BigQueryFunctions.query.findExonic(options.getBuild(), 1,  true, false, false, 
+						VCFQuery, 2500000, tempTable);			
+
+				LOG.info("Exonic Query: " + ExonincQuery);
+
+				runQuery(ExonincQuery, options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2", true,
+						options.getMaximumBillingTier(), LegacySql, false, false);				
 				
 				//Partition By
 				String PartitionQuery = "CREATE TABLE `"
@@ -626,7 +663,7 @@ public final class BigQueryAnnotateVariants {
 						+ " CLUSTER BY reference_name, start , `end` AS ("
 						+ " SELECT *, DATE('1980-01-01') partition_date_please_ignore FROM "
 						+ " `"
-						+ options.getProjectId() + "." + options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable()+"_temp"
+						+ options.getProjectId() + "." + options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable()+"_temp2"
 						+ "`)";
 				
 				LOG.info("Partition Query: " + PartitionQuery);
@@ -635,9 +672,9 @@ public final class BigQueryAnnotateVariants {
 				runQuery(PartitionQuery, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
 						options.getMaximumBillingTier(), false, false, true);
 				
-				//Remove the temp table
+				//Remove the temp tables
 				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp");
-
+				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2");
 				
 			}
 			long tempEstimatedTime = System.currentTimeMillis() - startTime;

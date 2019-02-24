@@ -4127,13 +4127,23 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			allAnnotationParamsValues.add(UCSCTranscriptAnnotations[index].split(":"));
 		}
 	}
+
+//	boolean exonic=true;
+//	if(exonic) {
+//		numAnnotationDatasets++;
+//		allAnnotationParams.add(1);
+//		if(build.equalsIgnoreCase("hg19"))
+//			allAnnotationParamsValues.add("gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene:Type".split(":"));
+//		else if(build.equalsIgnoreCase("hg38"))
+//			allAnnotationParamsValues.add("gbsc-gcp-project-cba:PublicAnnotationSets.hg38_refGene:Type".split(":"));	
+//	}
 	
 	//BigQuery Limit
-	boolean GroupBy;
-	if(numAnnotationDatasets<=64)
-		GroupBy=true;
-	else
-		GroupBy=false;
+	boolean GroupBy=true;
+//	if(numAnnotationDatasets<=64)
+//		GroupBy=true;
+//	else
+//		GroupBy=false;
 	
 	
 	//////////VCF Files/////////////
@@ -4167,20 +4177,23 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		}
 	
 		//Check UCSC_VCF
-		if (VCF_UCSC_Tables!=null)
+		if (VCF_UCSC_Tables!=null) {
 			UCSC_VCFQuery += ", " + build + "_UCSC_knownGene FROM `"+ VCF_UCSC_Tables[index].split(":")[0] + "." + VCF_UCSC_Tables[index].split(":")[1]  +"`) ";
+
+		}
 		VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`) ";
-	
+
 	}
 		
 	VCFQuery +=" ) as VCF ";
 	UCSC_VCFQuery +=" ) as VCF ";
+
 	 	 
 	String AllFields=""; // Use to 
 	String AnnotationQuery="";
 	int AnnotationIndex=1; // Use for creating alias names
 	
-	/*#######################Prepare VCF queries#######################*/
+	/*#######################Prepare Variant Annotation queries#######################*/
 	if(VariantAnnotationTables!=null){
 		LOG.info("Variant Annotations ");
 		for (int index=0; index< VariantAnnotationTables.length; index++,AnnotationIndex++){
@@ -4205,8 +4218,10 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					if (UCSCTranscriptAnnotations!=null) {
 						tempIndex+=UCSCTranscriptAnnotations.length;
 					}
-
-					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, true);
+//					if(exonic)
+//						tempIndex++;
+					
+					query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, CONCAT);
 					query.padding(allAnnotationParams, allAnnotationParamsValues, VariantAnnotationTables.length+tempIndex, index, CONCAT);
 
 					
@@ -4238,7 +4253,8 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
 
 					AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-						+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
+						+ " WHERE ((("+ AliasTableName + ".base 	= \"\")  "
+								+ "AND (CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
 						+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
 					
 					//This is the case when we have transcript annotations 
@@ -4278,9 +4294,11 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			if (UCSCTranscriptAnnotations!=null) {
 				tempIndex+=UCSCTranscriptAnnotations.length;
 			}
-
+//			if(exonic)
+//				tempIndex++;
 			
-			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, true, true);
+			
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, true, CONCAT);
 			query.padding(allAnnotationParams, allAnnotationParamsValues, TranscriptAnnotations.length+tempIndex, index, CONCAT );
 			
 			String innerSelect=""; 
@@ -4308,7 +4326,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 
 			if (!LeftJoin) { //Everything
-				AnnotationQuery += "(" + innerSelect + " FROM " + UCSC_VCFQuery 
+				AnnotationQuery += "(" + innerSelect + " FROM " + VCFQuery 
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
 				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
 						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
@@ -4316,7 +4334,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
 				
 				AnnotationQuery += " UNION DISTINCT " 
-					+ innerSelect + " FROM " + UCSC_VCFQuery
+					+ innerSelect + " FROM " + VCFQuery
 					+ " JOIN `" + TableName +"` AS " + AliasTableName 	
 					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
 					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
@@ -4324,7 +4342,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
 
 				AnnotationQuery += " UNION DISTINCT " 
-						+ innerSelect + " FROM " + UCSC_VCFQuery
+						+ innerSelect + " FROM " + VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
 						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
 						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
@@ -4332,7 +4350,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
 				
 				AnnotationQuery += " UNION DISTINCT " 
-						+ innerSelect + " FROM " + UCSC_VCFQuery
+						+ innerSelect + " FROM " + VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
 						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
 						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
@@ -4411,9 +4429,13 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			String AliasTableName= "Annotation" + AnnotationIndex; 
 			String TableName = TableInfo[0]+"."+TableInfo[1];
 			
-			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, true);
-			query.padding(allAnnotationParams, allAnnotationParamsValues, UCSCTranscriptAnnotations.length, index, CONCAT );
+			int tempIndex=0;
+//			if(exonic)
+//				tempIndex=1;
 			
+			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, CONCAT);
+			query.padding(allAnnotationParams, allAnnotationParamsValues, UCSCTranscriptAnnotations.length+tempIndex, index, CONCAT );
+
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
 				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
@@ -4442,14 +4464,20 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			
 			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
 			AnnotationQuery += "AND (" + AliasTableName + ".UCSC_ID = VCF." + build + "_UCSC_knownGene) "
-					+ "AND VCF." + build + "_UCSC_knownGene IS NULL " ; //Intergenic Regions
+					+ "AND VCF." + build + "_UCSC_knownGene IS NOT NULL " ; 
 			
 			if(index+1 <  UCSCTranscriptAnnotations.length)
 				AnnotationQuery +=  " UNION ALL ";
 			else
 				AnnotationQuery +=  " ";
 		}
-	}		
+	}
+	
+/// Finding the type of variants
+//	if(exonic)
+//		AnnotationQuery+= " UNION ALL " + query.findExonic(build, AnnotationIndex++, allAnnotationParams, allAnnotationParamsValues, CONCAT, 
+//				numSamples, GoogleVCF, VCFQuery, 2500000); //largest transcript
+	
 	
 	AllFields=query.getAllFields();	
 
@@ -4460,9 +4488,9 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			+ " reference_name, start, `end`, reference_bases, "
 			+ " alternate_bases ";
 	
-	if (	TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg19_UCSC_knownGene:name")
-			|| TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name")) {
-			Query = AnnotationQuery.replaceAll("Annotation1.name as `Annotation1`", "Annotation1.name as `hg19_UCSC_knownGene`");
+	if (	TranscriptAnnotationTableNames!=null && (TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg19_UCSC_knownGene:name")
+			|| TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name"))) {
+			Query = AnnotationQuery.replaceAll("Annotation1.name as `Annotation1.name`", "Annotation1.name as `hg19_UCSC_knownGene`");
 	}else {
 		
 		Query+=AllFields + " FROM (" + AnnotationQuery;
@@ -4473,7 +4501,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 		}
 	}
-	
+
 	return Query;
 }
 
@@ -4487,8 +4515,198 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    public void setGroupBy(boolean GB) {
 	    		GroupBy= GB;
 	    }
+
+	    public String findExonic2(String build, int AnnotationIndex, ArrayList<Integer> allAnnotationParams,
+	    		ArrayList<String[]> allAnnotationParamsValues, boolean CONCAT, boolean numSamples, boolean GoogleVCF, String VCFQuery, int binSize) {
 	    
-	    public void resetVariables() {
+	    	String s="SELECT SRC.*, DEST.Final as `Final` FROM       "
+	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3` as SRC JOIN  "
+	    			+ "(SELECT     VCF.reference_name as `reference_name` ,     VCF.start as start,     VCF.END as `END`,     "
+	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,   "
+	    			+ "ARRAY_AGG (STRUCT(REPLACE(REPLACE(REPLACE(status, '1', ''), '2', ''), '3', ''))    ORDER BY     "
+	    			+ "Status ASC    LIMIT     1)[ OFFSET   (0)]  Final FROM (   SELECT     VCF.reference_name as `reference_name`,     "
+	    			+ "VCF.start as `start`,     VCF.END as `END`,     VCF.reference_bases as `reference_bases`,    "
+	    			+ " VCF.alternate_bases as `alternate_bases`,      CASE       WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) "
+	    			+ "THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.END)       AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       "
+	    			+ "ELSE '2Intronic'     END AS Status   FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       "
+	    			+ "start,       `END`,       reference_bases,       alternate_bases     FROM       "
+	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   LEFT JOIN (     "
+	    			+ "SELECT       chrm,       start,       `end`,       CAST(StartPoint AS INT64) StartPoint,      "
+	    			+ " CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       "
+	    			+ "UNNEST(SPLIT( exonStarts )) StartPoint     WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     "
+	    			+ "WITH     OFFSET       pos2     ON       pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   "
+	    			+ "ON     VCF.reference_name = AN.chrm   AND ( DIV(VCF.START,2500000)=DIV(AN.START, 2500000))   "
+	    			+ "GROUP BY     VCF.reference_name,     VCF.start,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases,     Status  "
+	    			+ " UNION DISTINCT    "
+	    			+ "SELECT     VCF.reference_name as `reference_name`,     VCF.start as `start`,     VCF.END as `END`,     "
+	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,     "
+	    			+ " CASE       WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'      "
+	    			+ " WHEN ((AN.StartPoint <= VCF.END)       AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       "
+	    			+ "ELSE '2Intronic'     END AS Status   FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       "
+	    			+ "start,       `END`,       reference_bases,       alternate_bases     FROM       "
+	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   "
+	    			+ "LEFT JOIN (     SELECT       chrm,       start,       `end`,       CAST(StartPoint AS INT64) StartPoint,       "
+	    			+ "CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       "
+	    			+ "UNNEST(SPLIT( exonStarts )) StartPoint     WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint    "
+	    			+ " WITH     OFFSET       pos2     ON       pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     "
+	    			+ "VCF.reference_name = AN.chrm   AND (DIV(VCF.START,2500000)=DIV(AN.END, 2500000)    )   GROUP BY    "
+	    			+ " VCF.reference_name,     VCF.start,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases,     Status,     "
+	    			+ "AN.END,     AN.START   UNION DISTINCT    SELECT     VCF.reference_name as `reference_name`,     VCF.start as `start`,     "
+	    			+ "VCF.END as `END`,     VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,      "
+	    			+ " CASE       WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.END)       "
+	    			+ "AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       ELSE '2Intronic'     END AS Status   "
+	    			+ "FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       start,       `END`,       reference_bases,"
+	    			+ " alternate_bases     FROM       "
+	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`"
+	    			+ ") AS VCF   LEFT JOIN (     SELECT       chrm,       start,       `end`,       name,       name2,       "
+	    			+ "CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     FROM      "
+	    			+ " `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     "
+	    			+ "WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     WITH     OFFSET       pos2     ON       "
+	    			+ "pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.chrm   "
+	    			+ "AND (DIV(VCF.END,2500000)=DIV(AN.START, 2500000)   )   GROUP BY     VCF.reference_name,     "
+	    			+ "VCF.start,     VCF.END,     VCF.reference_bases,     alternate_bases,     Status   UNION DISTINCT      "
+	    			+ "SELECT     VCF.reference_name as `reference_name`,     VCF.start as `start`,     VCF.END as `END`,     "
+	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,      CASE      "
+	    			+ " WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.END)       "
+	    			+ "AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       ELSE '2Intronic'     END AS Status   FROM (     SELECT       "
+	    			+ "REPLACE(reference_name, '', '') AS reference_name,       start,       `END`,       reference_bases,       alternate_bases     "
+	    			+ "FROM       `gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   LEFT JOIN (     SELECT       "
+	    			+ "chrm,       start,       `end`,       CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     "
+	    			+ "FROM       `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     WITH     "
+	    			+ "OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     WITH     OFFSET       pos2     ON       pos1 = pos2     "
+	    			+ "WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.chrm   AND ( DIV(VCF.END,2500000)=DIV(AN.END, 2500000)   )   "
+	    			+ "GROUP BY     VCF.reference_name,     VCF.start,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases,     Status    ) "
+	    			+ "as VCF GROUP BY    VCF.reference_name,     VCF.start ,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases) AS DEST "
+	    			+ "ON     DEST.reference_name=SRC.reference_name AND     DEST.start=SRC.Start AND     DEST.END=SRC.END AND     "
+	    			+ "DEST.reference_bases= SRC.reference_bases AND     DEST.alternate_bases= SRC.alternate_bases";
+	    	
+	    	
+	    	return "";
+	    }	    
+	    
+//	    public String findExonic(String build, int AnnotationIndex, ArrayList<Integer> allAnnotationParams,
+//	    		ArrayList<String[]> allAnnotationParamsValues, boolean CONCAT, boolean numSamples, boolean GoogleVCF, String VCFQuery, int binSize) {
+	    	   public String findExonic(String build, int AnnotationIndex, boolean CONCAT, boolean numSamples, boolean GoogleVCF, 
+	    			   String VCFQuery, int binSize, String tempTable) {	
+	    		String tempQuery="";
+	    		String GeneAnnotationTable;
+			if(build.equalsIgnoreCase("hg19"))
+				GeneAnnotationTable="gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene:Type";
+			else // if(build.equalsIgnoreCase("hg38"))
+				GeneAnnotationTable = "gbsc-gcp-project-cba:PublicAnnotationSets.hg38_refGene:Type";
+			
+			/*#######################Prepare Gene Annotation queries#######################*/
+			LOG.info("Gene Annotations ");
+							
+							/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
+							 * ProjectId: gbsc-gcp-project-cba
+							 * DatasetId: PublicAnnotationSets
+							 * TableId: hg19_GME
+							 * Features: GME_AF:GME_NWA:GME_NEA
+							 */
+							
+			String [] TableInfo = GeneAnnotationTable.split(":");
+													
+			//String RequestedFields="";
+			String AliasTableName= "Annotation" + AnnotationIndex; 
+			String TableName = TableInfo[0]+"."+TableInfo[1];
+								
+
+//			query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, true);
+//			query.padding(allAnnotationParams, allAnnotationParamsValues, 1, 1, CONCAT);
+
+
+//			tempQuery="SELECT VCF.reference_name , VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases,  ";
+//			tempQuery +=  query.getRequestedFields().replaceFirst("'' as `Annotation2`,", "");
+			
+			tempQuery+="SELECT SRC.*, DEST.Final as `Final` FROM       "
+	    			+ "`" + tempTable +"` as SRC JOIN  "
+	    			+ "(SELECT     VCF.reference_name as `reference_name` ,     VCF.start as start,     VCF.END as `END`,     "
+	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,   ";
+
+			tempQuery +=" ARRAY_AGG (STRUCT(REPLACE(REPLACE(REPLACE(status, '1', ''), '2', ''), '3', ''))   ORDER BY Status ASC   "
+					+ "LIMIT 1)[OFFSET  (0)] Final FROM (  "
+					
+					+ "SELECT VCF.reference_name as `reference_name`, "
+					+ "VCF.start as `start`, VCF.END as `END`, VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
+					+ "CASE   WHEN ((" + AliasTableName + ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) THEN '3Intergenic'   "
+					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.END)   AND (VCF.start <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   "
+					+ "ELSE '2Intronic' END AS Status  FROM "
+					
+					+ VCFQuery
+					
+					+ " LEFT JOIN "
+					+ "( SELECT   chrm,   start,   `end`,   CAST(StartPoint AS INT64) StartPoint,   "
+					+ "CAST(EndPoint AS INT64) EndPoint FROM   "
+					+ "`" + TableName + "` t,   "
+					+ "UNNEST(SPLIT( exonStarts )) StartPoint WITH OFFSET   pos1 JOIN   "
+					+ "UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   pos2 ON   pos1 = pos2 "
+					+ "WHERE   EndPoint<>\"\") AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".chrm  "
+					+ "AND ( DIV(VCF.START,"+ binSize +")=DIV(" + AliasTableName + ".START, "+ binSize +"))  "
+					+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, Status  "
+					
+					+ " UNION DISTINCT   "
+					
+					+ "SELECT VCF.reference_name as `reference_name`, VCF.start as `start`, VCF.END as `END`, "
+					+ "VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
+					+ "CASE   WHEN ((" + AliasTableName + ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) "
+					+ "THEN '3Intergenic'   WHEN ((" + AliasTableName + ".StartPoint <= VCF.END)   "
+					+ "AND (VCF.start <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   ELSE '2Intronic' END AS Status  FROM "
+					
+					+ VCFQuery
+					
+					+ " LEFT JOIN ( SELECT   chrm,   start,   `end`,   CAST(StartPoint AS INT64) StartPoint,   "
+					+ "CAST(EndPoint AS INT64) EndPoint "
+					+ "FROM   `" + TableName + "` t,   UNNEST(SPLIT( exonStarts )) StartPoint WITH OFFSET   "
+					+ "pos1 JOIN   UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   pos2 ON   pos1 = pos2 WHERE   "
+					+ "EndPoint<>\"\") AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".chrm  AND "
+					+ "(DIV(VCF.START,"+ binSize +")=DIV(" + AliasTableName + ".END, "+ binSize +")  )  GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					+ "VCF.alternate_bases, Status "
+					
+					+ "UNION DISTINCT   "
+					
+					+ "SELECT VCF.reference_name as `reference_name`, "
+					+ "VCF.start as `start`, VCF.END as `END`, VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
+					+ " CASE   WHEN ((" + AliasTableName + ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) THEN '3Intergenic'   "
+					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.END) AND (VCF.start <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   "
+					+ "ELSE '2Intronic' END AS Status  "
+					+ "FROM "
+					
+					+ VCFQuery
+					
+					+ " LEFT JOIN ( SELECT   chrm,   start,   `end`,   name,   name2,   CAST(StartPoint AS INT64) StartPoint,   "
+					+ "CAST(EndPoint AS INT64) EndPoint FROM   `" + TableName + "` t,   "
+					+ "UNNEST(SPLIT( exonStarts )) StartPoint WITH OFFSET   pos1 JOIN   UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   "
+					+ "pos2 ON   pos1 = pos2 WHERE   EndPoint<>\"\") AS " + AliasTableName + " ON VCF.reference_name = " + AliasTableName + ".chrm  AND "
+					+ "(DIV(VCF.END,"+ binSize +")=DIV(" + AliasTableName + ".START, "+ binSize +")  ) "
+					+ " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status  "
+					
+					+ "UNION DISTINCT  "
+					
+					+ "SELECT VCF.reference_name as `reference_name`, VCF.start as `start`, VCF.END as `END`, "
+					+ "VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  CASE   WHEN ((" + AliasTableName 
+					+ ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) THEN '3Intergenic'   "
+					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.END)   AND (VCF.start <= " + AliasTableName + ".EndPoint)) "
+					+ "THEN '1Exonic'   ELSE '2Intronic' END AS Status  FROM "
+					
+					+ VCFQuery
+					
+					+ " LEFT JOIN ( SELECT   chrm,   start,   `end`,   CAST(StartPoint AS INT64) StartPoint,   CAST(EndPoint AS INT64) "
+					+ "EndPoint FROM   `" + TableName + "` t,   UNNEST(SPLIT( exonStarts )) StartPoint "
+					+ "WITH OFFSET   pos1 JOIN   UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   pos2 ON   pos1 = pos2 WHERE   EndPoint<>\"\") "
+					+ "AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".chrm  AND "
+					+ "( DIV(VCF.END,"+ binSize +")=DIV(" + AliasTableName + ".END, "+ binSize +")  )  "
+					+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, Status   ) as VCF "
+					
+					+ "GROUP BY   VCF.reference_name, VCF.start , VCF.END, VCF.reference_bases, VCF.alternate_bases"		
+					+ ") AS DEST "
+					+ "ON DEST.reference_name=SRC.reference_name AND DEST.start=SRC.Start AND DEST.END=SRC.END AND     "
+					+ "DEST.reference_bases= SRC.reference_bases AND DEST.alternate_bases= SRC.alternate_bases";
+			
+			return tempQuery;
+		}
+
+		public void resetVariables() {
 		    RequestedFields="";
 		    GroupByList="";
 		    AllFields="";
@@ -4550,61 +4768,86 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    		//String tempName="";
 	    		RequestedFields ="";
 			//per annotation table -> populate a sub-query
-			for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){
-				
+			for (int fieldIndex=2; fieldIndex<TableInfo.length; fieldIndex++){	
 				//1. Inner Query
-				if (TableInfo.length>3){ // Creating CONCAT
-					if(RequestedFields == "" && concat)
+				if (TableInfo.length>3){ //if there are multiple fields from the same table
+					if(RequestedFields == "" && concat) // Creating CONCAT
 						RequestedFields = "CONCAT ( ";
 					
-					if (fieldIndex+1 < TableInfo.length){
+					if (fieldIndex+1 < TableInfo.length){ // All the fields before the last one
 						if(createVCF)
 							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" , \"/\" ,";
 						else {
 							if (concat)
-								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] + ",'\\t',";
+								RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] + ",'|',";
+								//	RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] + ",'\\t',";
 							else {
 								if (fieldIndex>2)
 									RequestedFields += ",";
+								
 								RequestedFields +=  AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
-								AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + AliasTableName +"_" + TableInfo[fieldIndex]+ "`";
+								if(!generic)
+									AllFields += ", MAX( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";
+								else
+									AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";									
+								//								AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + TableInfo[1].split("\\.")[1]  +"_" + TableInfo[fieldIndex]+ "`";								
 							}
 						}
 					}
-					else {
-						if(concat)
+					else { // This for the last field -> "," field
+						if(concat) // Close the concatenation OP 
 							RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +") as `" + AliasTableName + "`";
 						else {
 							RequestedFields += "," + AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
-							AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + AliasTableName +"_" + TableInfo[fieldIndex]+ "`";
+							if(!generic)
+								AllFields += ", MAX( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";
+							else
+								AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";									
+							//							AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";
 						}
 					}
 				}
 				else //If there is only one feature
 					if(concat)
-						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName + "`";
+						//RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName + "`";
+						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
 					else {
 						RequestedFields += AliasTableName +"." + TableInfo[fieldIndex] +" as `" + AliasTableName +"." + TableInfo[fieldIndex] + "`";	
-						AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + AliasTableName +"_" + TableInfo[fieldIndex]+ "`";
+						//AllFields += ", max(`"+ AliasTableName +"." + TableInfo[fieldIndex] +"`) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";
+						//AllFields += ", max( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";
+						if(!generic)
+							AllFields += ", MAX( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";
+						else
+							AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` = '' THEN NULL ELSE `"+ AliasTableName +"." + TableInfo[fieldIndex] + "` END) as `" + TableInfo[1].split("\\.")[1] +"_" + TableInfo[fieldIndex]+ "`";									
 					}		
 			}
 	    	
+			//For concatenation, we should use STRING_AGG at the top query 
 			if (!createVCF && concat) {// in case of creating Table  
-				if (TableInfo.length>3){
-					if(!generic) {
-						AllFields += ", max(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
-					}
-					else
-						AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
-						+ "` END) as `" + TableInfo[1].split("\\.")[1] + "`";
-					}
-				else	{
-					if(!generic)
-						AllFields += ", max( `"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
-					else
-						AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
-						+ "` END) as `" + TableInfo[1].split("\\.")[1] + "`";
-				}
+				AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+					+ "` END, '\t') as `" + TableInfo[1].split("\\.")[1] + "`";
+					
+//				if (TableInfo.length>3){
+////					if(!generic) {
+////						//AllFields += ", max(`"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+////						AllFields += ", max( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+////								+ "` END) as `" + TableInfo[1].split("\\.")[1] + "`";
+////						//AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+////						//		+ "` END, '\t') as `" + TableInfo[1].split("\\.")[1] + "`";
+////						}
+////					else
+//						AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+//						+ "` END, '\t') as `" + TableInfo[1].split("\\.")[1] + "`";
+//					}
+//				else	 {
+////					if(!generic) {
+////						AllFields += ", max( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+////							+ "` END) as `" + TableInfo[1].split("\\.")[1] + "`";	
+////						}
+////					else
+//						AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+//						+ "` END, '\t') as `" + TableInfo[1].split("\\.")[1] + "`";
+//				}
 			}
 		}
 
