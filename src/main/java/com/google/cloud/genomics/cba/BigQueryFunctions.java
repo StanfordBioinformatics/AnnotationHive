@@ -4824,7 +4824,14 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    	
 			//For concatenation, we should use STRING_AGG at the top query 
 			if (!createVCF && concat) {// in case of creating Table  
-				AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+				
+//				AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
+//					+ "` END, '\t') as `" + TableInfo[1].split("\\.")[1] + "`";
+				
+				if(!generic)
+					AllFields += ", MAX( `"+ AliasTableName + "`) as `" + TableInfo[1].split("\\.")[1] + "`";
+				else
+					AllFields += ", STRING_AGG( CASE WHEN `"+ AliasTableName + "` = '' THEN NULL ELSE `"+ AliasTableName 
 					+ "` END, '\t') as `" + TableInfo[1].split("\\.")[1] + "`";
 					
 //				if (TableInfo.length>3){
