@@ -63,8 +63,8 @@ public class BigQueryFunctions {
 			throws Exception {
 
 
-		String queryStat = "SELECT *, LENGTH(innerQ.Chromosome) as len from (SELECT  chrm as Chromosome, "
-				+ "count(*) as Cnt, min (start) as Minimum, max(start) as Maximum FROM   " + "[" + projectId + ":"
+		String queryStat = "SELECT *, LENGTH(innerQ.Chromosome) as len from (SELECT  reference_name as Chromosome, "
+				+ "count(*) as Cnt, min (start_position) as Minimum, max(start_position) as Maximum FROM   " + "[" + projectId + ":"
 				+ datasetId + "." + tableId + "] "
 				+ "group by Chromosome  order by Chromosome) as innerQ  order by len, innerQ.Chromosome";
 
@@ -78,9 +78,9 @@ public class BigQueryFunctions {
 		List<FieldValue> X = null, Y = null, M = null;
 		while (result != null) {
 			for (List<FieldValue> row : result.iterateAll()) {
-				String chrm = row.get(0).getValue().toString();
-				if (!chrm.equals("M") && !chrm.equals("MT") && !chrm.equals("X") && !chrm.equals("Y")) {
-					System.out.println(chrm + " " + row.get(1).getValue().toString() + " "
+				String reference_name = row.get(0).getValue().toString();
+				if (!reference_name.equals("M") && !reference_name.equals("MT") && !reference_name.equals("X") && !reference_name.equals("Y")) {
+					System.out.println(reference_name + " " + row.get(1).getValue().toString() + " "
 							+ row.get(2).getValue().toString() + " " + row.get(3).getValue().toString());
 					partition(row.get(0).getValue().toString(),
 							Integer.parseInt(row.get(1).getValue().toString()),
@@ -88,11 +88,11 @@ public class BigQueryFunctions {
 							Integer.parseInt(row.get(3).getValue().toString()), projectId, datasetId, tableId,
 							outputFile, BinSize);
 				} else {
-					if (chrm.equals("M") || chrm.equals("MT"))
+					if (reference_name.equals("M") || reference_name.equals("MT"))
 						M = row;
-					else if (chrm.equals("X"))
+					else if (reference_name.equals("X"))
 						X = row;
-					else if (chrm.equals("Y"))
+					else if (reference_name.equals("Y"))
 						Y = row;
 				}
 			}
@@ -157,10 +157,10 @@ public class BigQueryFunctions {
 		
 		
 		String queryStat = "SELECT  * from " + "[" + projectId + ":" + datasetId + "." + tableId + "] "
-				+ "where chrm='" + chromId + "' and "
-				 + startMin + "<= start and start <= " 
+				+ "where reference_name='" + chromId + "' and "
+				 + startMin + "<= start_position and start_position <= " 
 				 + startMax 
-				+ " order by chrm, start";
+				+ " order by reference_name, start_position";
 		//if (DEBUG)
 			System.out.println(queryStat);
 		// Get the results.
@@ -377,9 +377,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index< VCFTables.length; index++){
 			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alt as alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alt as alternate_bases ";
 
 			VCFQuery += " FROM `"+ VCFTables[index]  +"`  AS v,  UNNEST(call) AS c, UNNEST(alternate_bases) AS alt   WHERE EXISTS ( SELECT alt FROM UNNEST(v.alternate_bases) alt WHERE alt NOT IN (\"<NON_REF>\", \"<*>\"))";
 		}
@@ -431,25 +431,25 @@ public class BigQueryFunctions {
 							}
 						}
 												
-						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, " + RequestedFields
+						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, " + RequestedFields
 							+ " FROM " + VCFQuery 
 							+ " JOIN `" + TableName +"` AS " + AliasTableName ;
-						AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+						AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-						AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)))"; // , ";
+						AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+							+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)))"; // , ";
 			}
 		}
 		
 		//TODO:Transcript + SQL Standard		
 	
 		String Query= "#standardSQL \n SELECT "
-				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as `end`, VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases, " + AllFields 
+				+ " VCF.reference_name as reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases, " + AllFields 
 				+ " FROM ";
 		
 		Query += AnnotationQuery;
-		//Query += " group by chrm,  start,  end, reference_bases, alternate_bases, " + GroupByFields; 
+		//Query += " group by reference_name,  start,  end, reference_bases, alternate_bases, " + GroupByFields; 
 
 		
 		return Query;
@@ -531,9 +531,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index< VCFTables.length; index++){
 			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases ";
 			
 			if (numSamples && GoogleVCF) {
 				VCFQuery += ", count(*) AS num_samples ";
@@ -550,8 +550,8 @@ public class BigQueryFunctions {
 					if(numSamples) { 
 						VCFQuery += 
 							 " Group by reference_name," + 
-							"  start," + 
-							"  END," + 
+							"  start_position," + 
+							"  end_position," + 
 							"  reference_bases," + 
 							"  alternate_bases ";
 					}
@@ -573,8 +573,8 @@ public class BigQueryFunctions {
 					if(numSamples) { 
 						VCFQuery += 
 							 " Group by reference_name," + 
-							"  start," + 
-							"  END," + 
+							"  start_position," + 
+							"  end_position," + 
 							"  reference_bases," + 
 							"  alternate_bases ";
 					}
@@ -643,7 +643,7 @@ public class BigQueryFunctions {
 						//IF the number of fields is more that 1 -> then concat all of them
 						if (TableInfo.length>3) {
 							
-							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases ";
 							if (numSamples && GoogleVCF) {
 								AnnotationQuery += ", num_samples ";
 							}
@@ -655,7 +655,7 @@ public class BigQueryFunctions {
 
 						}
 						else {
-							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 							if (numSamples && GoogleVCF) {
 								AnnotationQuery += " num_samples, ";
 							}
@@ -665,11 +665,11 @@ public class BigQueryFunctions {
 						AnnotationQuery +=
 							 " FROM " + VCFQuery 
 							+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-						AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+						AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-						AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+						AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+							+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)) ";
 						
 						//This is the case when we have transcript annotations 
 						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null || TranscriptAnnotations_wUCSC!=null))
@@ -752,7 +752,7 @@ public class BigQueryFunctions {
 
 				//IF the number of fields is more that 1 -> then concat all of them
 				if (TableInfo.length>3) {
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 					+ "VCF.alternate_bases ";
 
 					if (numSamples && GoogleVCF) {
@@ -766,7 +766,7 @@ public class BigQueryFunctions {
 						//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 				}
 				else {
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 					if (numSamples && GoogleVCF) {
 						AnnotationQuery += " num_samples, ";
 					}	
@@ -775,11 +775,11 @@ public class BigQueryFunctions {
 				AnnotationQuery +=
 					 " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
 
 				AnnotationQuery += " WHERE "
-						+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";				
+						+ " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";				
 				
 				if(index+1 <  TranscriptAnnotations.length || TranscriptAnnotations_wUCSC!=null)
 					AnnotationQuery +=  "), ";
@@ -847,7 +847,7 @@ public class BigQueryFunctions {
 
 				//IF the number of fields is more that 1 -> then concat all of them
 				if (TableInfo.length>3) {
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 					+ "VCF.alternate_bases ";
 
 					if (numSamples && GoogleVCF) {
@@ -861,7 +861,7 @@ public class BigQueryFunctions {
 						//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 				}
 				else {
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 					if (numSamples && GoogleVCF) {
 						AnnotationQuery += " num_samples, ";
 					}	
@@ -870,7 +870,7 @@ public class BigQueryFunctions {
 				AnnotationQuery +=
 					 " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
 						+ "AND (\"" + AliasTableName + "\".UCSC_ID = VCF.UCSC_ID)";
 				
 				if(index+1 <  TranscriptAnnotations_wUCSC.length)
@@ -885,14 +885,14 @@ public class BigQueryFunctions {
 			AllFields = ",  num_samples " + AllFields ;
 		}
 		String Query= "  SELECT "
-				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, VCF.reference_bases as reference_bases, "
+				+ " VCF.reference_name as reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases as reference_bases, "
 				+ "VCF.alternate_bases as alternate_bases " + AllFields 
 				+ " FROM ";
 		
 		Query += AnnotationQuery;
 		
 		if(!createVCF && GroupBy) {
-			Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases "; 
+			Query += " GROUP BY  reference_name, start_position, end_position, reference_bases, alternate_bases "; 
 			if (numSamples) {
 				Query += ",  num_samples " ;
 			}
@@ -954,9 +954,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position ";
 
 			if(VariantAnnotationTableNames!=null){
 				VCFQuery += ", reference_bases, alternate_bases";
@@ -1019,15 +1019,15 @@ public class BigQueryFunctions {
 							}
 						}
 												
-						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields
+						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases " + RequestedFields
 							+ " FROM " + VCFQuery 
 							+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-						AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+						AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-						AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
-									//+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields;
+						AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+							+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)) ";
+									//+ "GROUP BY VCF.reference_name, VCF.start_position, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields;
 						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
 							AnnotationQuery +=  "), "; //In case there are more variant annotations OR we have  
 						else
@@ -1072,18 +1072,18 @@ public class BigQueryFunctions {
 					}
 				}
 										
-				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END ";
+				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position ";
 						if(VariantAnnotationTableNames!=null){
 							AnnotationQuery += ", VCF.reference_bases, VCF.alternate_bases " ;
 						}
 				AnnotationQuery +=RequestedFields
 					+ " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
 				AnnotationQuery += " WHERE "			
 				//		x1 <= y2 && y1 <= x2
-				+ "((("+ AliasTableName +".start <= VCF.end) AND ("+ AliasTableName +".end >= VCF.start)))";
+				+ "((("+ AliasTableName +".start_position <= VCF.end_position) AND ("+ AliasTableName +".end_position >= VCF.start_position)))";
 
 		
 				if(index+1 <  TranscriptAnnotations.length)
@@ -1094,7 +1094,7 @@ public class BigQueryFunctions {
 		
 		}		
 	
-		String Query= "  SELECT VCF.reference_name as chrm, VCF.start as start, VCF.END as end ";
+		String Query= "  SELECT VCF.reference_name as reference_name, VCF.start_position, VCF.end_position ";
 				if(VariantAnnotationTableNames!=null){
 					 Query+= ", VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases ";
 				}
@@ -1103,7 +1103,7 @@ public class BigQueryFunctions {
 		
 		Query += AnnotationQuery;
 		if (!createVCF) {
-			Query += " GROUP BY  chrm, start, END "; 
+			Query += " GROUP BY  reference_name, start_position, end_position "; 
 			
 			if(VariantAnnotationTableNames!=null){
 				Query += ", reference_bases, alternate_bases";
@@ -1155,9 +1155,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases,  ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases,  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, ";
 
 			if (index+1<VCFTables.length)
 				VCFQuery += " FROM ["+ VCFTables[index]  +" OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
@@ -1199,11 +1199,11 @@ public class BigQueryFunctions {
 				}
 
 								
-				QueryCalcAll += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields + ", AN.start, AN.end , "
-						+ "CASE WHEN (ABS(VCF.End-AN.Start) >= ABS(VCF.Start - AN.End)) THEN ABS(VCF.Start-AN.End) ELSE ABS(VCF.End-AN.Start) END as distance "
+				QueryCalcAll += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases " + RequestedFields + ", AN.start_position, AN.end_position , "
+						+ "CASE WHEN (ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) THEN ABS(VCF.start_position-AN.end_position) ELSE ABS(VCF.end_position-AN.start_position) end_position as distance "
 						+ " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-				QueryCalcAll += " ON " + AliasTableName + ".chrm = VCF.reference_name"
+				QueryCalcAll += " ON " + AliasTableName + ".reference_name = VCF.reference_name"
 						+ " ) as CalcALL ";
 
 				
@@ -1212,7 +1212,7 @@ public class BigQueryFunctions {
 //						" ELSE ABS(VCF.End-AN.Start) END) as distance "
 //						+ " FROM " + VCFQuery 
 //						+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-//				QueryCalcMin += " ON " + AliasTableName + ".chrm = VCF.reference_name "
+//				QueryCalcMin += " ON " + AliasTableName + ".reference_name = VCF.reference_name "
 //						+ "Group By VCF.reference_name, VCF.start, VCF.END "
 //						+ " ) as CalcMin ";
 //				
@@ -1223,8 +1223,8 @@ public class BigQueryFunctions {
 
 				AnnotationQuery += " ON " + 
 						"  CalcALL.VCF.reference_name = CalcMin.VCF_reference_name " + 
-						"  AND CalcALL.VCF.start = CalcMin.VCF_start " + 
-						"  AND CalcALL.VCF.END = CalcMin.VCF_END " + 
+						"  AND CalcALL.VCF.start_position = CalcMin.VCF_start_position " + 
+						"  AND CalcALL.VCF.end_position = CalcMin.VCF_end_position " + 
 						"  AND CalcALL.distance = CalcMin.distance " ;
 
 				
@@ -1236,7 +1236,7 @@ public class BigQueryFunctions {
 						
 				
 		String Query= "  SELECT "
-				+ " CalcALL.VCF.reference_name as chrm, CalcALL.VCF.start as start, CalcALL.VCF.END as end, "
+				+ " CalcALL.VCF.reference_name as reference_name, CalcALL.VCF.start_position, CalcALL.VCF.end_position, "
 				+ "CalcALL.VCF.reference_bases as reference_bases, CalcALL.VCF.alternate_bases as alternate_bases " + AllFields +  ", CalcALL.distance " + //, "
 //				+ "  CASE " + 
 //				"    WHEN " + 
@@ -1299,9 +1299,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name  ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name ";
 
 			if (index+1<VCFTables.length)
 				VCFQuery += " FROM FLATTEN(["+ VCFTables[index]  +"], call.call_set_name) OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
@@ -1344,17 +1344,17 @@ public class BigQueryFunctions {
 				}
 
 								
-				QueryCalcAll += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields + ", AN.start, AN.end , ABS(VCF.start-AN.Start) as distance "
+				QueryCalcAll += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases " + RequestedFields + ", AN.start_position, AN.end_position , ABS(VCF.start_position-AN.start_position) as distance "
 					+ " FROM " + VCFQuery 
 					+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-				QueryCalcAll += " ON " + AliasTableName + ".chrm = VCF.reference_name) as CalcALL ";
+				QueryCalcAll += " ON " + AliasTableName + ".reference_name = VCF.reference_name) as CalcALL ";
 
 				
-				QueryCalcMin += " ( SELECT VCF.reference_name, VCF.start, VCF.END, MIN(ABS(VCF.start-AN.Start)) as distance "
+				QueryCalcMin += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, MIN(ABS(VCF.start_position-AN.start_position)) as distance "
 						+ " FROM " + VCFQuery 
 						+ " JOIN [" + TableName +"] AS " + AliasTableName ;
-				QueryCalcMin += " ON " + AliasTableName + ".chrm = VCF.reference_name "
-						+ "Group By VCF.reference_name, VCF.start, VCF.END "
+				QueryCalcMin += " ON " + AliasTableName + ".reference_name = VCF.reference_name "
+						+ "Group By VCF.reference_name, VCF.start_position, VCF.end_position "
 						+ " ) as CalcMin ";
 				
 				AnnotationQuery += QueryCalcAll;
@@ -1363,28 +1363,28 @@ public class BigQueryFunctions {
 				
 				AnnotationQuery += "ON" + 
 						"  CalcALL.VCF.reference_name = CalcMin.VCF.reference_name " + 
-						"  AND CalcALL.VCF.start = CalcMin.VCF.start " + 
-						"  AND CalcALL.VCF.END = CalcMin.VCF.END " + 
+						"  AND CalcALL.VCF.start_position = CalcMin.VCF.start_position " + 
+						"  AND CalcALL.VCF.end_position = CalcMin.VCF.end_position " + 
 						"  AND CalcALL.distance = CalcMin.distance " ;
 						
 				
 		String Query= "  SELECT "
-				+ " CalcALL.VCF.reference_name as chrm, CalcALL.VCF.start as start, CalcALL.VCF.END as end, "
+				+ " CalcALL.VCF.reference_name as reference_name, CalcALL.VCF.start_position, CalcALL.VCF.end_position, "
 				+ "CalcALL.VCF.reference_bases as reference_bases, CalcALL.VCF.alternate_bases as alternate_bases " + AllFields +  ", CalcALL.distance, "
 				+ "  CASE " + 
 				"    WHEN " + 
-				"        ((CalcALL.AN.start <= CalcALL.VCF.END) AND (CalcALL.VCF.start <= CalcALL.AN.END)) " + 
+				"        ((CalcALL.AN.start_position <= CalcALL.VCF.end_position) AND (CalcALL.VCF.start_position <= CalcALL.AN.end_position)) " + 
 				"       THEN " + 
 				"          'Overlapped' " + 
 				"       ELSE " + 
 				"          'Closest' " + 
-				"  END AS Status " + 
+				"  end_position AS Status " + 
 				" FROM ";
 		
 		Query += AnnotationQuery;
 	
 		if (OnlyIntrogenic) {
-			Query += " WHERE (( CalcALL.VCF.start> CalcALL.AN.End) OR (CalcALL.AN.Start> CalcALL.VCF.END))";
+			Query += " WHERE (( CalcALL.VCF.start_position> CalcALL.AN.end_position) OR (CalcALL.AN.start_position> CalcALL.VCF.end_position))";
 		}
 		
 		return Query;
@@ -1436,9 +1436,9 @@ public class BigQueryFunctions {
 		for (int index = 0; index < VCFTables.length; index++) {
 			if (VCFCanonicalize != null)
 				VCFQuery += " ( SELECT REPLACE( reference_name, '" + VCFCanonicalize[index]
-						+ "', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name  ";
+						+ "', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name ";
 
 			if (index + 1 < VCFTables.length)
 				VCFQuery += " FROM FLATTEN([" + VCFTables[index]
@@ -1478,20 +1478,20 @@ public class BigQueryFunctions {
 				TopFields += " , " + AliasTableName + "." + TableInfo[index2];
 		}
 
-		String Query = "  SELECT " + " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, "
+		String Query = "  SELECT " + " VCF.reference_name as reference_name, VCF.start_position, VCF.end_position, "
 				+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases " + TopFields
-				+ ", AN.start" + ", AN.end" + ", CASE"
-				+ "      WHEN (ABS(VCF.End-AN.Start)>=ABS(VCF.Start - AN.End)) THEN ABS(VCF.Start-AN.End)"
-				+ "      ELSE ABS(VCF.End-AN.Start)" + "    END AS distance" + ", CASE "
-				+ "    WHEN ((VCF.start <= AN.End) AND (AN.Start <= VCF.END)) THEN 'Overlapped' "
+				+ ", AN.start_position" + ", AN.end_position" + ", CASE"
+				+ "      WHEN (ABS(VCF.end_position-AN.start_position)>=ABS(VCF.start_position - AN.end_position)) THEN ABS(VCF.start_position-AN.end_position)"
+				+ "      ELSE ABS(VCF.end_position-AN.start_position)" + "    END AS distance" + ", CASE "
+				+ "    WHEN ((VCF.start_position <= AN.end_position) AND (AN.start_position <= VCF.end_position)) THEN 'Overlapped' "
 				+ "    ELSE 'Closest' " + "  END AS Status " + " FROM " + VCFQuery + " JOIN (" + "SELECT "
-				+ "      chrm " + "      , start  " + "      , END " + RequestedFields + " From " + "[" + TableName
-				+ "]) AS " + AliasTableName + " ON " + AliasTableName + ".chrm = VCF.reference_name ";
+				+ "      reference_name " + "      , start_position  " + "      , end_position " + RequestedFields + " From " + "[" + TableName
+				+ "]) AS " + AliasTableName + " ON " + AliasTableName + ".reference_name = VCF.reference_name ";
 
 		Query = "Select * from (" + Query + ") WHERE distance < " + Threashold;
 
 		if (onlyIntrogenic) {
-			Query += " AND (( VCF.start> AN.End) OR (AN.Start> VCF.END))";
+			Query += " AND (( VCF.start_position> AN.end_position) OR (AN.start_position> VCF.end_position))";
 		}
 
 		Query += AnnotationQuery;
@@ -1539,9 +1539,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index< VCFTables.length; index++){
 			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name, quality  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name, quality ";
 
 			if (index+1<VCFTables.length)
 				VCFQuery += " FROM ["+ VCFTables[index]  +"] OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
@@ -1579,31 +1579,31 @@ public class BigQueryFunctions {
 
 									
 		String Query= "  SELECT "
-				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, "
+				+ " VCF.reference_name as reference_name, VCF.start_position, VCF.end_position, "
 				+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases " 
 				+ TopFields
-				+ ", AN.start"
-				+ ", AN.end"
+				+ ", AN.start_position"
+				+ ", AN.end_position"
 				+ ", CASE" 
-				+ "      WHEN (ABS(VCF.End-AN.Start)>=ABS(VCF.Start - AN.End)) THEN ABS(VCF.Start-AN.End)"  
-				+ "      ELSE ABS(VCF.End-AN.Start)" 
+				+ "      WHEN (ABS(VCF.end_position-AN.start_position)>=ABS(VCF.start_position - AN.end_position)) THEN ABS(VCF.start_position-AN.end_position)"  
+				+ "      ELSE ABS(VCF.end_position-AN.start_position)" 
 				+ "    END AS distance"
 				+ ", CASE "
-				+ "    WHEN ((VCF.start <= AN.End) AND (AN.Start <= VCF.END)) THEN 'Overlapped' "
+				+ "    WHEN ((VCF.start_position <= AN.end_position) AND (AN.start_position <= VCF.end_position)) THEN 'Overlapped' "
 				+ "    ELSE 'Closest' "  
 				+ "  END AS Status "
 				+ " FROM " + VCFQuery
 				+ " JOIN ("
 				+ "SELECT " 
-				+ "      chrm "  
-				+ "      , start  "  
-				+ "      , END "  
+				+ "      reference_name "  
+				+ "      , start_position  "  
+				+ "      , end_position "  
 				+ RequestedFields
 				+ " From "
 				+ "[" + TableName +"]) AS " + AliasTableName
-				+ " ON " + AliasTableName + ".chrm = VCF.reference_name ";
+				+ " ON " + AliasTableName + ".reference_name = VCF.reference_name ";
 		if (onlyIntrogenic) {
-			Query += " WHERE (( VCF.start> AN.End) OR (AN.Start> VCF.END))";
+			Query += " WHERE (( VCF.start_position> AN.end_position) OR (AN.start_position> VCF.end_position))";
 		}
 
 		Query = "Select * from (" + Query + ") WHERE distance < " + Threashold;
@@ -1645,11 +1645,11 @@ public class BigQueryFunctions {
 				String [] RS = temp[index].split(":");
 				if(index+1<temp.length) {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") OR " ;
 				}
 				else {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") " ;
 				}
 			}
 			
@@ -1680,9 +1680,9 @@ public class BigQueryFunctions {
 		for (int index = 0; index < VCFTables.length; index++) {
 			if (VCFCanonicalize != null)
 				VCFQuery += " ( SELECT REPLACE( reference_name, '" + VCFCanonicalize[index]
-						+ "', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+						+ "', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 
 			if (index + 1 < VCFTables.length)
 				VCFQuery += " FROM `" + VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]
@@ -1732,7 +1732,7 @@ public class BigQueryFunctions {
 
 		String Query = "";
 		if (MIN) {
-//			Query = "SELECT " + "    VCF.reference_name as chrm," + "    VCF.start as start," + "    VCF.END as `end`,"
+//			Query = "SELECT " + "    VCF.reference_name as reference_name," + "    VCF.start as start," + "    VCF.END as `end`,"
 //					+ "    VCF.reference_bases as reference_bases,"
 //					+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases," + "	   ARRAY_AGG(("
 //					+ AllFields + ")" + "    ORDER BY "
@@ -1748,9 +1748,9 @@ public class BigQueryFunctions {
 //					+ "        'Closest' " + "        ELSE " + "        'Overlapped'" + "       END AS Status "
 					
 			Query = 	"SELECT" + 
-					"  chrm," + 
-					"  start," + 
-					"  `end`," + 
+					"  reference_name," + 
+					"  start_position," + 
+					"  `end_position`," + 
 					"  reference_bases," + 
 					"  alternate_bases," + 
 					"  ARRAY_AGG (STRUCT(names," + 
@@ -1763,41 +1763,41 @@ public class BigQueryFunctions {
 					"  (0)].*" + 
 					"FROM (" + 
 					"  SELECT" + 
-					"    VCF.reference_name AS chrm," + 
-					"    VCF.start AS start," + 
-					"    VCF.END AS `end`," + 
+					"    VCF.reference_name AS reference_name," + 
+					"    VCF.start_position," + 
+					"    VCF.end_position," + 
 					"    VCF.reference_bases AS reference_bases," + 
 					"    ARRAY_TO_STRING(VCF.alternate_bases, ',') AS alternate_bases," + 
 					"    ARRAY_AGG ((CONCAT(AN.name, \";\" , AN.name2, \";\", \"dist:\", CAST((CASE" + 
-					"          WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND "
-					+ "(ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND "
-					+ "(ABS(VCF.END-AN.END) >= ABS(VCF.Start - AN.END))) THEN ABS(VCF.Start-AN.END)" + 
-					"          WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start))" + 
-					"          AND (ABS(VCF.END-AN.END) >= ABS(VCF.Start - AN.start))) THEN ABS(VCF.Start-AN.Start)" + 
-					"          WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.END - AN.END))) THEN ABS(VCF.END-AN.END)" + 
-					"          ELSE ABS(VCF.END-AN.Start) END) as STRING) ))" + 
+					"          WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND "
+					+ "(ABS(VCF.start_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND "
+					+ "(ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.end_position))) THEN ABS(VCF.start_position-AN.end_position)" + 
+					"          WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.start_position))" + 
+					"          AND (ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.start_position))) THEN ABS(VCF.start_position-AN.start_position)" + 
+					"          WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.end_position - AN.end_position))) THEN ABS(VCF.end_position-AN.end_position)" + 
+					"          ELSE ABS(VCF.end_position-AN.start_position) END) as STRING) ))" + 
 					"    ORDER BY" + 
 					"      (CASE" + 
-					"          WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) "
-					+ "AND (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND "
-					+ "(ABS(VCF.END-AN.END) >= ABS(VCF.Start - AN.END))) THEN ABS(VCF.Start-AN.END)" + 
-					"          WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start))" + 
-					"          AND (ABS(VCF.END-AN.END) >= ABS(VCF.Start - AN.start))) THEN ABS(VCF.Start-AN.Start)" + 
-					"          WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.END - AN.END))) THEN ABS(VCF.END-AN.END)" + 
-					"          ELSE ABS(VCF.END-AN.Start) END)" + 
+					"          WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) "
+					+ "AND (ABS(VCF.start_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND "
+					+ "(ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.end_position))) THEN ABS(VCF.start_position-AN.end_position)" + 
+					"          WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.start_position))" + 
+					"          AND (ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.start_position))) THEN ABS(VCF.start_position-AN.start_position)" + 
+					"          WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.end_position - AN.end_position))) THEN ABS(VCF.end_position-AN.end_position)" + 
+					"          ELSE ABS(VCF.end_position-AN.start_position) END)" + 
 					"    LIMIT\n" + 
 					"      1 )[SAFE_OFFSET(0)] names," + 
 					"    CASE" + 
-					"      WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'" + 
-					"      WHEN ((AN.StartPoint <= VCF.END)" + 
-					"      AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'" + 
+					"      WHEN ((AN.start_position > VCF.end_position) OR ( VCF.start_position > AN.end_position)) THEN '3Intergenic'" + 
+					"      WHEN ((AN.start_positionPoint <= VCF.end_position)" + 
+					"      AND (VCF.start_position <= AN.EndPoint)) THEN '1Exonic'" + 
 					"      ELSE '2Intronic'" + 
 					"    END AS Status "	
 					+ " FROM " + VCFQuery + " JOIN (\n" + 
 							"    SELECT " + 
-							"      chrm," + 
-							"      start, " + 
-							"      `end`, " + 
+							"      reference_name," + 
+							"      start_position, " + 
+							"      `end_position`, " + 
 						//TODO: Dynamic fields 
 							"      name, " + 
 							"      name2, " +
@@ -1819,34 +1819,34 @@ public class BigQueryFunctions {
 							"      pos1 = pos2 " + 
 							"    WHERE " + 
 							"      EndPoint<>\"\") AS AN " + 
-							"   ON VCF.reference_name = AN.chrm ";
+							"   ON VCF.reference_name = AN.reference_name ";
 			if (onlyIntrogenic)
-				Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
+				Query += " WHERE (VCF.start_position>AN.end_position) OR (AN.start_position> VCF.end_position) ";
 			Query += "   GROUP BY" + 
 					"    VCF.reference_name," + 
-					"    VCF.start," + 
-					"    VCF.END," + 
+					"    VCF.start_position," + 
+					"    VCF.end_position," + 
 					"    VCF.reference_bases," + 
 					"    alternate_bases," + 
 					"    Status )" + 
 					"GROUP BY" + 
-					"  chrm," + 
-					"  start," + 
-					"  `end`," + 
+					"  reference_name," + 
+					"  start_position," + 
+					"  `end_position`," + 
 					"  reference_bases," + 
 					"  alternate_bases";
 
 			// :TODO M and MT case
 		} else {
-			Query = "  SELECT " + " VCF.reference_name as chrm, VCF.start as start, VCF.END as `end`, "
+			Query = "  SELECT " + " VCF.reference_name as reference_name, VCF.start_position, VCF.end_position, "
 					+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases, " + AllFields
 					+ ", AN_start" + ", AN_end" + ", CASE"
-					+ "      WHEN (ABS(VCF.End-AN_Start)>=ABS(VCF.Start - AN_End)) THEN ABS(VCF.Start-AN_End)"
-					+ "      ELSE ABS(VCF.End-AN_Start)" + "    END AS distance" + ", CASE "
-					+ "    WHEN ((VCF.start <= AN_End) AND (AN_Start <= VCF.END)) THEN 'Overlapped' "
+					+ "      WHEN (ABS(VCF.end_position-AN_Start)>=ABS(VCF.start_position - AN_End)) THEN ABS(VCF.start_position-AN_End)"
+					+ "      ELSE ABS(VCF.end_position-AN_Start)" + "    END AS distance" + ", CASE "
+					+ "    WHEN ((VCF.start_position <= AN_End) AND (AN_Start <= VCF.end_position)) THEN 'Overlapped' "
 					+ "    ELSE 'Closest' " + "  END AS Status " + " FROM " + VCFQuery + " JOIN (" + "SELECT "
-					+ "      chrm " + "      , start as AN_Start  " + "      , `END` as AN_END " + RequestedFields
-					+ " From " + "`" + TableName + "`) AS AN " + " ON AN.chrm = VCF.reference_name ";
+					+ "      reference_name " + "      , start_position as AN_Start  " + "      , `end_position` as AN_END " + RequestedFields
+					+ " From " + "`" + TableName + "`) AS AN " + " ON AN.reference_name = VCF.reference_name ";
 			// NOTE: It finds all genes within the range irrespective of whether a variant
 			// overlapped w/ any gene or not.
 			/*
@@ -1892,11 +1892,11 @@ public class BigQueryFunctions {
 				String [] RS = temp[index].split(":");
 				if(index+1<temp.length) {
 					WHERE_VCF += " AND (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") OR " ;
 				}
 				else {
 					WHERE_VCF += " AND (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") " ;
 				}
 			}
 			
@@ -1927,9 +1927,9 @@ public class BigQueryFunctions {
 		for (int index = 0; index < VCFTables.length; index++) {
 			if (VCFCanonicalize != null)
 				VCFQuery += " ( SELECT REPLACE( reference_name, '" + VCFCanonicalize[index]
-						+ "', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+						+ "', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 
 			if (index + 1 < VCFTables.length) {
 				VCFQuery += " FROM `" + VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]
@@ -1985,36 +1985,36 @@ public class BigQueryFunctions {
 
 		String Query = "";
 		if (MIN) {
-			Query = "SELECT " + "    VCF.reference_name as chrm," + "    VCF.start as start," + "    VCF.END as `end`,"
+			Query = "SELECT " + "    VCF.reference_name as reference_name," + "    VCF.start_position," + "    VCF.end_position ,"
 					+ "    VCF.reference_bases as reference_bases,"
 					+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases," + "	   ARRAY_AGG(("
 					+ AllFields + ")" + "    ORDER BY "
-					+ "     (CASE         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-					+ " (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-					+ " (ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.END)))         "
-					+ "  THEN ABS(VCF.Start-AN.END)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start)) AND         "
-					+ "(ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.start)))          "
-					+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
-					+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) " + "    LIMIT "
+					+ "     (CASE         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+					+ " (ABS(VCF.start_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+					+ " (ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.end_position)))         "
+					+ "  THEN ABS(VCF.start_position-AN.end_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.start_position)) AND         "
+					+ "(ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.start_position)))          "
+					+ "THEN ABS(VCF.start_position-AN.start_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.end_position - AN.end_position)))          "
+					+ "THEN ABS(VCF.end_position-AN.end_position)         ELSE ABS(VCF.end_position-AN.start_position) END) " + "    LIMIT "
 					+ "      1 )[SAFE_OFFSET(0)] names " + ", CASE " + "		 WHEN "
-					+ "        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + "        THEN "
+					+ "        ((AN.start_position >  VCF.end_position) OR ( VCF.start_position > AN.end_position)) " + "        THEN "
 					+ "        'Closest' " + "        ELSE " + "        'Overlapped'" + "       END AS Status "
-					+ " FROM " + VCFQuery + " JOIN `" + TableName + "` AS AN " + "  ON VCF.reference_name = AN.chrm ";
+					+ " FROM " + VCFQuery + " JOIN `" + TableName + "` AS AN " + "  ON VCF.reference_name = AN.reference_name ";
 			if (onlyIntrogenic)
-				Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
-			Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status";
+				Query += " WHERE (VCF.start_position>AN.end_position) OR (AN.start_position> VCF.end_position) ";
+			Query += " GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, alternate_bases, Status";
 
 			// :TODO M and MT case
 		} else {
-			Query = "  SELECT " + " VCF.reference_name as chrm, VCF.start as start, VCF.END as `end`, "
+			Query = "  SELECT " + " VCF.reference_name as reference_name, VCF.start_position as start_position, VCF.end_position, "
 					+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases, " + AllFields
-					+ ", AN_start" + ", AN_end" + ", CASE"
-					+ "      WHEN (ABS(VCF.End-AN_Start)>=ABS(VCF.Start - AN_End)) THEN ABS(VCF.Start-AN_End)"
-					+ "      ELSE ABS(VCF.End-AN_Start)" + "    END AS distance" + ", CASE "
-					+ "    WHEN ((VCF.start <= AN_End) AND (AN_Start <= VCF.END)) THEN 'Overlapped' "
+					+ ", AN_start_position" + ", AN_end" + ", CASE"
+					+ "      WHEN (ABS(VCF.end_position-AN_start_position)>=ABS(VCF.start_position - AN_End)) THEN ABS(VCF.start_position-AN_End)"
+					+ "      ELSE ABS(VCF.end_position-AN_Start)" + "    END AS distance" + ", CASE "
+					+ "    WHEN ((VCF.start_position <= AN_End) AND (AN_Start <= VCF.end_position)) THEN 'Overlapped' "
 					+ "    ELSE 'Closest' " + "  END AS Status " + " FROM " + VCFQuery + " JOIN (" + "SELECT "
-					+ "      chrm " + "      , start as AN_Start  " + "      , `END` as AN_END " + RequestedFields
-					+ " From " + "`" + TableName + "`) AS AN " + " ON AN.chrm = VCF.reference_name ";
+					+ "      reference_name " + "      , start_position as AN_Start  " + "      , `end_position` as AN_END " + RequestedFields
+					+ " From " + "`" + TableName + "`) AS AN " + " ON AN.reference_name = VCF.reference_name ";
 			// NOTE: It finds all genes within the range irrespective of whether a variant
 			// overlapped w/ any gene or not.
 			/*
@@ -2069,9 +2069,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index< VCFTables.length; index++){
 			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name, quality  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name, quality ";
 
 			if (index+1<VCFTables.length)
 				VCFQuery += " FROM ["+ VCFTables[index]  +"] OMIT RECORD IF EVERY(call.genotype <= 0) ), ";
@@ -2096,11 +2096,11 @@ public class BigQueryFunctions {
 				String TableName = TableInfo[0]+":"+TableInfo[1];
 					
 				
-				String Query = "SELECT   VCF.reference_name,   VCF.start,   VCF.END,   MIN(CASE     WHEN (ABS(VCF.END-AN.Start)>=ABS(VCF.Start - AN.END)) "
-							+ " THEN ABS(VCF.Start - AN.END)     ELSE ABS(VCF.END-AN.Start)   END) AS distance FROM "+ VCFQuery 
-							+ " JOIN [" + TableName +"] AS AN ON  AN.chrm = VCF.reference_name "
-							+ " WHERE (( VCF.start> AN.END)  OR (AN.Start> VCF.END)) "
-							+ " Group By VCF.reference_name,   VCF.start,   VCF.END ";		
+				String Query = "SELECT   VCF.reference_name,   VCF.start_position,   VCF.end_position,   MIN(CASE     WHEN (ABS(VCF.end_position-AN.start_position)>=ABS(VCF.start_position - AN.end_position)) "
+							+ " THEN ABS(VCF.start_position - AN.end_position)     ELSE ABS(VCF.end_position-AN.start_position)   END) AS distance FROM "+ VCFQuery 
+							+ " JOIN [" + TableName +"] AS AN ON  AN.reference_name = VCF.reference_name "
+							+ " WHERE (( VCF.start_position> AN.end_position)  OR (AN.start_position> VCF.end_position)) "
+							+ " Group By VCF.reference_name,   VCF.start_position,   VCF.end_position ";		
 
 				return Query;
 
@@ -2147,9 +2147,9 @@ public class BigQueryFunctions {
 		String VCFQuery="";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 
 			if (index+1<VCFTables.length)
 				VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "."+  VCFTables[index].split(":")[1] +"`   WHERE EXISTS (SELECT alternate_bases FROM UNNEST(alternate_bases) alt WHERE alt NOT IN (\"<NON_REF>\", \"<*>\")) ";
@@ -2188,9 +2188,9 @@ public class BigQueryFunctions {
 				}
 
 				String Query = "SELECT " 
-						+ "    VCF.reference_name as chrm," 
-						+ "    VCF.start as start,"  
-						+ "    VCF.END as `end`," 
+						+ "    VCF.reference_name as reference_name," 
+						+ "    VCF.start_position,"  
+						+ "    VCF.end_position," 
 						+ "    VCF.reference_bases as reference_bases," 
 						+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases,"
 						+ "	   ARRAY_AGG((" + AllFields +")"
@@ -2198,18 +2198,18 @@ public class BigQueryFunctions {
 //						"      (CASE " + 
 //						"          WHEN (ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) THEN ABS(VCF.Start-AN.END) " + 
 //						"          ELSE ABS(VCF.END-AN.Start) END) "
-						+ "     (CASE         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-						+ " (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-						+ " (ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.END)))         "
-						+ "  THEN ABS(VCF.Start-AN.END)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start)) AND         "
-						+ "(ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.start)))          "
-						+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
-						+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) "
+						+ "     (CASE         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+						+ " (ABS(VCF.start_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+						+ " (ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.end_position)))         "
+						+ "  THEN ABS(VCF.start_position-AN.end_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.start_position)) AND         "
+						+ "(ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.start_position)))          "
+						+ "THEN ABS(VCF.start_position-AN.start_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.end_position - AN.end_position)))          "
+						+ "THEN ABS(VCF.end_position-AN.end_position)         ELSE ABS(VCF.end_position-AN.start_position) END) "
 						+ "    LIMIT " 
 						+ "      1 )[SAFE_OFFSET(0)] names "
 						+", CASE " + 
 						"		 WHEN " + 
-						"        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + 
+						"        ((AN.start_position >  VCF.end_position) OR ( VCF.start_position > AN.end_position)) " + 
 						"        THEN " + 
 						"        'Closest' " + 
 						"        ELSE " + 
@@ -2217,10 +2217,10 @@ public class BigQueryFunctions {
 						"       END AS Status "
 						+ " FROM " + VCFQuery 
 						+ " JOIN `"+ TableName +"` AS AN "
-						+ "  ON VCF.reference_name = AN.chrm ";
+						+ "  ON VCF.reference_name = AN.reference_name ";
 						if (OnlyIntrogenic)
-							Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
-						Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status";
+							Query += " WHERE (VCF.start_position>AN.end_position) OR (AN.start_position> VCF.end_position) ";
+						Query += " GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, alternate_bases, Status";
 						
 					//:TODO M and MT case				
 				
@@ -2273,9 +2273,9 @@ public class BigQueryFunctions {
 		String VCFQuery="";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 
 			if (index+1<VCFTables.length)
 				VCFQuery += " FROM `"+ VCFTables[index].split(":")[0] + "."+  VCFTables[index].split(":")[1] +"` v, v.call  WHERE call.call_set_name= \""+ SampleId +"\" AND EXISTS (SELECT alternate_bases FROM UNNEST(alternate_bases) alt WHERE alt NOT IN (\"<NON_REF>\", \"<*>\")) ";
@@ -2314,9 +2314,9 @@ public class BigQueryFunctions {
 				}
 
 		String Query = "SELECT " 
-				+ "    VCF.reference_name as chrm," 
-				+ "    VCF.start as start,"  
-				+ "    VCF.END as `end`," 
+				+ "    VCF.reference_name as reference_name," 
+				+ "    VCF.start_position,"  
+				+ "    VCF.end_position ," 
 				+ "    VCF.reference_bases as reference_bases," 
 				+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases,"
 				+ "	   ARRAY_AGG((" + AllFields +")"
@@ -2324,18 +2324,18 @@ public class BigQueryFunctions {
 //				"      (CASE " + 
 //				"          WHEN (ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) THEN ABS(VCF.Start-AN.END) " + 
 //				"          ELSE ABS(VCF.END-AN.Start) END) "
-				+ "     (CASE         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-				+ " (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-				+ " (ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.END)))         "
-				+ "  THEN ABS(VCF.Start-AN.END)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start)) AND         "
-				+ "(ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.start)))          "
-				+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
-				+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) "
+				+ "     (CASE         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+				+ " (ABS(VCF.start_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+				+ " (ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.end_position)))         "
+				+ "  THEN ABS(VCF.start_position-AN.end_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.start_position)) AND         "
+				+ "(ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.start_position)))          "
+				+ "THEN ABS(VCF.start_position-AN.start_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.end_position - AN.end_position)))          "
+				+ "THEN ABS(VCF.end_position-AN.end_position)         ELSE ABS(VCF.end_position-AN.start_position) END) "
 				+ "    LIMIT " 
 				+ "      1 )[SAFE_OFFSET(0)] names "
 				+", CASE " + 
 				"		 WHEN " + 
-				"        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + 
+				"        ((AN.start_position >  VCF.end_position) OR ( VCF.start_position > AN.end_position)) " + 
 				"        THEN " + 
 				"        'Closest' " + 
 				"        ELSE " + 
@@ -2343,10 +2343,10 @@ public class BigQueryFunctions {
 				"       END AS Status "
 				+ " FROM " + VCFQuery 
 				+ " JOIN `"+ TableName +"` AS AN "
-				+ "  ON VCF.reference_name = AN.chrm ";
+				+ "  ON VCF.reference_name = AN.reference_name ";
 				if (OnlyIntrogenic)
-					Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
-				Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					Query += " WHERE (VCF.start_position>AN.end_position) OR (AN.start_position> VCF.end_position) ";
+				Query += " GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 						+ "alternate_bases, Status";
 				
 			//:TODO M and MT case
@@ -2386,11 +2386,11 @@ public class BigQueryFunctions {
 				String [] RS = temp[index].split(":");
 				if(index+1<temp.length) {
 					WHERE_VCF += " AND (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") OR " ;
 				}
 				else {
 					WHERE_VCF += " AND (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") " ;
 				}
 			}
 			
@@ -2421,9 +2421,9 @@ public class BigQueryFunctions {
 		for (int index = 0; index < VCFTables.length; index++) {
 			if (VCFCanonicalize != null)
 				VCFQuery += " ( SELECT REPLACE( reference_name, '" + VCFCanonicalize[index]
-						+ "', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+						+ "', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 
 			if (index + 1 < VCFTables.length) {
 				VCFQuery += " FROM `" + VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]
@@ -2481,37 +2481,37 @@ public class BigQueryFunctions {
 
 		String Query = "";
 		if (MIN) {
-			Query = "SELECT " + "    VCF.reference_name as chrm," + "    VCF.start as start," + "    VCF.END as `end`,"
+			Query = "SELECT " + "    VCF.reference_name as reference_name," + "    VCF.start_position," + "    VCF.end_position,"
 					+ "    VCF.reference_bases as reference_bases,"
 					+ "    ARRAY_TO_STRING(VCF.alternate_bases, ',') as alternate_bases," + "	   ARRAY_AGG(("
 					+ AllFields + ")" + "    ORDER BY "
-					+ "     (CASE         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-					+ " (ABS(VCF.start-AN.Start) >= ABS(VCF.Start - AN.END)) AND         "
-					+ " (ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.END)))         "
-					+ "  THEN ABS(VCF.Start-AN.END)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.Start - AN.start)) AND         "
-					+ "(ABS(VCF.end-AN.end) >= ABS(VCF.Start - AN.start)))          "
-					+ "THEN ABS(VCF.Start-AN.Start)         WHEN ((ABS(VCF.END-AN.Start) >= ABS(VCF.end - AN.end)))          "
-					+ "THEN ABS(VCF.END-AN.END)         ELSE ABS(VCF.END-AN.Start) END) " + "    LIMIT "
+					+ "     (CASE         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+					+ " (ABS(VCF.start_position-AN.start_position) >= ABS(VCF.start_position - AN.end_position)) AND         "
+					+ " (ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.end_position)))         "
+					+ "  THEN ABS(VCF.start_position-AN.end_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.start_position - AN.start_position)) AND         "
+					+ "(ABS(VCF.end_position-AN.end_position) >= ABS(VCF.start_position - AN.start_position)))          "
+					+ "THEN ABS(VCF.start_position-AN.start_position)         WHEN ((ABS(VCF.end_position-AN.start_position) >= ABS(VCF.end_position - AN.end_position)))          "
+					+ "THEN ABS(VCF.end_position-AN.end_position)         ELSE ABS(VCF.end_position-AN.start_position) END) " + "    LIMIT "
 					+ "      1 )[SAFE_OFFSET(0)] names " + ", CASE " + "		 WHEN "
-					+ "        ((AN.start >  VCF.END) OR ( VCF.start > AN.END)) " + "        THEN "
+					+ "        ((AN.start_position >  VCF.end_position) OR ( VCF.start_position > AN.end_position)) " + "        THEN "
 					+ "        'Closest' " + "        ELSE " + "        'Overlapped'" + "       END AS Status "
-					+ " FROM " + VCFQuery + " JOIN `" + TableName + "` AS AN " + "  ON VCF.reference_name = AN.chrm ";
+					+ " FROM " + VCFQuery + " JOIN `" + TableName + "` AS AN " + "  ON VCF.reference_name = AN.reference_name ";
 			if (onlyIntrogenic)
-				Query += " WHERE (VCF.start>AN.END) OR (AN.Start> VCF.END) ";
-			Query += " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status";
+				Query += " WHERE (VCF.start_position>AN.end_position) OR (AN.start_position> VCF.end_position) ";
+			Query += " GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, alternate_bases, Status";
 
 			// :TODO M and MT case
 		} else {
 
-			Query = "  SELECT " + " VCF.reference_name as chrm, VCF.start as start, VCF.END as `end`, "
+			Query = "  SELECT " + " VCF.reference_name as reference_name, VCF.start_position as start_position, VCF.end_position, "
 					+ "VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases, " + AllFields
 					+ ", AN_start" + ", AN_end" + ", CASE"
-					+ "      WHEN (ABS(VCF.End-AN_Start)>=ABS(VCF.Start - AN_End)) THEN ABS(VCF.Start-AN_End)"
-					+ "      ELSE ABS(VCF.End-AN_Start)" + "    END AS distance" + ", CASE "
-					+ "    WHEN ((VCF.start <= AN_End) AND (AN_Start <= VCF.END)) THEN 'Overlapped' "
+					+ "      WHEN (ABS(VCF.end_position-AN_Start)>=ABS(VCF.start_position - AN_End)) THEN ABS(VCF.start_position-AN_End)"
+					+ "      ELSE ABS(VCF.end_position-AN_Start)" + "    END AS distance" + ", CASE "
+					+ "    WHEN ((VCF.start_position <= AN_End) AND (AN_Start <= VCF.end_position)) THEN 'Overlapped' "
 					+ "    ELSE 'Closest' " + "  END AS Status " + " FROM " + VCFQuery + " JOIN (" + "SELECT "
-					+ "      chrm " + "      , start as AN_Start  " + "      , `END` as AN_END " + RequestedFields
-					+ " From " + "`" + TableName + "`) AS AN " + " ON AN.chrm = VCF.reference_name ";
+					+ "      reference_name " + "      , start_position as AN_Start  " + "      , `end_position` as AN_END " + RequestedFields
+					+ " From " + "`" + TableName + "`) AS AN " + " ON AN.reference_name = VCF.reference_name ";
 			// NOTE: It finds all genes within the range irrespective of whether a variant
 			// overlapped w/ any gene or not.
 			/*
@@ -2625,7 +2625,7 @@ public class BigQueryFunctions {
 		String AnnotationQuery="";
 		int AnnotationIndex=1; // Use for creating alias names
 		
-		String chrm= "\"" + va[0] + "\"";
+		String reference_name= "\"" + va[0] + "\"";
 		int start= (Integer.parseInt(va[1])-1)  ; //0-base
 		int end=  Integer.parseInt(va[2]);
 		String RefBases= "\"" + va[3] + "\"";
@@ -2679,18 +2679,18 @@ public class BigQueryFunctions {
 						
 						//IF the number of fields is more that 1 -> then concat all of them
 						if (TableInfo.length>3)
-							AnnotationQuery += " ( SELECT " + chrm + ", " + start + "," + end + ", " + RefBases + ","+ AltBase + ", "
+							AnnotationQuery += " ( SELECT " + reference_name + ", " + start + "," + end + ", " + RefBases + ","+ AltBase + ", "
 									+ "CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 						else
-							AnnotationQuery +=  " ( SELECT " + chrm + ", " + start + "," + end + ", " + RefBases + ","+ AltBase + ", "
+							AnnotationQuery +=  " ( SELECT " + reference_name + ", " + start + "," + end + ", " + RefBases + ","+ AltBase + ", "
 								    + RequestedFields;
 
 						AnnotationQuery +=
 							 " FROM [" + TableName +"] AS " + AliasTableName ;
-						AnnotationQuery += " WHERE (" + AliasTableName + ".chrm = " + chrm + ") "
-							+ " AND (" + AliasTableName + ".start = " + start + ") AND (" + AliasTableName + ".END = " + end + ") "
-							+ " AND (((CONCAT(" + RefBases.replace("-", "") + ", " + AliasTableName + ".alt) =" + AltBase.replace("-", "") +" ) "
-							+ " OR " + AliasTableName + ".alt = " + AltBase.replace("-", "") + ") AND (" + RefBases.replace("-", "") +" = " + AliasTableName + ".base)) ";
+						AnnotationQuery += " WHERE (" + AliasTableName + ".reference_name = " + reference_name + ") "
+							+ " AND (" + AliasTableName + ".start_position = " + start + ") AND (" + AliasTableName + ".end_position = " + end + ") "
+							+ " AND (((CONCAT(" + RefBases.replace("-", "") + ", " + AliasTableName + ".alternate_bases) =" + AltBase.replace("-", "") +" ) "
+							+ " OR " + AliasTableName + ".alternate_bases = " + AltBase.replace("-", "") + ") AND (" + RefBases.replace("-", "") +" = " + AliasTableName + ".reference_bases)) ";
 						
 						//This is the case when we have transcript annotations 
 						if(index+1 <  VariantAnnotationTables.length)
@@ -2702,11 +2702,11 @@ public class BigQueryFunctions {
 		}
 
 		String Query= "  SELECT "
-				+ chrm + " as chrm, " + start + " as start, "+ end + " as end, " + RefBases + " as reference_bases, "
+				+ reference_name + " as reference_name, " + start + " as start_position, "+ end + " as end_position, " + RefBases + " as reference_bases, "
 				+   AltBase + " as alternate_bases " + AllFields 
 				+ " FROM " + AnnotationQuery;
 					
-		Query += " GROUP BY  chrm, start, END, reference_bases, alternate_bases " ; //+ AllFields; 
+		Query += " GROUP BY  reference_name, start_position, end_position, reference_bases, alternate_bases " ; //+ AllFields; 
 	
 		
 		return Query;
@@ -2735,7 +2735,7 @@ public class BigQueryFunctions {
 		String AnnotationQuery="";
 		int AnnotationIndex=1; // Use for creating alias names
 		
-		String chrm= "\"" + region[0] + "\"";
+		String reference_name= "\"" + region[0] + "\"";
 		int start= (Integer.parseInt(region[1])-1)  ; //0-base
 		int end=  Integer.parseInt(region[2]);
 		
@@ -2788,16 +2788,16 @@ public class BigQueryFunctions {
 						
 						//IF the number of fields is more that 1 -> then concat all of them
 						if (TableInfo.length>3)
-							AnnotationQuery += " ( SELECT " + chrm + ", " + start + "," + end + ", "
+							AnnotationQuery += " ( SELECT " + reference_name + ", " + start + "," + end + ", "
 									+ "CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 						else
-							AnnotationQuery +=  " ( SELECT " + chrm + ", " + start + "," + end + ", "
+							AnnotationQuery +=  " ( SELECT " + reference_name + ", " + start + "," + end + ", "
 								    + RequestedFields;
 
 						AnnotationQuery +=
 							 " FROM [" + TableName +"] AS " + AliasTableName ;
-						AnnotationQuery += " WHERE (" + AliasTableName + ".chrm = " + chrm + ") "
-								+ " AND ("+ AliasTableName +".start <= " + end +") AND (" + start + "<= "+ AliasTableName +".end ) ";				
+						AnnotationQuery += " WHERE (" + AliasTableName + ".reference_name = " + reference_name + ") "
+								+ " AND ("+ AliasTableName +".start_position <= " + end +") AND (" + start + "<= "+ AliasTableName +".end_position ) ";				
 				
 									
 						//This is the case when we have transcript annotations 
@@ -2810,10 +2810,10 @@ public class BigQueryFunctions {
 		}
 
 		String Query= "  SELECT "
-				+ chrm + " as chrm, " + start + " as start, "+ end + " as end " + AllFields 
+				+ reference_name + " as reference_name, " + start + " as start_position, "+ end + " as end_position " + AllFields 
 				+ " FROM " + AnnotationQuery;
 					
-		Query += " GROUP BY  chrm, start, END " ; //+ AllFields; 
+		Query += " GROUP BY  reference_name, start_position, end_position " ; //+ AllFields; 
 	
 		
 		return Query;
@@ -2827,12 +2827,12 @@ public class BigQueryFunctions {
 		for(int index=0; index<listVA.size(); index++)
 		{
 			String [] va = listVA.get(index);
-			String chrm= "\"" + va[0] + "\"";
+			String reference_name= "\"" + va[0] + "\"";
 			int start= (Integer.parseInt(va[1])-1)  ; //Convert to 0-based
 			int end=  Integer.parseInt(va[2]);
 					
 			if (setFields) {
-				Query += "SELECT " + chrm + " reference_name, " + start + " start, " + end + " `END` ";
+				Query += "SELECT " + reference_name + " reference_name, " + start + " start_position, " + end + " `end_position` ";
 				if (VariantBased) {
 					String RefBases= "\"" + va[3] + "\"";
 					String AltBase= "\"" + va[4] + "\"";
@@ -2841,7 +2841,7 @@ public class BigQueryFunctions {
 				setFields= false;
 			}
 			else {
-				Query += " \n SELECT " + chrm + ", " + start + ", " + end;
+				Query += " \n SELECT " + reference_name + ", " + start + ", " + end;
 				if (VariantBased) {
 					String RefBases= "\"" + va[3] + "\"";
 					String AltBase= "\"" + va[4] + "\"";
@@ -2853,10 +2853,10 @@ public class BigQueryFunctions {
 				Query += " UNION ALL ";
 		}
 		if (VariantBased) {
-			Query += ") \nSELECT reference_name, start, `END`, reference_bases, alternate_bases FROM " + TempVCFTable;
+			Query += ") \nSELECT reference_name, start_position, `end_position`, reference_bases, alternate_bases FROM " + TempVCFTable;
 		}
 		else {
-			Query += ") \nSELECT reference_name, start, `END` FROM " + TempVCFTable;
+			Query += ") \nSELECT reference_name, start_position, `end_position` FROM " + TempVCFTable;
 			
 		}
 		return Query;
@@ -2930,16 +2930,16 @@ public class BigQueryFunctions {
 				String [] RS = temp[index].split(":");
 				if(index+1<temp.length) {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") OR " ;
 					
-					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "")
+					WHERE_ANN += " (reference_name=\"" + RS[0].replace("chr", "")
 									+ "\") OR " ;
 				}
 				else {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") " ;
 					
-					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "") 
+					WHERE_ANN += " (reference_name=\"" + RS[0].replace("chr", "") 
 									+ "\")" ;
 				}
 			}
@@ -2950,9 +2950,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index< VCFTables.length; index++){
 			if(VCFCanonicalize!=null)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END, reference_bases, alternate_bases, call.call_set_name, quality  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases, call.call_set_name, quality  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position, reference_bases, alternate_bases ";
 
 			if (index+1<VCFTables.length) {
 					VCFQuery += " FROM ["+ VCFTables[index]  +"] ";				
@@ -3034,10 +3034,10 @@ public class BigQueryFunctions {
 						
 						//IF the number of fields is more that 1 -> then concat all of them
 						if (TableInfo.length>3)
-							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
+							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, "
 									+ "CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 						else
-							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
+							AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, "
 								    + RequestedFields;
 
 						AnnotationQuery +=" FROM " + VCFQuery;
@@ -3048,11 +3048,11 @@ public class BigQueryFunctions {
 						}else {
 							AnnotationQuery +=" JOIN [" + TableName +"] AS " + AliasTableName ;
 						}
-						AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+						AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-						AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+						AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+							+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)) ";
 						
 						//This is the case when we have transcript annotations 
 						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
@@ -3122,10 +3122,10 @@ public class BigQueryFunctions {
 
 				//IF the number of fields is more that 1 -> then concat all of them
 				if (TableInfo.length>3)
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 							+ "VCF.alternate_bases, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 				else
-					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, "
+					AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, "
 						    + RequestedFields;
 
 				AnnotationQuery +=" FROM " + VCFQuery;
@@ -3137,11 +3137,11 @@ public class BigQueryFunctions {
 						AnnotationQuery += " JOIN [" + TableName +"] AS " + AliasTableName ;
 				}
 						
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
 
 				AnnotationQuery += " WHERE "
-						+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";				
+						+ " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";				
 				
 				if(index+1 <  TranscriptAnnotations.length)
 					AnnotationQuery +=  "), ";
@@ -3152,16 +3152,16 @@ public class BigQueryFunctions {
 		}		
 	
 		String Query= "  SELECT "
-				+ " VCF.reference_name as chrm, VCF.start as start, VCF.END as end, VCF.reference_bases as reference_bases, "
+				+ " VCF.reference_name as reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases as reference_bases, "
 				+ "VCF.alternate_bases as alternate_bases " + AllFields 
 				+ " FROM ";
 		
 		Query += AnnotationQuery;
 		
 		if(GroupBy) {
-			Query = " SELECT    chrm, start, end, reference_bases, alternate_bases " + Concat_Group 
+			Query = " SELECT    reference_name, start_position, end_position, reference_bases, alternate_bases " + Concat_Group 
 					+ " FROM ( " + Query
-					+ " ) GROUP BY  chrm, start, end, reference_bases, alternate_bases " ; 
+					+ " ) GROUP BY  reference_name, start_position, end_position, reference_bases, alternate_bases " ; 
 		}
 		return Query;
 	}
@@ -3170,7 +3170,7 @@ public class BigQueryFunctions {
 	
 		String queryStat = "UPDATE   " + "`" + projectId + "."
 				+ bigQueryDatasetId + "." + outputBigQueryTable + "` "
-				+ " SET start = start + 1 WHERE chrm <>\"\" ";
+				+ " SET start_position = start_position + 1 WHERE reference_name <>\"\" ";
 		QueryResponse response = runquery(queryStat);
 	}
 
@@ -3232,16 +3232,16 @@ public class BigQueryFunctions {
 				String [] RS = temp[index].split(":");
 				if(index+1<temp.length) {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") OR " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") OR " ;
 					
-					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "")
+					WHERE_ANN += " (reference_name=\"" + RS[0].replace("chr", "")
 									+ "\") OR " ;
 				}
 				else {
 					WHERE_VCF += " (reference_name=\"" + RS[0].replace("chr", "") + "\" AND "
-							+ " start > " + RS[1] + " AND start < " + RS[2] + ") " ;
+							+ " start_position > " + RS[1] + " AND start_position < " + RS[2] + ") " ;
 					
-					WHERE_ANN += " (chrm=\"" + RS[0].replace("chr", "") 
+					WHERE_ANN += " (reference_name=\"" + RS[0].replace("chr", "") 
 									+ "\")" ;
 				}
 			}
@@ -3252,9 +3252,9 @@ public class BigQueryFunctions {
 		String VCFQuery=" ( SELECT * from ";
 		for (int index=0; index < VCFTables.length; index++){
 			if(VCFCanonicalize != null)
-				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, END ";
+				VCFQuery += " ( SELECT REPLACE( reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, END ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position ";
 
 			//if(VariantAnnotationTableNames!=null){
 				VCFQuery += ", reference_bases, alternate_bases";
@@ -3329,7 +3329,7 @@ public class BigQueryFunctions {
 							}
 						}
 												
-						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields
+						AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases " + RequestedFields
 							+ " FROM " + VCFQuery;
 						
 						if (!searchRegions.isEmpty()) {
@@ -3339,11 +3339,11 @@ public class BigQueryFunctions {
 							AnnotationQuery +=" JOIN [" + TableName +"] AS " + AliasTableName ;
 						}
 						
-						AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+						AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-						AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-							+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+						AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+							+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+							+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)) ";
 									//+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases " + RequestedFields;
 						if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
 							AnnotationQuery +=  "), "; //In case there are more variant annotations OR we have  
@@ -3391,7 +3391,7 @@ public class BigQueryFunctions {
 					}
 				}
 										
-				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start, VCF.END ";
+				AnnotationQuery += " ( SELECT VCF.reference_name, VCF.start_position, VCF.end_position ";
 					//	if(VariantAnnotationTableNames!=null){
 							AnnotationQuery += ", VCF.reference_bases, VCF.alternate_bases " ;
 					//	}
@@ -3406,12 +3406,12 @@ public class BigQueryFunctions {
 						AnnotationQuery += " JOIN [" + TableName +"] AS " + AliasTableName ;
 				}
 						
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 				
 				
 				AnnotationQuery += " WHERE "			
 				//		x1 <= y2 && y1 <= x2
-				+ "((("+ AliasTableName +".start <= VCF.end) AND ("+ AliasTableName +".end >= VCF.start)))";
+				+ "((("+ AliasTableName +".start_position <= VCF.end_position) AND ("+ AliasTableName +".end_position >= VCF.start_position)))";
 
 		
 				if(index+1 <  TranscriptAnnotations.length)
@@ -3422,7 +3422,7 @@ public class BigQueryFunctions {
 		
 		}		
 	
-		String Query= "  SELECT VCF.reference_name as chrm, VCF.start as start, VCF.END as end ";
+		String Query= "  SELECT VCF.reference_name as reference_name, VCF.start_position, VCF.end_position ";
 				//if(VariantAnnotationTableNames!=null){
 					 Query+= ", VCF.reference_bases as reference_bases, VCF.alternate_bases as alternate_bases ";
 				//}
@@ -3431,7 +3431,7 @@ public class BigQueryFunctions {
 		
 		Query += AnnotationQuery;
 		if (GroupBy) {
-			Query += " GROUP BY  chrm, start, END "; 
+			Query += " GROUP BY  reference_name, start_position, end_position "; 
 			
 			//if(VariantAnnotationTableNames!=null){
 				Query += ", reference_bases, alternate_bases";
@@ -3470,14 +3470,15 @@ public class BigQueryFunctions {
 		
 		String outputBigQueryTable= bigQueryVCFTableId+"_With_SampleCount"; 
 		String[] samples = numSampleIDs.split(",");
-		String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base, alternate_bases as alt, ID, QUAL, FILTER, INFO, FORMAT ";
+		//String queryString = "SELECT  reference_name as reference_name, start, `end`, reference_bases as base, alternate_bases as alt, ID, QUAL, FILTER, INFO, FORMAT ";
+		String queryString = "SELECT  reference_name, start_position, end_position, reference_bases, alternate_bases, ID, QUAL, FILTER, INFO, FORMAT ";
 
 		for (int index=0; index<samples.length; index++) {
 			queryString += "," + samples[index]; 
 		}
 		 
 		
-		//String queryString = "SELECT  reference_name as chrm, start, `end`, reference_bases as base,   ARRAY_AGG(alt) as alt, ";
+		//String queryString = "SELECT  reference_name as reference_name, start, `end`, reference_bases as base,   ARRAY_AGG(alt) as alt, ";
 		
 		 
 		String SNames = ", concat( ";
@@ -3495,7 +3496,7 @@ public class BigQueryFunctions {
 		 
 		 queryString += SNames + SCount; // + ", " + otherFields;
 		 queryString += " FROM " + tempTableName; // + ", UNNEST (alternate_bases) as alt ";
-		 //queryString += "Group By chrm, start, `end`, base, " + otherFields + ", Sample_Names, Num_Samples";
+		 //queryString += "Group By reference_name, start, `end`, base, " + otherFields + ", Sample_Names, Num_Samples";
 		 
 		LOG.info(queryString);		 
 		        
@@ -3612,14 +3613,14 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 	for (int index=0; index< VCFTables.length; index++){
 		if(VCFCanonicalize!=null) {
 			if (!GoogleVCF)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, end_position, reference_bases, alternate_bases.alt as alternate_bases ";
 		}else {
 			if (!GoogleVCF)
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 			else
-				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, end_position , reference_bases, alternate_bases.alt as alternate_bases ";
 		}
 		//Check UCSC_VCF
 		UCSC_VCFQuery = VCFQuery + ", " + build + "_UCSC_knownGene FROM `"+ VCFTables[index].split(":")[0] + "." + VCFTables[index].split(":")[1]  +"`) ";
@@ -3708,7 +3709,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 					//IF the number of fields is more that 1 -> then concat all of them
 					if (TableInfo.length>3) {
 						
-						AnnotationQuery += "  SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+						AnnotationQuery += "  SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases ";
 						if (numSamples && GoogleVCF) {
 							AnnotationQuery += ", num_samples ";
 						}
@@ -3720,7 +3721,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 
 					}
 					else {
-						AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+						AnnotationQuery += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 						if (numSamples && GoogleVCF) {
 							AnnotationQuery += " num_samples, ";
 						}
@@ -3731,11 +3732,11 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 //>>>>>>>>>						 " FROM " + VCFQuery 
 						 " FROM " + UCSC_VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
-					AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+					AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-					AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-						+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-						+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+					AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+						+ " WHERE (((CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+						+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)) ";
 					
 					//This is the case when we have transcript annotations 
 					if(index+1 <  VariantAnnotationTables.length || (TranscriptAnnotations!=null))
@@ -3844,7 +3845,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 			String innerSelect=""; 
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
-				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				innerSelect += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 				+ "VCF.alternate_bases ";
 
 				if (numSamples && GoogleVCF) {
@@ -3858,7 +3859,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 			}
 			else {
-				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				innerSelect += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 				if (numSamples && GoogleVCF) {
 					innerSelect += " num_samples, ";
 				}	
@@ -3868,42 +3869,42 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 			if (!LeftJoin) { //Everything
 				AnnotationQuery += innerSelect + " FROM " + UCSC_VCFQuery 
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.start_position," + binSize + ")=DIV("+ AliasTableName + ".start_position, "+ binSize + ")) ";
 				AnnotationQuery += " WHERE "
-					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
+					+ " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) "; 
 				
 				AnnotationQuery += " UNION ALL " 
 					+ innerSelect + " FROM " + UCSC_VCFQuery
 					+ " JOIN `" + TableName +"` AS " + AliasTableName 	
-					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+					+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+					+ " AND ( DIV(VCF.end_position," + binSize + ")=DIV("+ AliasTableName +".end_position, "+ binSize + ")) "
 				    + " WHERE "
-				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+				    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 
 				AnnotationQuery += " UNION ALL " 
 						+ innerSelect + " FROM " + UCSC_VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
-						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+						+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.start_position," + binSize + ")=DIV("+ AliasTableName +".end_position, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+					    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 				
 				AnnotationQuery += " UNION ALL " 
 						+ innerSelect + " FROM " + UCSC_VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
-						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
+						+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.end_position," + binSize + ")=DIV("+ AliasTableName +".start_position, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+					    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 
 			}
 			else { // VCF annd UCSC_knownGene
 				AnnotationQuery +=
 						innerSelect + " FROM " + VCFQuery 
 						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) AND  ("+ 
-						AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";						
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) AND  ("+ 
+						AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";						
 
 			}
 			
@@ -4005,7 +4006,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 			
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
-				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 				+ "VCF.alternate_bases ";
 
 				if (numSamples && GoogleVCF) {
@@ -4019,7 +4020,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 			}
 			else {
-				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 				if (numSamples && GoogleVCF) {
 					AnnotationQuery += " num_samples, ";
 				}	
@@ -4029,7 +4030,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 				 " FROM " + UCSC_VCFQuery 
 				+ " JOIN `" + TableName +"` AS " + AliasTableName ;
 			
-			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+			AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 			AnnotationQuery += "AND (" + AliasTableName + ".UCSC_ID = VCF." + build + "_UCSC_knownGene) "
 					+ "AND VCF." + build + "_UCSC_knownGene IS NULL " ; //Intergenic Regions
 			
@@ -4044,14 +4045,14 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL(St
 		AllFields = ",  num_samples " + AllFields ;
 	}
 	String Query= "  SELECT "
-			+ " reference_name, start, `end`, reference_bases, "
+			+ " reference_name, start_position, `end_position`, reference_bases, "
 			+ " alternate_bases " + AllFields 
 			+ " FROM (";
 	
 	Query += AnnotationQuery;
 	
 	if(!createVCF && GroupBy) {
-		Query += " ) GROUP BY  reference_name, start, `END`, reference_bases, alternate_bases "; 
+		Query += " ) GROUP BY  reference_name, start_position, `end_position`, reference_bases, alternate_bases "; 
 		if (numSamples) {
 			Query += ",  num_samples " ;
 		}
@@ -4170,10 +4171,10 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 
 	for (int index=0; index< VCFTables.length; index++){
 		if(VCFCanonicalize!=null) { 
-				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start, `END`, reference_bases, alternate_bases  ";
+				VCFQuery += " ( SELECT REPLACE(reference_name, '"+ VCFCanonicalize[index] +"', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases  ";
 		}else {
-			UCSC_VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
-			VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start, `END`, reference_bases, alternate_bases ";
+			UCSC_VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
+			VCFQuery += " ( SELECT REPLACE(reference_name, '', '') as reference_name, start_position, `end_position`, reference_bases, alternate_bases ";
 		}
 	
 		//Check UCSC_VCF
@@ -4228,7 +4229,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					//IF the number of fields is more that 1 -> then concat all of them
 					if (TableInfo.length>3) {
 						
-						AnnotationQuery += "  SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases ";
+						AnnotationQuery += "  SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases ";
 						if (numSamples && GoogleVCF) {
 							AnnotationQuery += ", num_samples ";
 						}
@@ -4240,7 +4241,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 
 					}
 					else {
-						AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+						AnnotationQuery += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 						if (numSamples && GoogleVCF) {
 							AnnotationQuery += " num_samples, ";
 						}
@@ -4250,12 +4251,12 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					AnnotationQuery +=
 						 " FROM " + VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
-					AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+					AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 
-					AnnotationQuery += " AND (" + AliasTableName + ".start = VCF.start) AND (" + AliasTableName + ".END = VCF.END) "
-						+ " WHERE ((("+ AliasTableName + ".base 	= \"\")  "
-								+ "AND (CONCAT(VCF.reference_bases, " + AliasTableName + ".alt) = VCF.alternate_bases) "
-						+ " OR " + AliasTableName + ".alt = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".base)) ";
+					AnnotationQuery += " AND (" + AliasTableName + ".start_position = VCF.start_position) AND (" + AliasTableName + ".end_position = VCF.end_position) "
+						+ " WHERE ((("+ AliasTableName + ".reference_bases	= \"\")  "
+								+ "AND (CONCAT(VCF.reference_bases, " + AliasTableName + ".alternate_bases) = VCF.alternate_bases) "
+						+ " OR " + AliasTableName + ".alternate_bases = VCF.alternate_bases) AND (VCF.reference_bases = " + AliasTableName + ".reference_bases)) ";
 					
 					//This is the case when we have transcript annotations 
 					if(index+1 < VariantAnnotationTables.length) {
@@ -4304,7 +4305,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			String innerSelect=""; 
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
-				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				innerSelect += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 				+ "VCF.alternate_bases ";
 
 				if (numSamples && GoogleVCF) {
@@ -4318,7 +4319,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 			}
 			else {
-				innerSelect += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				innerSelect += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 				if (numSamples && GoogleVCF) {
 					innerSelect += " num_samples, ";
 				}	
@@ -4328,73 +4329,73 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			if (!LeftJoin) { //Everything
 				AnnotationQuery += "(" + innerSelect + " FROM " + VCFQuery 
 						+ " JOIN `" + TableName +"` AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.start_position," + binSize + ")=DIV("+ AliasTableName + ".start_position, "+ binSize + ")) ";
 				AnnotationQuery += " WHERE "
-					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
+					+ " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) "; 
 				
 				AnnotationQuery += " UNION DISTINCT " 
 					+ innerSelect + " FROM " + VCFQuery
 					+ " JOIN `" + TableName +"` AS " + AliasTableName 	
-					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+					+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+					+ " AND ( DIV(VCF.end_position," + binSize + ")=DIV("+ AliasTableName +".end_position, "+ binSize + ")) "
 				    + " WHERE "
-				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+				    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 
 				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
-						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+						+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.start_position," + binSize + ")=DIV("+ AliasTableName +".end_position, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+					    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 				
 				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + VCFQuery
 						+ " JOIN `" + TableName +"` AS " + AliasTableName 	
-						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
+						+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.end_position," + binSize + ")=DIV("+ AliasTableName +".start_position, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end )) ";
+					    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position )) ";
 
 			}
 			else { // VCF annd UCSC_knownGene
 //				AnnotationQuery +=
 //						innerSelect + " FROM " + VCFQuery 
 //						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName ;
-//				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) AND  ("+ 
+//				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) AND  ("+ 
 //						AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";	
 				
 				AnnotationQuery += innerSelect + " FROM " + VCFQuery 
 						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName ;
-				AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.START," + binSize + ")=DIV("+ AliasTableName + ".START, "+ binSize + ")) ";
+				AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.start_position," + binSize + ")=DIV("+ AliasTableName + ".start_position, "+ binSize + ")) ";
 				AnnotationQuery += " WHERE "
-					+ " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) "; 
+					+ " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) "; 
 				
 				AnnotationQuery += " UNION DISTINCT " 
 					+ innerSelect + " FROM " + VCFQuery
 					+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
-					+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-					+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+					+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+					+ " AND ( DIV(VCF.end_position," + binSize + ")=DIV("+ AliasTableName +".end_position, "+ binSize + ")) "
 				    + " WHERE "
-				    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+				    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 
 				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + VCFQuery
 						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
-						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.Start," + binSize + ")=DIV("+ AliasTableName +".END, "+ binSize + ")) "
+						+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.start_position," + binSize + ")=DIV("+ AliasTableName +".end_position, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+					    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 				
 				AnnotationQuery += " UNION DISTINCT " 
 						+ innerSelect + " FROM " + VCFQuery
 						+ " LEFT JOIN `" + TableName +"` AS " + AliasTableName 	
-						+ " ON (" + AliasTableName + ".chrm = VCF.reference_name) "
-						+ " AND ( DIV(VCF.END," + binSize + ")=DIV("+ AliasTableName +".Start, "+ binSize + ")) "
+						+ " ON (" + AliasTableName + ".reference_name = VCF.reference_name) "
+						+ " AND ( DIV(VCF.end_position," + binSize + ")=DIV("+ AliasTableName +".start_position, "+ binSize + ")) "
 					    + " WHERE "
-					    + " ("+ AliasTableName +".start <= VCF.END) AND (VCF.start <= "+ AliasTableName +".end ) ";
+					    + " ("+ AliasTableName +".start_position <= VCF.end_position) AND (VCF.start_position <= "+ AliasTableName +".end_position ) ";
 
 			}
 			
@@ -4438,7 +4439,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 
 			//IF the number of fields is more that 1 -> then concatenation all of them
 			if (TableInfo.length>3) {
-				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 				+ "VCF.alternate_bases ";
 
 				if (numSamples && GoogleVCF) {
@@ -4452,7 +4453,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 					//, CONCAT(" + RequestedFields +") as " + AliasTableName +"." + AliasTableName;
 			}
 			else {
-				AnnotationQuery += " SELECT VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, ";
+				AnnotationQuery += " SELECT VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, ";
 				if (numSamples && GoogleVCF) {
 					AnnotationQuery += " num_samples, ";
 				}	
@@ -4462,7 +4463,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 				 " FROM " + UCSC_VCFQuery 
 				+ " JOIN `" + TableName +"` AS " + AliasTableName ;
 			
-			AnnotationQuery += " ON (" + AliasTableName + ".chrm = VCF.reference_name) ";
+			AnnotationQuery += " ON (" + AliasTableName + ".reference_name = VCF.reference_name) ";
 			AnnotationQuery += "AND (" + AliasTableName + ".UCSC_ID = VCF." + build + "_UCSC_knownGene) "
 					+ "AND VCF." + build + "_UCSC_knownGene IS NOT NULL " ; 
 			
@@ -4485,17 +4486,17 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		AllFields = ",  num_samples " + AllFields ;
 	}
 	String Query= "  SELECT "
-			+ " reference_name, start, `end`, reference_bases, "
+			+ " reference_name, start_position, `end_position`, reference_bases, "
 			+ " alternate_bases ";
 	
-	if (	TranscriptAnnotationTableNames!=null && (TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg19_UCSC_knownGene:name")
-			|| TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name"))) {
+	if (	TranscriptAnnotationTableNames!=null && (TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_UCSC_knownGene:name")
+			|| TranscriptAnnotationTableNames.equalsIgnoreCase("gbsc-gcp-project-cba:AnnotationHive_hg19.hg38_UCSC_knownGene:name"))) {
 			Query = AnnotationQuery.replaceAll("Annotation1.name as `Annotation1.name`", "Annotation1.name as `hg19_UCSC_knownGene`");
 	}else {
 		
 		Query+=AllFields + " FROM (" + AnnotationQuery;
 		if(!createVCF && GroupBy) {
-			Query += " ) GROUP BY  reference_name, start, `END`, reference_bases, alternate_bases " + query.getGroupByList(); 
+			Query += " ) GROUP BY  reference_name, start_position, `end_position`, reference_bases, alternate_bases " + query.getGroupByList(); 
 			if (numSamples) {
 				Query += ",  num_samples " ;
 			}
@@ -4521,63 +4522,63 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    
 	    	String s="SELECT SRC.*, DEST.Final as `Final` FROM       "
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3` as SRC JOIN  "
-	    			+ "(SELECT     VCF.reference_name as `reference_name` ,     VCF.start as start,     VCF.END as `END`,     "
+	    			+ "(SELECT     VCF.reference_name as `reference_name` ,     VCF.start_position,     VCF.end_position,     "
 	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,   "
 	    			+ "ARRAY_AGG (STRUCT(REPLACE(REPLACE(REPLACE(status, '1', ''), '2', ''), '3', ''))    ORDER BY     "
 	    			+ "Status ASC    LIMIT     1)[ OFFSET   (0)]  Final FROM (   SELECT     VCF.reference_name as `reference_name`,     "
-	    			+ "VCF.start as `start`,     VCF.END as `END`,     VCF.reference_bases as `reference_bases`,    "
-	    			+ " VCF.alternate_bases as `alternate_bases`,      CASE       WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) "
-	    			+ "THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.END)       AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       "
+	    			+ "VCF.start_position,     VCF.end_position,     VCF.reference_bases as `reference_bases`,    "
+	    			+ " VCF.alternate_bases as `alternate_bases`,      CASE       WHEN ((AN.start_position > VCF.end_position) OR ( VCF.start_position > AN.end_position)) "
+	    			+ "THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.end_position)       AND (VCF.start_position <= AN.EndPoint)) THEN '1Exonic'       "
 	    			+ "ELSE '2Intronic'     END AS Status   FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       "
-	    			+ "start,       `END`,       reference_bases,       alternate_bases     FROM       "
+	    			+ "start_position,       `end_position`,       reference_bases,       alternate_bases     FROM       "
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   LEFT JOIN (     "
-	    			+ "SELECT       chrm,       start,       `end`,       CAST(StartPoint AS INT64) StartPoint,      "
-	    			+ " CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       "
+	    			+ "SELECT       reference_name,       start_position,       `end_position`,       CAST(StartPoint AS INT64) StartPoint,      "
+	    			+ " CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       "
 	    			+ "UNNEST(SPLIT( exonStarts )) StartPoint     WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     "
 	    			+ "WITH     OFFSET       pos2     ON       pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   "
-	    			+ "ON     VCF.reference_name = AN.chrm   AND ( DIV(VCF.START,2500000)=DIV(AN.START, 2500000))   "
-	    			+ "GROUP BY     VCF.reference_name,     VCF.start,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases,     Status  "
+	    			+ "ON     VCF.reference_name = AN.reference_name   AND ( DIV(VCF.start_position,2500000)=DIV(AN.start_position, 2500000))   "
+	    			+ "GROUP BY     VCF.reference_name,     VCF.start_position,     VCF.end_position,     VCF.reference_bases,     VCF.alternate_bases,     Status  "
 	    			+ " UNION DISTINCT    "
-	    			+ "SELECT     VCF.reference_name as `reference_name`,     VCF.start as `start`,     VCF.END as `END`,     "
+	    			+ "SELECT     VCF.reference_name as `reference_name`,     VCF.start_position,     VCF.end_position ,     "
 	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,     "
-	    			+ " CASE       WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'      "
-	    			+ " WHEN ((AN.StartPoint <= VCF.END)       AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       "
+	    			+ " CASE       WHEN ((AN.start_position > VCF.end_position) OR ( VCF.start_position > AN.end_position)) THEN '3Intergenic'      "
+	    			+ " WHEN ((AN.StartPoint <= VCF.end_position)       AND (VCF.start_position <= AN.EndPoint)) THEN '1Exonic'       "
 	    			+ "ELSE '2Intronic'     END AS Status   FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       "
-	    			+ "start,       `END`,       reference_bases,       alternate_bases     FROM       "
+	    			+ "start_position,       `end_position`,       reference_bases,       alternate_bases     FROM       "
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   "
-	    			+ "LEFT JOIN (     SELECT       chrm,       start,       `end`,       CAST(StartPoint AS INT64) StartPoint,       "
-	    			+ "CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       "
+	    			+ "LEFT JOIN (     SELECT       reference_name,       start_position,       `end_position`,       CAST(StartPoint AS INT64) StartPoint,       "
+	    			+ "CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       "
 	    			+ "UNNEST(SPLIT( exonStarts )) StartPoint     WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint    "
 	    			+ " WITH     OFFSET       pos2     ON       pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     "
-	    			+ "VCF.reference_name = AN.chrm   AND (DIV(VCF.START,2500000)=DIV(AN.END, 2500000)    )   GROUP BY    "
-	    			+ " VCF.reference_name,     VCF.start,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases,     Status,     "
-	    			+ "AN.END,     AN.START   UNION DISTINCT    SELECT     VCF.reference_name as `reference_name`,     VCF.start as `start`,     "
-	    			+ "VCF.END as `END`,     VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,      "
-	    			+ " CASE       WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.END)       "
-	    			+ "AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       ELSE '2Intronic'     END AS Status   "
-	    			+ "FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       start,       `END`,       reference_bases,"
+	    			+ "VCF.reference_name = AN.reference_name   AND (DIV(VCF.start_position,2500000)=DIV(AN.end_position, 2500000)    )   GROUP BY    "
+	    			+ " VCF.reference_name,     VCF.start_position,     VCF.end_position,     VCF.reference_bases,     VCF.alternate_bases,     Status,     "
+	    			+ "AN.end_position,     AN.start_position   UNION DISTINCT    SELECT     VCF.reference_name as `reference_name`,     VCF.start_position,     "
+	    			+ "VCF.end_position ,     VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,      "
+	    			+ " CASE       WHEN ((AN.start_position > VCF.end_position) OR ( VCF.start_position > AN.end_position)) THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.end_position)       "
+	    			+ "AND (VCF.start_position <= AN.EndPoint)) THEN '1Exonic'       ELSE '2Intronic'     END AS Status   "
+	    			+ "FROM (     SELECT       REPLACE(reference_name, '', '') AS reference_name,       start_position,       `end_position`,       reference_bases,"
 	    			+ " alternate_bases     FROM       "
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`"
-	    			+ ") AS VCF   LEFT JOIN (     SELECT       chrm,       start,       `end`,       name,       name2,       "
+	    			+ ") AS VCF   LEFT JOIN (     SELECT       reference_name,       start_position,       `end_position`,       name,       name2,       "
 	    			+ "CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     FROM      "
-	    			+ " `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     "
+	    			+ " `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     "
 	    			+ "WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     WITH     OFFSET       pos2     ON       "
-	    			+ "pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.chrm   "
-	    			+ "AND (DIV(VCF.END,2500000)=DIV(AN.START, 2500000)   )   GROUP BY     VCF.reference_name,     "
-	    			+ "VCF.start,     VCF.END,     VCF.reference_bases,     alternate_bases,     Status   UNION DISTINCT      "
-	    			+ "SELECT     VCF.reference_name as `reference_name`,     VCF.start as `start`,     VCF.END as `END`,     "
+	    			+ "pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.reference_name   "
+	    			+ "AND (DIV(VCF.end_position,2500000)=DIV(AN.start_position, 2500000)   )   GROUP BY     VCF.reference_name,     "
+	    			+ "VCF.start_position,     VCF.end_position,     VCF.reference_bases,     alternate_bases,     Status   UNION DISTINCT      "
+	    			+ "SELECT     VCF.reference_name as `reference_name`,     VCF.start_position,     VCF.end_position,     "
 	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,      CASE      "
-	    			+ " WHEN ((AN.start > VCF.END) OR ( VCF.start > AN.END)) THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.END)       "
-	    			+ "AND (VCF.start <= AN.EndPoint)) THEN '1Exonic'       ELSE '2Intronic'     END AS Status   FROM (     SELECT       "
-	    			+ "REPLACE(reference_name, '', '') AS reference_name,       start,       `END`,       reference_bases,       alternate_bases     "
+	    			+ " WHEN ((AN.start_position > VCF.end_position) OR ( VCF.start_position > AN.end_position)) THEN '3Intergenic'       WHEN ((AN.StartPoint <= VCF.end_position)       "
+	    			+ "AND (VCF.start_position <= AN.EndPoint)) THEN '1Exonic'       ELSE '2Intronic'     END AS Status   FROM (     SELECT       "
+	    			+ "REPLACE(reference_name, '', '') AS reference_name,       start_position,       `end_position`,       reference_bases,       alternate_bases     "
 	    			+ "FROM       `gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   LEFT JOIN (     SELECT       "
-	    			+ "chrm,       start,       `end`,       CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     "
-	    			+ "FROM       `gbsc-gcp-project-cba.PublicAnnotationSets.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     WITH     "
+	    			+ "reference_name,       start_position,       `end_position`,       CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     "
+	    			+ "FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     WITH     "
 	    			+ "OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     WITH     OFFSET       pos2     ON       pos1 = pos2     "
-	    			+ "WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.chrm   AND ( DIV(VCF.END,2500000)=DIV(AN.END, 2500000)   )   "
-	    			+ "GROUP BY     VCF.reference_name,     VCF.start,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases,     Status    ) "
-	    			+ "as VCF GROUP BY    VCF.reference_name,     VCF.start ,     VCF.END,     VCF.reference_bases,     VCF.alternate_bases) AS DEST "
-	    			+ "ON     DEST.reference_name=SRC.reference_name AND     DEST.start=SRC.Start AND     DEST.END=SRC.END AND     "
+	    			+ "WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.reference_name   AND ( DIV(VCF.end_position,2500000)=DIV(AN.end_position, 2500000)   )   "
+	    			+ "GROUP BY     VCF.reference_name,     VCF.start_position,     VCF.end_position,     VCF.reference_bases,     VCF.alternate_bases,     Status    ) "
+	    			+ "as VCF GROUP BY    VCF.reference_name,     VCF.start_position ,     VCF.end_position,     VCF.reference_bases,     VCF.alternate_bases) AS DEST "
+	    			+ "ON     DEST.reference_name=SRC.reference_name AND     DEST.start_position=SRC.start_position AND     DEST.end_position=SRC.end_position AND     "
 	    			+ "DEST.reference_bases= SRC.reference_bases AND     DEST.alternate_bases= SRC.alternate_bases";
 	    	
 	    	
@@ -4590,10 +4591,11 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    			   String VCFQuery, int binSize, String tempTable) {	
 	    		String tempQuery="";
 	    		String GeneAnnotationTable;
+	    		//TODO: Dynamic system
 			if(build.equalsIgnoreCase("hg19"))
-				GeneAnnotationTable="gbsc-gcp-project-cba:PublicAnnotationSets.hg19_refGene:Type";
+				GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_refGene:Type";
 			else // if(build.equalsIgnoreCase("hg38"))
-				GeneAnnotationTable = "gbsc-gcp-project-cba:PublicAnnotationSets.hg38_refGene:Type";
+				GeneAnnotationTable = "gbsc-gcp-project-cba:cba:AnnotationHive_hg19.hg38_refGene:Type";
 			
 			/*#######################Prepare Gene Annotation queries#######################*/
 			LOG.info("Gene Annotations ");
@@ -4621,86 +4623,86 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			
 			tempQuery+="SELECT SRC.*, DEST.Final as `Final` FROM       "
 	    			+ "`" + tempTable +"` as SRC JOIN  "
-	    			+ "(SELECT     VCF.reference_name as `reference_name` ,     VCF.start as start,     VCF.END as `END`,     "
+	    			+ "(SELECT     VCF.reference_name as `reference_name` ,     VCF.start_position,     VCF.end_position,     "
 	    			+ "VCF.reference_bases as `reference_bases`,     VCF.alternate_bases as `alternate_bases`,   ";
 
 			tempQuery +=" ARRAY_AGG (STRUCT(REPLACE(REPLACE(REPLACE(status, '1', ''), '2', ''), '3', ''))   ORDER BY Status ASC   "
 					+ "LIMIT 1)[OFFSET  (0)] Final FROM (  "
 					
 					+ "SELECT VCF.reference_name as `reference_name`, "
-					+ "VCF.start as `start`, VCF.END as `END`, VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
-					+ "CASE   WHEN ((" + AliasTableName + ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) THEN '3Intergenic'   "
-					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.END)   AND (VCF.start <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   "
+					+ "VCF.start_position, VCF.end_position , VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
+					+ "CASE   WHEN ((" + AliasTableName + ".start_position > VCF.end_position) OR ( VCF.start_position > " + AliasTableName + ".end_position)) THEN '3Intergenic'   "
+					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.end_position)   AND (VCF.start_position <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   "
 					+ "ELSE '2Intronic' END AS Status  FROM "
 					
 					+ VCFQuery
 					
 					+ " LEFT JOIN "
-					+ "( SELECT   chrm,   start,   `end`,   CAST(StartPoint AS INT64) StartPoint,   "
+					+ "( SELECT   reference_name,   start_position,   `end_position`,   CAST(StartPoint AS INT64) StartPoint,   "
 					+ "CAST(EndPoint AS INT64) EndPoint FROM   "
 					+ "`" + TableName + "` t,   "
 					+ "UNNEST(SPLIT( exonStarts )) StartPoint WITH OFFSET   pos1 JOIN   "
 					+ "UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   pos2 ON   pos1 = pos2 "
-					+ "WHERE   EndPoint<>\"\") AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".chrm  "
-					+ "AND ( DIV(VCF.START,"+ binSize +")=DIV(" + AliasTableName + ".START, "+ binSize +"))  "
-					+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, Status  "
+					+ "WHERE   EndPoint<>\"\") AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".reference_name  "
+					+ "AND ( DIV(VCF.start_position,"+ binSize +")=DIV(" + AliasTableName + ".start_position, "+ binSize +"))  "
+					+ "GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, Status  "
 					
 					+ " UNION DISTINCT   "
 					
-					+ "SELECT VCF.reference_name as `reference_name`, VCF.start as `start`, VCF.END as `END`, "
+					+ "SELECT VCF.reference_name as `reference_name`, VCF.start_position, VCF.end_position, "
 					+ "VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
-					+ "CASE   WHEN ((" + AliasTableName + ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) "
-					+ "THEN '3Intergenic'   WHEN ((" + AliasTableName + ".StartPoint <= VCF.END)   "
-					+ "AND (VCF.start <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   ELSE '2Intronic' END AS Status  FROM "
+					+ "CASE   WHEN ((" + AliasTableName + ".start_position > VCF.end_position) OR ( VCF.start_position > " + AliasTableName + ".end_position)) "
+					+ "THEN '3Intergenic'   WHEN ((" + AliasTableName + ".StartPoint <= VCF.end_position)   "
+					+ "AND (VCF.start_position <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   ELSE '2Intronic' END AS Status  FROM "
 					
 					+ VCFQuery
 					
-					+ " LEFT JOIN ( SELECT   chrm,   start,   `end`,   CAST(StartPoint AS INT64) StartPoint,   "
+					+ " LEFT JOIN ( SELECT   reference_name,   start_position,   `end_position`,   CAST(StartPoint AS INT64) StartPoint,   "
 					+ "CAST(EndPoint AS INT64) EndPoint "
 					+ "FROM   `" + TableName + "` t,   UNNEST(SPLIT( exonStarts )) StartPoint WITH OFFSET   "
 					+ "pos1 JOIN   UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   pos2 ON   pos1 = pos2 WHERE   "
-					+ "EndPoint<>\"\") AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".chrm  AND "
-					+ "(DIV(VCF.START,"+ binSize +")=DIV(" + AliasTableName + ".END, "+ binSize +")  )  GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, "
+					+ "EndPoint<>\"\") AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".reference_name  AND "
+					+ "(DIV(VCF.start_position,"+ binSize +")=DIV(" + AliasTableName + ".end_position, "+ binSize +")  )  GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, "
 					+ "VCF.alternate_bases, Status "
 					
 					+ "UNION DISTINCT   "
 					
 					+ "SELECT VCF.reference_name as `reference_name`, "
-					+ "VCF.start as `start`, VCF.END as `END`, VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
-					+ " CASE   WHEN ((" + AliasTableName + ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) THEN '3Intergenic'   "
-					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.END) AND (VCF.start <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   "
+					+ "VCF.start_position, VCF.end_position , VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
+					+ " CASE   WHEN ((" + AliasTableName + ".start_position > VCF.end_position) OR ( VCF.start_position > " + AliasTableName + ".end_position)) THEN '3Intergenic'   "
+					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.end_position) AND (VCF.start_position <= " + AliasTableName + ".EndPoint)) THEN '1Exonic'   "
 					+ "ELSE '2Intronic' END AS Status  "
 					+ "FROM "
 					
 					+ VCFQuery
 					
-					+ " LEFT JOIN ( SELECT   chrm,   start,   `end`,   name,   name2,   CAST(StartPoint AS INT64) StartPoint,   "
+					+ " LEFT JOIN ( SELECT   reference_name,   start_position,   `end_position`,   name,   name2,   CAST(StartPoint AS INT64) StartPoint,   "
 					+ "CAST(EndPoint AS INT64) EndPoint FROM   `" + TableName + "` t,   "
 					+ "UNNEST(SPLIT( exonStarts )) StartPoint WITH OFFSET   pos1 JOIN   UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   "
-					+ "pos2 ON   pos1 = pos2 WHERE   EndPoint<>\"\") AS " + AliasTableName + " ON VCF.reference_name = " + AliasTableName + ".chrm  AND "
-					+ "(DIV(VCF.END,"+ binSize +")=DIV(" + AliasTableName + ".START, "+ binSize +")  ) "
-					+ " GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, alternate_bases, Status  "
+					+ "pos2 ON   pos1 = pos2 WHERE   EndPoint<>\"\") AS " + AliasTableName + " ON VCF.reference_name = " + AliasTableName + ".reference_name  AND "
+					+ "(DIV(VCF.end_position,"+ binSize +")=DIV(" + AliasTableName + ".start_position, "+ binSize +")  ) "
+					+ " GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, alternate_bases, Status  "
 					
 					+ "UNION DISTINCT  "
 					
-					+ "SELECT VCF.reference_name as `reference_name`, VCF.start as `start`, VCF.END as `END`, "
+					+ "SELECT VCF.reference_name as `reference_name`, VCF.start_position, VCF.end_position, "
 					+ "VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  CASE   WHEN ((" + AliasTableName 
-					+ ".start > VCF.END) OR ( VCF.start > " + AliasTableName + ".END)) THEN '3Intergenic'   "
-					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.END)   AND (VCF.start <= " + AliasTableName + ".EndPoint)) "
+					+ ".start_position > VCF.end_position) OR ( VCF.start_position > " + AliasTableName + ".end_position)) THEN '3Intergenic'   "
+					+ "WHEN ((" + AliasTableName + ".StartPoint <= VCF.end_position)   AND (VCF.start_position <= " + AliasTableName + ".EndPoint)) "
 					+ "THEN '1Exonic'   ELSE '2Intronic' END AS Status  FROM "
 					
 					+ VCFQuery
 					
-					+ " LEFT JOIN ( SELECT   chrm,   start,   `end`,   CAST(StartPoint AS INT64) StartPoint,   CAST(EndPoint AS INT64) "
+					+ " LEFT JOIN ( SELECT   reference_name,   start_position,   `end_position`,   CAST(StartPoint AS INT64) StartPoint,   CAST(EndPoint AS INT64) "
 					+ "EndPoint FROM   `" + TableName + "` t,   UNNEST(SPLIT( exonStarts )) StartPoint "
 					+ "WITH OFFSET   pos1 JOIN   UNNEST(SPLIT( exonEnds )) EndPoint WITH OFFSET   pos2 ON   pos1 = pos2 WHERE   EndPoint<>\"\") "
-					+ "AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".chrm  AND "
-					+ "( DIV(VCF.END,"+ binSize +")=DIV(" + AliasTableName + ".END, "+ binSize +")  )  "
-					+ "GROUP BY VCF.reference_name, VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases, Status   ) as VCF "
+					+ "AS " + AliasTableName + "  ON VCF.reference_name = " + AliasTableName + ".reference_name  AND "
+					+ "( DIV(VCF.end_position,"+ binSize +")=DIV(" + AliasTableName + ".end_position, "+ binSize +")  )  "
+					+ "GROUP BY VCF.reference_name, VCF.start_position, VCF.end_position, VCF.reference_bases, VCF.alternate_bases, Status   ) as VCF "
 					
-					+ "GROUP BY   VCF.reference_name, VCF.start , VCF.END, VCF.reference_bases, VCF.alternate_bases"		
+					+ "GROUP BY   VCF.reference_name, VCF.start_position , VCF.end_position, VCF.reference_bases, VCF.alternate_bases"		
 					+ ") AS DEST "
-					+ "ON DEST.reference_name=SRC.reference_name AND DEST.start=SRC.Start AND DEST.END=SRC.END AND     "
+					+ "ON DEST.reference_name=SRC.reference_name AND DEST.start_position=SRC.start_position AND DEST.end_position=SRC.end_position AND     "
 					+ "DEST.reference_bases= SRC.reference_bases AND DEST.alternate_bases= SRC.alternate_bases";
 			
 			return tempQuery;
@@ -4759,7 +4761,6 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			}
 			
 			RequestedFields=Padding;
-	    	
 		}
 
 		public void buildRequestedFields(String[] TableInfo, String AliasTableName, boolean createVCF,

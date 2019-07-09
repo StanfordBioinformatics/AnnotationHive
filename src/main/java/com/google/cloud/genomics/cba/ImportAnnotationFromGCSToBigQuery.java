@@ -465,18 +465,18 @@ public class ImportAnnotationFromGCSToBigQuery {
 	/**
 	 * <h1>This function defines the BigQuery table schema 
 	 * used for variant annotation tables.
-	 *  (e.g., 'chrm', 'start', 'end', 'base', 'alt', ...)
+	 *  (e.g., 'reference_name', 'start', 'end', 'base', 'alt', ...)
 	 * @param Order 
 	 * @return schema 
 	 */
 	
 	static TableSchema getVariantSchema(String ColumnOrder) {
 		List<TableFieldSchema> fields = new ArrayList<>();
-		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
-		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
-		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
-		fields.add(new TableFieldSchema().setName("base").setType("STRING"));
-		fields.add(new TableFieldSchema().setName("alt").setType("STRING"));
+		fields.add(new TableFieldSchema().setName("reference_name").setType("STRING"));
+		fields.add(new TableFieldSchema().setName("start_position").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("end_position").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("reference_bases").setType("STRING"));
+		fields.add(new TableFieldSchema().setName("alternate_bases").setType("STRING"));
 		
 		int chromIndex=0, startIndex=1, endIndex=2, refIndex=3, altIndex=4;
 		
@@ -516,15 +516,15 @@ public class ImportAnnotationFromGCSToBigQuery {
 	/**
 	 * <h1>This function defines the BigQuery table schema 
 	 * used for generic annotation tables.
-	 *  (e.g., 'chrm', 'start', 'end', ...)
+	 *  (e.g., 'reference_name', 'start', 'end', ...)
 	 * @return schema 
 	 */
 	
 	static TableSchema getTranscriptSchema(String ColumnOrder) {
 		List<TableFieldSchema> fields = new ArrayList<>();
-		fields.add(new TableFieldSchema().setName("chrm").setType("STRING"));
-		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
-		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("reference_name").setType("STRING"));
+		fields.add(new TableFieldSchema().setName("start_position").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("end_position").setType("INTEGER"));
 		
 		int chromIndex=0, startIndex=1, endIndex=2;
 		
@@ -629,24 +629,24 @@ public class ImportAnnotationFromGCSToBigQuery {
 							altIndex=Integer.parseInt(order[4])-1;
 						}
 						
-						row.set("chrm", canonicalizeRefName(vals[chromIndex]));
+						row.set("reference_name", canonicalizeRefName(vals[chromIndex]));
 			
 						//Our internal database representations of coordinates always 
 						//have a zero-based start and a one-based end.
 						if (!this.is_0_Based){
-								row.set("start", Integer.parseInt(vals[startIndex])-1);
+								row.set("start_position", Integer.parseInt(vals[startIndex])-1);
 						}
 						else{
-							row.set("start", Integer.parseInt(vals[startIndex]));
+							row.set("start_position", Integer.parseInt(vals[startIndex]));
 						}
 						
 						int RefSize=0; 
 						/*Make sure to handle special cases for reference bases [insertion]*/
 						//For those cases that annotation reference file does not support refBase column 
 						if (refIndex>=vals.length || vals[refIndex] == null || vals[refIndex].isEmpty() || vals[refIndex].equals("-"))
-							row.set("base", "");
+							row.set("reference_bases", "");
 						else {
-							row.set("base", vals[refIndex]);
+							row.set("reference_bases", vals[refIndex]);
 							RefSize= vals[refIndex].length()-1;
 						}
 						
@@ -662,16 +662,16 @@ public class ImportAnnotationFromGCSToBigQuery {
 						
 						//In case, there is no field for Start and End; then we need to calc End based on the number of ref bases 
 						if (!this.POS)
-							row.set("end", vals[endIndex]);
+							row.set("end_position", vals[endIndex]);
 						else {
-							row.set("end", Integer.parseInt(vals[endIndex]) + RefSize);
+							row.set("end_position", Integer.parseInt(vals[endIndex]) + RefSize);
 						}
 						
 						
 						/*Make sure to handle special cases for alternate bases [deletion] */
 						if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-") 
 								|| vals[altIndex].equals(".")) {
-							row.set("alt", "");
+							row.set("alternate_bases", "");
 							c.output(row);
 						}
 						else {
@@ -679,17 +679,17 @@ public class ImportAnnotationFromGCSToBigQuery {
 								String[] alts = vals[altIndex].split("/");
 								for(String allele : alts) {
 									if (allele == null || allele.isEmpty() || allele.equals("-"))
-										row.set("alt", "");
+										row.set("alternate_bases", "");
 									else
-										row.set("alt", allele);
+										row.set("alternate_bases", allele);
 									
 									c.output(row);
 								}
 							}else {
 								if (vals[altIndex] == null || vals[altIndex].isEmpty() || vals[altIndex].equals("-") || vals[altIndex].equals("."))
-									row.set("alt", "");
+									row.set("alternate_bases", "");
 								else
-									row.set("alt", vals[altIndex]);
+									row.set("alternate_bases", vals[altIndex]);
 								c.output(row);
 							}
 						}
@@ -703,16 +703,16 @@ public class ImportAnnotationFromGCSToBigQuery {
 							endIndex=Integer.parseInt(order[2])-1;
 						}
 						
-						row.set("chrm", canonicalizeRefName(vals[chromIndex]));
+						row.set("reference_name", canonicalizeRefName(vals[chromIndex]));
 						
 						if (!this.is_0_Based){
-							row.set("start", Integer.parseInt(vals[startIndex])-1);
+							row.set("start_position", Integer.parseInt(vals[startIndex])-1);
 						}
 						else{
-							row.set("start", Integer.parseInt(vals[startIndex]));
+							row.set("start_position", Integer.parseInt(vals[startIndex]));
 						}
 						
-						row.set("end", vals[endIndex]);				
+						row.set("end_position", vals[endIndex]);				
 
 						
 						if (this.columnOrder.isEmpty()) {						
@@ -741,16 +741,16 @@ public class ImportAnnotationFromGCSToBigQuery {
 
 							for (int index=0; index < startPoints.length; index++ ) {
 								if (!this.is_0_Based){
-									row.set("start", Integer.parseInt(startPoints[index])-1);
+									row.set("start_position", Integer.parseInt(startPoints[index])-1);
 								}
 								else{
-									row.set("start", Integer.parseInt(startPoints[index]));
+									row.set("start_position", Integer.parseInt(startPoints[index]));
 								}
-								row.set("end", Integer.parseInt(endPoints[index]));
+								row.set("end_position", Integer.parseInt(endPoints[index]));
 								
 //								for (int tPOS=Integer.parseInt(startPoints[index]); index<=Integer.parseInt(endPoints[index]); tPOS++) {
-//									row.set("start", tPOS);
-//									row.set("end", tPOS);
+//									row.set("start_position", tPOS);
+//									row.set("end_position", tPOS);
 //									c.output(row);
 //								}
 								
@@ -761,11 +761,11 @@ public class ImportAnnotationFromGCSToBigQuery {
 							row.set("structure", "Intronic");
 
 							for (int index=0; index < endPoints.length-1; index++ ) {
-								row.set("start", Integer.parseInt(endPoints[index])+1);
-								row.set("end", Integer.parseInt(startPoints[index+1])-1);
+								row.set("start_position", Integer.parseInt(endPoints[index])+1);
+								row.set("end_position", Integer.parseInt(startPoints[index+1])-1);
 //								for (int tPOS=Integer.parseInt(endPoints[index])+1; index<=Integer.parseInt(startPoints[index+1])-1; tPOS++) {
-//									row.set("start", tPOS);
-//									row.set("end", tPOS);
+//									row.set("start_position", tPOS);
+//									row.set("end_position", tPOS);
 //									c.output(row);
 //								}
 								

@@ -247,6 +247,9 @@ public class ImportVCFFromGCSToBigQuery {
 	
 		String [] inputFields = options.getHeader().split(",");
 		LOG.warning("VCF Pipeline");
+		LOG.warning("inputFields Size: " + inputFields.length );
+		LOG.warning("inputFields: " + inputFields.toString());
+
 			p.apply(TextIO.read().from(options.getVCFInputTextBucketAddr()))
 			.apply(ParDo.of(new FormatFn(inputFields,baseStatus, options.getColumnOrder(), options.getColumnSeparator(), options.getPOS())))
 			.apply(
@@ -424,8 +427,8 @@ public class ImportVCFFromGCSToBigQuery {
 	static TableSchema getVCFSchema(String ColumnOrder) {
 		List<TableFieldSchema> fields = new ArrayList<>();
 		fields.add(new TableFieldSchema().setName("reference_name").setType("STRING"));
-		fields.add(new TableFieldSchema().setName("start").setType("INTEGER"));
-		fields.add(new TableFieldSchema().setName("end").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("start_position").setType("INTEGER"));
+		fields.add(new TableFieldSchema().setName("end_position").setType("INTEGER"));
 		fields.add(new TableFieldSchema().setName("reference_bases").setType("STRING"));
 		fields.add(new TableFieldSchema().setName("alternate_bases").setType("STRING"));//.setMode("REPEATED"));
 		
@@ -528,10 +531,10 @@ public class ImportVCFFromGCSToBigQuery {
 						//Our internal database representations of coordinates always 
 						//have a zero-based start and a one-based end.
 						if (!this.is_0_Based){
-								row.set("start", Integer.parseInt(vals[startIndex])-1);
+								row.set("start_position", Integer.parseInt(vals[startIndex])-1);
 						}
 						else{
-							row.set("start", Integer.parseInt(vals[startIndex]));
+							row.set("start_position", Integer.parseInt(vals[startIndex]));
 						}
 						
 						int RefSize=0; 
@@ -556,9 +559,9 @@ public class ImportVCFFromGCSToBigQuery {
 						
 						//In case, there is no field for Start and End; then we need to calc End based on the number of ref bases 
 						if (!this.POS)
-							row.set("end", vals[endIndex]);
+							row.set("end_position", vals[endIndex]);
 						else {
-							row.set("end", Integer.parseInt(vals[endIndex]) + RefSize);
+							row.set("end_position", Integer.parseInt(vals[endIndex]) + RefSize);
 						}
 						
 						/*Our focus in this version is performance not storage*/

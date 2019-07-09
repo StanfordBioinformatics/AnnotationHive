@@ -247,13 +247,13 @@ public final class BigQueryAnnotateVariants {
 
 		void setCreateVCF(Boolean createVCF);
 
-		@Description("User can specifiy a variant in the form of \"Chromosome Id:start:end:Reference_bases:Alternate bases (e.g., chr17:1001:1001:A:C)\" )")
+		@Description("User can specifiy a variant in the form of \"Chromosome Id:start_position:end_position:Reference_bases:Alternate bases (e.g., chr17:1001:1001:A:C)\" )")
 		@Default.String("")
 		String getInputVariant();
 
 		void setInputVariant(String value);
 
-		@Description("User can specifiy a region in the form of \"Chromosome Id:start:end (e.g., chr17:1000:2000)\" )")
+		@Description("User can specifiy a region in the form of \"Chromosome Id:start_position:end_position (e.g., chr17:1000:2000)\" )")
 		@Default.String("")
 		String getInputRegion();
 
@@ -379,8 +379,8 @@ public final class BigQueryAnnotateVariants {
 				
 				String Google_VCF= options.getVCFTables();
 				
-				queryString = "SELECT REPLACE(reference_name, '', '') as reference_name, start_position as start, "
-						+ "end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
+				queryString = "SELECT REPLACE(reference_name, '', '') as reference_name, start_position, "
+						+ "end_position, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
 						+ Google_VCF.split(":")[0] + "." + Google_VCF.split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases ";
 
 				options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
@@ -448,9 +448,9 @@ public final class BigQueryAnnotateVariants {
 								if (options.getUCSCGenericAnnotationTables()!=null || options.getGenericAnnotationTables()!=null) {
 									String UCSC_KnownGene="";
 									if (options.getBuild().equalsIgnoreCase("hg19"))
-										UCSC_KnownGene= "gbsc-gcp-project-cba:AnnotationHive_Public.hg19_UCSC_knownGene:name";
+										UCSC_KnownGene= "gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_UCSC_knownGene:name";
 									else if(options.getBuild().equalsIgnoreCase("hg38"))
-										UCSC_KnownGene= "gbsc-gcp-project-cba:AnnotationHive_Public.hg38_UCSC_knownGene:name";
+										UCSC_KnownGene= "gbsc-gcp-project-cba:AnnotationHive_hg19.hg38_UCSC_knownGene:name";
 									
 									
 //									//Convert Google VCF table to AnnotationHive's VCF version
@@ -643,7 +643,7 @@ public final class BigQueryAnnotateVariants {
 				String tempTable= options.getProjectId() + "." + options.getBigQueryDatasetId() + "."+options.getOutputBigQueryTable()+"_temp";
 				
 				String VCFQuery = "(SELECT  REPLACE(reference_name, '', '') AS reference_name, "
-						+ " start, `END`, reference_bases, alternate_bases  FROM " 
+						+ " start_position, `END_position`, reference_bases, alternate_bases  FROM " 
 						+ "`"+tempTable+"` "  
 						+ ") AS VCF";
 				
@@ -660,7 +660,7 @@ public final class BigQueryAnnotateVariants {
 				String PartitionQuery = "CREATE TABLE `"
 						+ options.getProjectId() + "." + options.getBigQueryDatasetId() + "." +  options.getOutputBigQueryTable() // "gbsc-gcp-project-cba.Clustering.VA_Crossmap_hg19_Cancer_10_WGS_With_SampleCount"
 						+ "` PARTITION BY partition_date_please_ignore "
-						+ " CLUSTER BY reference_name, start , `end` AS ("
+						+ " CLUSTER BY reference_name, start_position , `end_position` AS ("
 						+ " SELECT *, DATE('1980-01-01') partition_date_please_ignore FROM "
 						+ " `"
 						+ options.getProjectId() + "." + options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable()+"_temp2"
@@ -888,9 +888,9 @@ public final class BigQueryAnnotateVariants {
 											if (oldRow == null) // if this is the first row
 												buffer = temp;
 											else if (oldRow != null) {
-												if (row.get("start").toString().equals(oldRow.get("start").toString())
-														&& row.get("end").toString()
-																.equals(oldRow.get("end").toString())
+												if (row.get("start_position").toString().equals(oldRow.get("start_position").toString())
+														&& row.get("end_position").toString()
+																.equals(oldRow.get("end_position").toString())
 														&& row.get("alternate_bases").toString()
 																.equals(oldRow.get("alternate_bases").toString())) {
 
@@ -1018,7 +1018,7 @@ public final class BigQueryAnnotateVariants {
 																+ 1;
 														temp += tempStart + "\t";
 													} else {
-														if (index == 5) // chrm, start, end, ref, alt => first 5 columns
+														if (index == 5) // chrm, start, end_position, ref, alt => first 5 columns
 															temp += "~"; // a special character b/w annotations for the
 																			// same position
 														temp += fieldValues[index].toString() + "\t";
@@ -1029,9 +1029,9 @@ public final class BigQueryAnnotateVariants {
 																// first row
 												buffer = temp;
 											else if (oldRow != null) {
-												if (row.get("start").toString().equals(oldRow.get("start").toString())
-														&& row.get("end").toString()
-																.equals(oldRow.get("end").toString())
+												if (row.get("start_position").toString().equals(oldRow.get("start_position").toString())
+														&& row.get("end_position").toString()
+																.equals(oldRow.get("end_position").toString())
 														&& row.get("alternate_bases").toString()
 																.equals(oldRow.get("alternate_bases").toString())) {
 
@@ -1207,7 +1207,7 @@ public final class BigQueryAnnotateVariants {
 				if (!options.getTableExists()) {
 					String queryStat = "UPDATE   " + "`" + options.getProject() + "."
 							+ options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable() + "` "
-							+ " SET start = start + 1 WHERE chrm <>\"\" ";
+							+ " SET start_position = start_position + 1 WHERE chrm <>\"\" ";
 					LOG.warning(queryStat);
 					 runQuery(queryStat, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
 							options.getMaximumBillingTier(), false, true, false);				
@@ -1235,7 +1235,7 @@ public final class BigQueryAnnotateVariants {
 	
 	
 	private static String createHeader() {
-		String Header = "Chrom\tStart\tEnd\tRef\tAlt\t";
+		String Header = "Chrom\tstart_position\tend_position\tRef\tAlt\t";
 		if (options.getNumberSamples())
 		{
 			Header += "Num. of Samples\t";
@@ -1307,7 +1307,7 @@ public final class BigQueryAnnotateVariants {
 
 	static final class BinVariantsFn extends DoFn<TableRow, KV<Long, TableRow>> {
 		/**
-		 * This function assign a unique ID to each variant chrId+start => 9 digits It
+		 * This function assign a unique ID to each variant chrId+start_position => 9 digits It
 		 * take cares of the padding as well. It assigns 23, 24, and 24 to chromosome X,
 		 * Y and M correspondingly.
 		 */
@@ -1315,12 +1315,12 @@ public final class BigQueryAnnotateVariants {
 
 		public static final long getStartBin(int binSize, TableRow rowVariant) {
 			// Round down to the nearest integer
-			return Math.round(Math.floor(Integer.parseInt(rowVariant.get("start").toString()) / binSize));
+			return Math.round(Math.floor(Integer.parseInt(rowVariant.get("start_position").toString()) / binSize));
 		}
 
 		public static final long getEndBin(int binSize, TableRow rowVariant) {
 			// Round down to the nearest integer
-			return Math.round(Math.floor(Integer.parseInt(rowVariant.get("end").toString()) / binSize));
+			return Math.round(Math.floor(Integer.parseInt(rowVariant.get("end_position").toString()) / binSize));
 		}
 
 		@ProcessElement
@@ -1355,7 +1355,7 @@ public final class BigQueryAnnotateVariants {
 	private static final Ordering<TableRow> BY_START = Ordering.natural().onResultOf(new Function<TableRow, Long>() {
 		@Override
 		public Long apply(TableRow variant) {
-			return Long.parseLong(variant.get("start").toString());
+			return Long.parseLong(variant.get("start_position").toString());
 		}
 	});
 
