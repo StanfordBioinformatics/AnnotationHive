@@ -648,13 +648,27 @@ public final class BigQueryAnnotateVariants {
 						+ ") AS VCF";
 				
 				//Find Exonic Regions
-				String ExonincQuery = BigQueryFunctions.query.findExonic(options.getBuild(), 1,  true, false, false, 
-						VCFQuery, 2500000, tempTable);			
+//				String ExonincQuery = BigQueryFunctions.query.findExonic(options.getBuild(), 1,  true, false, false, 
+//						VCFQuery, 2500000, tempTable);	
+				
+				//Find Variant Gene Type: Intronic, Exonic, Intergeneic
+				String variantGeneTypeQuery = BigQueryFunctions.findVariantFunctionalityWRTGenes(options.getBuild(), 1,  true, false, false, 
+						VCFQuery, 2500000, tempTable);	
 
-				LOG.info("Exonic Query: " + ExonincQuery);
+				LOG.info("Variant WRT Gene Type Query: " + variantGeneTypeQuery);
 
-				runQuery(ExonincQuery, options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2", true,
+				runQuery(variantGeneTypeQuery, options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2", true,
 						options.getMaximumBillingTier(), LegacySql, false, false);				
+				
+				//Find type of exonic variants: Synonymous, Nonsynonymous, etc. 
+				String ExonicVariantTypeQuery = BigQueryFunctions.findExonicVariantType(options.getBuild(), 1,  true, false, false, 
+						VCFQuery, 2500000, tempTable+"2");	
+				
+				LOG.info("Exonic Variant Type Query: " + ExonicVariantTypeQuery);
+
+				runQuery(ExonicVariantTypeQuery, options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp3", true,
+						options.getMaximumBillingTier(), LegacySql, false, false);
+								
 				
 				//Partition By
 				String PartitionQuery = "CREATE TABLE `"
@@ -663,7 +677,7 @@ public final class BigQueryAnnotateVariants {
 						+ " CLUSTER BY reference_name, start_position , `end_position` AS ("
 						+ " SELECT *, DATE('1980-01-01') partition_date_please_ignore FROM "
 						+ " `"
-						+ options.getProjectId() + "." + options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable()+"_temp2"
+						+ options.getProjectId() + "." + options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable()+"_temp3"
 						+ "`)";
 				
 				LOG.info("Partition Query: " + PartitionQuery);
@@ -675,6 +689,8 @@ public final class BigQueryAnnotateVariants {
 				//Remove the temp tables
 				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp");
 				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2");
+				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp3");
+
 				
 			}
 			long tempEstimatedTime = System.currentTimeMillis() - startTime;

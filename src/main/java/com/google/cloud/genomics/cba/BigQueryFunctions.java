@@ -4628,7 +4628,6 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 
 			tempQuery +=" ARRAY_AGG (STRUCT(REPLACE(REPLACE(REPLACE(status, '1', ''), '2', ''), '3', ''))   ORDER BY Status ASC   "
 					+ "LIMIT 1)[OFFSET  (0)] Final FROM (  "
-					
 					+ "SELECT VCF.reference_name as `reference_name`, "
 					+ "VCF.start_position, VCF.end_position , VCF.reference_bases as `reference_bases`, VCF.alternate_bases as `alternate_bases`,  "
 					+ "CASE   WHEN ((" + AliasTableName + ".start_position > VCF.end_position) OR ( VCF.start_position > " + AliasTableName + ".end_position)) THEN '3Intergenic'   "
@@ -4708,6 +4707,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 			return tempQuery;
 		}
 
+	    	   
 		public void resetVariables() {
 		    RequestedFields="";
 		    GroupByList="";
@@ -4894,6 +4894,603 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    }
 
     }
+ 	
+ 	
+	   public static String findVariantFunctionalityWRTGenes(String build, int AnnotationIndex, boolean CONCAT, boolean numSamples, boolean GoogleVCF, 
+			   String VCFQuery, int binSize, String VCFTempTable) {	
+		String tempQuery="";
+		String GeneAnnotationTable;
+		//TODO: Dynamic system
+	if(build.equalsIgnoreCase("hg19"))
+		GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_refGene:Type";
+	else // if(build.equalsIgnoreCase("hg38"))
+		GeneAnnotationTable = "gbsc-gcp-project-cba:cba:AnnotationHive_hg19.hg38_refGene:Type";
+	
+	/*#######################Prepare Gene Annotation queries#######################*/
+	LOG.info("Gene Annotations ");
+					
+					/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
+					 * ProjectId: gbsc-gcp-project-cba
+					 * DatasetId: PublicAnnotationSets
+					 * TableId: hg19_GME
+					 * Features: GME_AF:GME_NWA:GME_NEA
+					 */
+					
+	String [] TableInfo = GeneAnnotationTable.split(":");
+											
+	//String RequestedFields="";
+	String AliasTableName= "Annotation" + AnnotationIndex; 
+	String TableName = TableInfo[0]+"."+TableInfo[1];
+						
+
+//	query.buildRequestedFields(TableInfo, AliasTableName, createVCF, false, true);
+//	query.padding(allAnnotationParams, allAnnotationParamsValues, 1, 1, CONCAT);
+
+
+//	tempQuery="SELECT VCF.reference_name , VCF.start, VCF.END, VCF.reference_bases, VCF.alternate_bases,  ";
+//	tempQuery +=  query.getRequestedFields().replaceFirst("'' as `Annotation2`,", "");
+	
+	tempQuery+= " " + 
+			"SELECT " + 
+			"  SRC.*, " + 
+			"  DEST.Final as Functionality " + 
+			"  FROM `" + 
+			 VCFTempTable + "` as SRC " + // `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_1000_genomes_phase_3_variants_20150220_processed` AS SRC " + 
+			"JOIN ( " + 
+			"  SELECT " + 
+			"    VCF.reference_name AS `reference_name`, " + 
+			"    VCF.start_position, " + 
+			"    VCF.end_position, " + 
+			"    VCF.reference_bases AS `reference_bases`, " + 
+			"    VCF.alternate_bases AS `alternate_bases`, " + 
+			"    ARRAY_AGG (STRUCT<Status STRING>(SUBSTR(status, 2)) " + 
+			"    ORDER BY " + 
+			"      Status DESC " + 
+			"    LIMIT " + 
+			"      1)[ " + 
+			"  OFFSET " + 
+			"    (0)] Final " + 
+			"  FROM ( " + 
+			"    SELECT " + 
+			"      VCF.reference_name AS `reference_name`, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases AS `reference_bases`, " + 
+			"      VCF.alternate_bases AS `alternate_bases`, " + 
+			"      CASE " + 
+			"              " + 
+			"        WHEN ((Annotation1.StartPoint <= VCF.end_position) AND (VCF.start_position <= Annotation1.EndPoint))  " + 
+			"        THEN (CASE WHEN cdsStartStat!=\"unk\"  " + 
+			"        THEN CONCAT('9Exonic',\" - \", name2) ELSE CONCAT('9ncRNA_Exonic',\" - \", name2) END) " + 
+			"         " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsStart1)) THEN CONCAT('8UTR5',\" - \", name2) " + 
+			"         " + 
+			"        WHEN (cdsStartStat!=\"unk\" AND (Annotation1.cdsEnd1 <= VCF.end_position)  " + 
+			"        AND (VCF.start_position <= Annotation1.end_position)) THEN CONCAT('8UTR3',\" - \", name2) " + 
+			"         " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.cdsStart1 <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN " + 
+			"        (CASE WHEN (abs (Annotation1.StartPoint - VCF.end_position)<=2) OR  " + 
+			"        (abs (VCF.start_position + 1 - Annotation1.EndPoint) <=2) OR (abs (Annotation1.StartPoint  - VCF.start_position + 1)<=2) OR  " + 
+			"        (abs (VCF.end_position - Annotation1.EndPoint) <=2) THEN CONCAT('9Splicing',\" - \", name2) " + 
+			"        ELSE CONCAT('7Intronic',\" - \", name2) END) " + 
+			"         " + 
+			"        WHEN ( cdsStartStat=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN  CONCAT('7ncRNAIntronic',\" - \", name2) " + 
+			"         " + 
+			"        WHEN (Annotation1.end_position < VCF.end_position AND ((VCF.end_position - Annotation1.end_position) <= 1000)  " + 
+			"        AND ((VCF.end_position - Annotation1.end_position) >=0)) OR (Annotation1.start_position > VCF.start_position  " + 
+			"        AND ((Annotation1.start_position - VCF.start_position) <= 1000) AND ((Annotation1.start_position - VCF.start_position) >= 0)) THEN (CASE " + 
+			"          WHEN ((Annotation1.start_position - VCF.start_position)>= (VCF.end_position - Annotation1.end_position)) THEN CONCAT('4downstream',\" - \", name2) " + 
+			"          ELSE concat ('4upstream', " + 
+			"          \" - \", " + 
+			"          name2) END) " + 
+			"        WHEN ((Annotation1.start_position > VCF.end_position) OR ( VCF.start_position > Annotation1.end_position)) THEN '2Intergenic' " + 
+			"         " + 
+			"      END AS Status " + 
+			"    FROM " +
+			VCFQuery +
+			"    LEFT JOIN ( " + 
+			"      SELECT " + 
+			"        reference_name, " + 
+			"        start_position, " + 
+			"        CAST (cdsStart AS INT64) AS cdsStart1, " + 
+			"        CAST(cdsEnd AS INT64) AS cdsEnd1, " + 
+			"        `end_position`, " + 
+			"        CAST(StartPoint AS INT64) StartPoint, " + 
+			"        CAST(EndPoint AS INT64) EndPoint, " + 
+			"        cdsStartStat, " + 
+			"        name2 " + 
+			"      FROM " + 
+			"        `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t, " + 
+			"        UNNEST(SPLIT( exonStarts )) StartPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos1 " + 
+			"      JOIN " + 
+			"        UNNEST(SPLIT( exonEnds )) EndPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos2 " + 
+			"      ON " + 
+			"        pos1 = pos2 " + 
+			"      WHERE " + 
+			"        EndPoint<>\"\") AS Annotation1 " + 
+			"    ON " + 
+			"      VCF.reference_name = Annotation1.reference_name " + 
+			"      AND ( DIV(VCF.start_position, "+ binSize +")=DIV(Annotation1.start_position, "+ binSize +")) " + 
+			"    GROUP BY " + 
+			"      VCF.reference_name, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases, " + 
+			"      VCF.alternate_bases, " + 
+			"      Status " + 
+			"    UNION DISTINCT " + 
+			"    SELECT " + 
+			"      VCF.reference_name AS `reference_name`, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases AS `reference_bases`, " + 
+			"      VCF.alternate_bases AS `alternate_bases`, " + 
+			"      CASE " + 
+			"   WHEN ((Annotation1.StartPoint <= VCF.end_position) AND (VCF.start_position <= Annotation1.EndPoint)) THEN (CASE WHEN cdsStartStat!=\"unk\"  " + 
+			"        THEN CONCAT('9Exonic',\" - \", name2) ELSE CONCAT('9ncRNA_Exonic',\" - \", name2) END) " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsStart1)) THEN CONCAT('8UTR5',\" - \", name2) " + 
+			"        WHEN (cdsStartStat!=\"unk\" AND (Annotation1.cdsEnd1 <= VCF.end_position)  " + 
+			"        AND (VCF.start_position <= Annotation1.end_position)) THEN CONCAT('8UTR3',\" - \", name2) " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.cdsStart1 <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN " + 
+			"        (CASE WHEN (abs (Annotation1.StartPoint - VCF.end_position)<=2) OR  " + 
+			"        (abs (VCF.start_position + 1 - Annotation1.EndPoint) <=2) OR (abs (Annotation1.StartPoint  - VCF.start_position + 1)<=2) OR  " + 
+			"        (abs (VCF.end_position - Annotation1.EndPoint) <=2) THEN CONCAT('9Splicing',\" - \", name2) " + 
+			"        ELSE CONCAT('7Intronic',\" - \", name2) END) " + 
+			"        WHEN ( cdsStartStat=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN  CONCAT('7ncRNAIntronic',\" - \", name2) " + 
+			"        WHEN (Annotation1.end_position < VCF.end_position AND ((VCF.end_position - Annotation1.end_position) <= 1000)  " + 
+			"        AND ((VCF.end_position - Annotation1.end_position) >=0)) OR (Annotation1.start_position > VCF.start_position  " + 
+			"        AND ((Annotation1.start_position - VCF.start_position) <= 1000) AND ((Annotation1.start_position - VCF.start_position) >= 0)) THEN (CASE " + 
+			"          WHEN ((Annotation1.start_position - VCF.start_position)>= (VCF.end_position - Annotation1.end_position)) THEN CONCAT('4downstream',\" - \", name2) " + 
+			"          ELSE concat ('4upstream', " + 
+			"          \" - \", " + 
+			"          name2) END) " + 
+			"        WHEN ((Annotation1.start_position > VCF.end_position) OR ( VCF.start_position > Annotation1.end_position)) THEN '2Intergenic' " + 
+			"         " + 
+			"      END AS Status " + 
+			"    FROM "+
+			VCFQuery
+			+
+			"    LEFT JOIN ( " + 
+			"      SELECT " + 
+			"        reference_name, " + 
+			"        start_position, " + 
+			"        CAST (cdsStart AS INT64) AS cdsStart1, " + 
+			"        CAST(cdsEnd AS INT64) AS cdsEnd1, " + 
+			"        `end_position`, " + 
+			"        CAST(StartPoint AS INT64) StartPoint, " + 
+			"        CAST(EndPoint AS INT64) EndPoint, " + 
+			"        name2, " + 
+			"        cdsStartStat " + 
+			"      FROM " + 
+			"       `" + TableName + "` t, " + // `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t, " 
+			"        UNNEST(SPLIT( exonStarts )) StartPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos1 " + 
+			"      JOIN " + 
+			"        UNNEST(SPLIT( exonEnds )) EndPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos2 " + 
+			"      ON " + 
+			"        pos1 = pos2 " + 
+			"      WHERE " + 
+			"        EndPoint<>\"\") AS Annotation1 " + 
+			"    ON " + 
+			"      VCF.reference_name = Annotation1.reference_name " + 
+			"      AND (DIV(VCF.start_position, "+ binSize +")=DIV(Annotation1.end_position, "+ binSize +") ) " + 
+			"    GROUP BY " + 
+			"      VCF.reference_name, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases, " + 
+			"      VCF.alternate_bases, " + 
+			"      Status " + 
+			"    UNION DISTINCT " + 
+			"    SELECT " + 
+			"      VCF.reference_name AS `reference_name`, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases AS `reference_bases`, " + 
+			"      VCF.alternate_bases AS `alternate_bases`, " + 
+			"      CASE " + 
+			"   WHEN ((Annotation1.StartPoint <= VCF.end_position) AND (VCF.start_position <= Annotation1.EndPoint)) THEN (CASE WHEN cdsStartStat!=\"unk\" " + 
+			"        THEN CONCAT('9Exonic',\" - \", name2) ELSE CONCAT('9ncRNA_Exonic',\" - \", name2) END)" + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.start_position <= VCF.end_position)" + 
+			"        AND (VCF.start_position <= Annotation1.cdsStart1)) THEN CONCAT('8UTR5',\" - \", name2)" + 
+			"        WHEN (cdsStartStat!=\"unk\" AND (Annotation1.cdsEnd1 <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.end_position)) THEN CONCAT('8UTR3',\" - \", name2) " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.cdsStart1 <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN " + 
+			"        (CASE WHEN (abs (Annotation1.StartPoint - VCF.end_position)<=2) OR " + 
+			"        (abs (VCF.start_position + 1 - Annotation1.EndPoint) <=2) OR (abs (Annotation1.StartPoint  - VCF.start_position + 1)<=2) OR " + 
+			"        (abs (VCF.end_position - Annotation1.EndPoint) <=2) THEN CONCAT('9Splicing',\" - \", name2) " + 
+			"        ELSE CONCAT('7Intronic',\" - \", name2) END) " + 
+			"        WHEN ( cdsStartStat=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN  CONCAT('7ncRNAIntronic',\" - \", name2) " + 
+			"        WHEN (Annotation1.end_position < VCF.end_position AND ((VCF.end_position - Annotation1.end_position) <= 1000)  " + 
+			"        AND ((VCF.end_position - Annotation1.end_position) >=0)) OR (Annotation1.start_position > VCF.start_position  " + 
+			"        AND ((Annotation1.start_position - VCF.start_position) <= 1000) AND ((Annotation1.start_position - VCF.start_position) >= 0)) THEN (CASE " + 
+			"          WHEN ((Annotation1.start_position - VCF.start_position)>= (VCF.end_position - Annotation1.end_position)) THEN CONCAT('4downstream',\" - \", name2) " + 
+			"          ELSE concat ('4upstream', " + 
+			"          \" - \", " + 
+			"          name2) END) " + 
+			"        WHEN ((Annotation1.start_position > VCF.end_position) OR ( VCF.start_position > Annotation1.end_position)) THEN '2Intergenic' " + 
+			"      END AS Status " + 
+			"    FROM " + 
+			VCFQuery
+			+
+			"    LEFT JOIN ( " + 
+			"      SELECT " + 
+			"        reference_name, " + 
+			"        start_position, " + 
+			"        `end_position`, " + 
+			"        CAST (cdsStart AS INT64) AS cdsStart1, " + 
+			"        CAST(cdsEnd AS INT64) AS cdsEnd1, " + 
+			"        CAST(StartPoint AS INT64) StartPoint, " + 
+			"        CAST(EndPoint AS INT64) EndPoint, " + 
+			"        name2, " + 
+			"        cdsStartStat " + 
+			"      FROM " + 
+			"       `" + TableName + "` t, " + // "        `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t, " + 
+			"        UNNEST(SPLIT( exonStarts )) StartPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos1 " + 
+			"      JOIN " + 
+			"        UNNEST(SPLIT( exonEnds )) EndPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos2 " + 
+			"      ON " + 
+			"        pos1 = pos2 " + 
+			"      WHERE " + 
+			"        EndPoint<>\"\") AS Annotation1 " + 
+			"    ON " + 
+			"      VCF.reference_name = Annotation1.reference_name " + 
+			"      AND (DIV(VCF.end_position, "+ binSize +")=DIV(Annotation1.start_position, "+ binSize +") ) " + 
+			"    GROUP BY " + 
+			"      VCF.reference_name, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases, " + 
+			"      alternate_bases, " + 
+			"      Status " + 
+			"    UNION DISTINCT " + 
+			"    SELECT " + 
+			"      VCF.reference_name AS `reference_name`, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases AS `reference_bases`, " + 
+			"      VCF.alternate_bases AS `alternate_bases`, " + 
+			"      CASE " + 
+			"   WHEN ((Annotation1.StartPoint <= VCF.end_position) AND (VCF.start_position <= Annotation1.EndPoint)) THEN (CASE WHEN cdsStartStat!=\"unk\" " + 
+			"        THEN CONCAT('9Exonic',\" - \", name2) ELSE CONCAT('9ncRNA_Exonic',\" - \", name2) END) " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsStart1)) THEN CONCAT('8UTR5',\" - \", name2) " + 
+			"        WHEN (cdsStartStat!=\"unk\" AND (Annotation1.cdsEnd1 <= VCF.end_position)  " + 
+			"        AND (VCF.start_position <= Annotation1.end_position)) THEN CONCAT('8UTR3',\" - \", name2) " + 
+			"        WHEN ( cdsStartStat!=\"unk\" AND (Annotation1.cdsStart1 <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN " + 
+			"        (CASE WHEN (abs (Annotation1.StartPoint - VCF.end_position)<=2) OR  " + 
+			"        (abs (VCF.start_position + 1 - Annotation1.EndPoint) <=2) OR (abs (Annotation1.StartPoint  - VCF.start_position + 1)<=2) OR  " + 
+			"        (abs (VCF.end_position - Annotation1.EndPoint) <=2) THEN CONCAT('9Splicing',\" - \", name2) " + 
+			"        ELSE CONCAT('7Intronic',\" - \", name2) END) " + 
+			"        WHEN ( cdsStartStat=\"unk\" AND (Annotation1.start_position <= VCF.end_position) " + 
+			"        AND (VCF.start_position <= Annotation1.cdsEnd1)) THEN  CONCAT('7ncRNAIntronic',\" - \", name2) " + 
+			"         " + 
+			"        WHEN (Annotation1.end_position < VCF.end_position AND ((VCF.end_position - Annotation1.end_position) <= 1000)  " + 
+			"        AND ((VCF.end_position - Annotation1.end_position) >=0)) OR (Annotation1.start_position > VCF.start_position  " + 
+			"        AND ((Annotation1.start_position - VCF.start_position) <= 1000) AND ((Annotation1.start_position - VCF.start_position) >= 0)) THEN (CASE " + 
+			"          WHEN ((Annotation1.start_position - VCF.start_position)>= (VCF.end_position - Annotation1.end_position)) THEN CONCAT('4downstream',\" - \", name2) " + 
+			"          ELSE concat ('4upstream', " + 
+			"          \" - \", " + 
+			"          name2) END) " + 
+			"        WHEN ((Annotation1.start_position > VCF.end_position) OR ( VCF.start_position > Annotation1.end_position)) THEN '2Intergenic' " + 
+			"      END AS Status " + 
+			"    FROM " + 
+			VCFQuery
+			+
+			"    LEFT JOIN ( " + 
+			"      SELECT " + 
+			"        reference_name, " + 
+			"        start_position, " + 
+			"        `end_position`, " + 
+			"        CAST (cdsStart AS INT64) AS cdsStart1, " + 
+			"        CAST(cdsEnd AS INT64) AS cdsEnd1, " + 
+			"        CAST(StartPoint AS INT64) StartPoint, " + 
+			"        CAST(EndPoint AS INT64) EndPoint, " + 
+			"        name2, " + 
+			"        cdsStartStat " + 
+			"      FROM " + 
+			"       `" + TableName + "` t, " + // "        `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t, " + 
+			"        UNNEST(SPLIT( exonStarts )) StartPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos1 " + 
+			"      JOIN " + 
+			"        UNNEST(SPLIT( exonEnds )) EndPoint " + 
+			"      WITH " + 
+			"      OFFSET " + 
+			"        pos2 " + 
+			"      ON " + 
+			"        pos1 = pos2 " + 
+			"      WHERE " + 
+			"        EndPoint<>\"\") AS Annotation1 " + 
+			"    ON " + 
+			"      VCF.reference_name = Annotation1.reference_name " + 
+			"      AND ( DIV(VCF.end_position, "+ binSize +")=DIV(Annotation1.end_position, "+ binSize +") ) " + 
+			"    GROUP BY " + 
+			"      VCF.reference_name, " + 
+			"      VCF.start_position, " + 
+			"      VCF.end_position, " + 
+			"      VCF.reference_bases," + 
+			"      VCF.alternate_bases, " + 
+			"      Status ) AS VCF " + 
+			"  GROUP BY " + 
+			"    VCF.reference_name," + 
+			"    VCF.start_position," + 
+			"    VCF.end_position," + 
+			"    VCF.reference_bases," + 
+			"    VCF.alternate_bases) AS DEST" + 
+			" ON" + 
+			"  DEST.reference_name=SRC.reference_name" + 
+			"  AND DEST.start_position=SRC.start_position" + 
+			"  AND DEST.end_position=SRC.end_position" + 
+			"  AND DEST.reference_bases= SRC.reference_bases" + 
+			"  AND DEST.alternate_bases= SRC.alternate_bases"  ;
+		
+	return tempQuery;
+}
+	   
+	   
+	   public static String findExonicVariantType(String build, int AnnotationIndex, boolean CONCAT, boolean numSamples, boolean GoogleVCF, 
+			   String VCFQuery, int binSize, String VCFTempTable) {	
+		String tempQuery="";
+		String GeneAnnotationTable;
+		//TODO: Dynamic system
+	if(build.equalsIgnoreCase("hg19"))
+		GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_refGene:Type";
+	else // if(build.equalsIgnoreCase("hg38"))
+		GeneAnnotationTable = "gbsc-gcp-project-cba:cba:AnnotationHive_hg19.hg38_refGene:Type";
+	
+	/*#######################Prepare Gene Annotation queries#######################*/
+	LOG.info("Gene Annotations ");
+					
+					/* Example: gbsc-gcp-project-cba:PublicAnnotationSets.hg19_GME:GME_AF:GME_NWA:GME_NEA
+					 * ProjectId: gbsc-gcp-project-cba
+					 * DatasetId: PublicAnnotationSets
+					 * TableId: hg19_GME
+					 * Features: GME_AF:GME_NWA:GME_NEA
+					 */
+					
+	String [] TableInfo = GeneAnnotationTable.split(":");
+											
+	//String RequestedFields="";
+	String AliasTableName= "Annotation" + AnnotationIndex; 
+	String TableName = TableInfo[0]+"."+TableInfo[1];
+						
+	
+	tempQuery+= 
+	"SELECT " + 
+	"  SRC.*, " + 
+	"  DEST.Type as ExonicType, " +
+	"  DEST.Gene_Name as Gene_Name " +
+	"  FROM `" + 
+			 VCFTempTable + "` as SRC " +  
+	"LEFT JOIN ( " +		
+			
+			
+	"SELECT  " + 
+	"  reference_name AS `reference_name`, " + 
+	"  start_position, " + 
+	"  end_position, " + 
+	"  reference_bases AS `reference_bases`, " + 
+	"  alternate_bases AS `alternate_bases`, " + 
+	"  split(Final.TypeGene,'\\t') [SAFE_OFFSET(0)] as `Type`, " + 
+	"  split(Final.TypeGene,'\\t') [SAFE_OFFSET(1)] as `Gene_Name`, " + 
+	"    codon, " + 
+	"  NewCodon " + 
+	" " + 
+	"  FROM ( " + 
+	"SELECT " + 
+	"  reference_name AS `reference_name`, " + 
+	"  start_position, " + 
+	"  end_position, " + 
+	"  reference_bases AS `reference_bases`, " + 
+	"  alternate_bases AS `alternate_bases`, " + 
+	"    codon, " + 
+	"    NewCODON, " + 
+	"  ARRAY_AGG (STRUCT<TypeGene STRING>(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(syn, 'A', ''), 'B', ''), 'C', ''), 'D', ''), 'E', ''), 'F', ''), 'G', ''), 'H', ''), 'I', ''), 'J', ''), 'K', '')) " + 
+	"  ORDER BY " + 
+	"    syn ASC " + 
+	"  LIMIT " + 
+	"    1)[ " + 
+	"OFFSET " + 
+	"  (0)] Final " + 
+	"FROM ( " + 
+	"  SELECT " + 
+	" " + 
+	"    CASE " + 
+	" " + 
+	"      WHEN (LENGTH(reference_bases)=0) AND ((CODON!=\"TAA\" AND CODON!=\"TAG\" AND CODON!=\"TGA\") AND (LENGTH(SUBSTR(NewCODON,-3))=3 AND ( REGEXP_EXTRACT(NewCODON,\"TAA\") is not NULL OR  REGEXP_EXTRACT(NewCODON,\"TAG\") is not NULL OR  REGEXP_EXTRACT(NewCODON,\"TGA\") is not NULL))) THEN concat(\"Astopgain\", \"\\t\", gene_name2) " + 
+	"     " + 
+	"      WHEN ( LENGTH(alternate_bases) != LENGTH(reference_bases) AND (MOD(LENGTH(alternate_bases),3) != 0 OR (LENGTH(alternate_bases)=0 AND MOD(LENGTH(reference_bases),3) != 0))) THEN CASE " + 
+	"      WHEN LENGTH(alternate_bases) > LENGTH(reference_bases) THEN concat (\"Aframeshift insertion\", \"\\t\", gene_name2) " + 
+	"    ELSE concat ( \"Bframeshift deletion\", \"\\t\", gene_name2) " + 
+	"  END " + 
+	"      WHEN (LENGTH(alternate_bases)>1 OR LENGTH(reference_bases)> 1) AND (LENGTH(alternate_bases)=LENGTH(reference_bases) AND MOD(LENGTH(alternate_bases), 3)!=0) THEN \"Cframeshift block substitution\" " + 
+	"      WHEN (ABS(LENGTH(alternate_bases)-LENGTH(reference_bases))<=1 " + 
+	"      AND (LENGTH(alternate_bases)=1 " + 
+	"        OR LENGTH(reference_bases)=1 )) THEN " + 
+	"    CASE " + 
+	"      WHEN ((CODON!=\"TAA\" AND CODON!=\"TAG\" AND CODON!=\"TGA\") AND (NewCODON=\"TAA\" OR NewCODON=\"TAG\" OR NewCODON=\"TGA\")) THEN concat(\"Dstopgain\", \"\\t\", gene_name2) " + 
+	"      WHEN ((CODON=\"TAA\" " + 
+	"        OR CODON=\"TAG\" " + 
+	"        OR CODON=\"TGA\") " + 
+	"      AND (NewCODON!=\"TAA\" " + 
+	"        AND NewCODON!=\"TAG\" " + 
+	"        AND NewCODON!=\"TGA\")) THEN concat(\"Estoploss\", \"\\t\", gene_name2) " + 
+	"      WHEN ABS(LENGTH(alternate_bases)-LENGTH(reference_bases))=0 AND (LENGTH(alternate_bases)=1) THEN CASE " + 
+	"      WHEN end_codon LIKE concat ('%', " + 
+	"      NewCodon, " + 
+	"      '%') THEN concat(\"Jsynonymous SNV\", \"\\t\", gene_name2) " + 
+	"    ELSE " + 
+	"    concat(\"Inonsynonymous SNV\", \"\\t\", gene_name2) " + 
+	"  END " + 
+	"  END " + 
+	"      WHEN (MOD(LENGTH(alternate_bases),3) = 0)  THEN CASE " + 
+	"      WHEN (LENGTH(alternate_bases)) > 0 THEN concat(\"Fnonframeshift insertion\", \"\\t\", gene_name2) " + 
+	"    ELSE " + 
+	"    concat(\"Gnonframeshift deletion\", \"\\t\", gene_name2) " + 
+	"  END " + 
+	"      WHEN (MOD(LENGTH(alternate_bases),3) = 0) AND (LENGTH(alternate_bases)=LENGTH(reference_bases)) THEN concat(\"Hnonframeshift block substitution\", \"\\t\", gene_name2) " + 
+	"    ELSE " + 
+	"    concat(\"Kunknown\", \"\\t\", gene_name2) " + 
+	"  END " + 
+	"    AS syn, " + 
+	"    reference_name, " + 
+	"    start_position, " + 
+	"    end_position, " + 
+	"    reference_bases, " + 
+	"    alternate_bases,  " + 
+	"    codon, " + 
+	"    NewCODON " + 
+	"  FROM ( " + 
+	"    SELECT " + 
+	"      SRC.*, " + 
+	"      DEST.codon_pos, " + 
+	"      DEST.codon, " + 
+	"      DEST.gene_name2, " + 
+	"      DEST.strand, " + 
+	"       " + 
+	"      CASE   WHEN (LENGTH(SRC.alternate_bases)=1 AND LENGTH(SRC.reference_bases)=1) THEN " + 
+	"       " + 
+	"            CASE " + 
+	"              WHEN DEST.strand=\"-\" THEN CASE " + 
+	"              WHEN SRC.alternate_bases=\"A\" THEN CASE " + 
+	"              WHEN DEST.codon_pos=\"1\" THEN CONCAT(\"T\", SUBSTR(DEST.codon, 2,3)) " + 
+	"              WHEN DEST.codon_pos=\"2\" THEN CONCAT(SUBSTR(DEST.codon, 1,1), \"T\", SUBSTR(DEST.codon, 3,3)) " + 
+	"              WHEN DEST.codon_pos=\"3\" THEN CONCAT(SUBSTR(DEST.codon, 1,2), \"T\") " + 
+	"          END " + 
+	"              WHEN SRC.alternate_bases=\"T\" THEN CASE " + 
+	"              WHEN DEST.codon_pos=\"1\" THEN CONCAT(\"A\", SUBSTR(DEST.codon, 2,3)) " + 
+	"              WHEN DEST.codon_pos=\"2\" THEN CONCAT(SUBSTR(DEST.codon, 1,1), \"A\", SUBSTR(DEST.codon, 3,3)) " + 
+	"              WHEN DEST.codon_pos=\"3\" THEN CONCAT(SUBSTR(DEST.codon, 1,2), \"A\") " + 
+	"          END " + 
+	"              WHEN SRC.alternate_bases=\"C\" THEN CASE " + 
+	"              WHEN DEST.codon_pos=\"1\" THEN CONCAT(\"G\", SUBSTR(DEST.codon, 2,3)) " + 
+	"              WHEN DEST.codon_pos=\"2\" THEN CONCAT(SUBSTR(DEST.codon, 1,1), \"G\", SUBSTR(DEST.codon, 3,3)) " + 
+	"              WHEN DEST.codon_pos=\"3\" THEN CONCAT(SUBSTR(DEST.codon, 1,2), \"G\") " + 
+	"          END " + 
+	"              WHEN SRC.alternate_bases=\"G\" THEN CASE " + 
+	"              WHEN DEST.codon_pos=\"1\" THEN CONCAT(\"C\", SUBSTR(DEST.codon, 2,3)) " + 
+	"              WHEN DEST.codon_pos=\"2\" THEN CONCAT(SUBSTR(DEST.codon, 1,1), \"C\", SUBSTR(DEST.codon, 3,3)) " + 
+	"              WHEN DEST.codon_pos=\"3\" THEN CONCAT(SUBSTR(DEST.codon, 1,2), \"C\") " + 
+	"          END " + 
+	"              " + 
+	"          END " + 
+	"              WHEN DEST.strand=\"+\" THEN CASE " + 
+	"              WHEN DEST.codon_pos=\"1\" THEN CONCAT(SRC.alternate_bases, SUBSTR(DEST.codon, 2,3)) " + 
+	"              WHEN DEST.codon_pos=\"2\" THEN CONCAT(SUBSTR(DEST.codon, 1,1), SRC.alternate_bases, SUBSTR(DEST.codon, 3,3)) " + 
+	"              WHEN DEST.codon_pos=\"3\" THEN CONCAT(SUBSTR(DEST.codon, 1,2), SRC.alternate_bases) " + 
+	"          END " + 
+	" " + 
+	"             " + 
+	"      END " + 
+	"       ELSE  " + 
+	"                  CASE " + 
+	"                      WHEN DEST.codon_pos=\"1\" THEN CONCAT(SRC.alternate_bases, DEST.codon) " + 
+	"                      WHEN DEST.codon_pos=\"2\" THEN CONCAT(SUBSTR(DEST.codon, 1,1), SRC.alternate_bases, SUBSTR(DEST.codon, 2,3)) " + 
+	"                      WHEN DEST.codon_pos=\"3\" THEN CONCAT(SUBSTR(DEST.codon, 1,2), SRC.alternate_bases, SUBSTR(DEST.codon, 3,3)) " + 
+	"                  END " + 
+	"       " + 
+	"    END " + 
+	"      AS NewCodon " + 
+	"    FROM ( " + 
+	"      SELECT " + 
+	"        reference_name, " + 
+	"        case  " + 
+	"         WHEN SUBSTR(reference_bases, 0, LENGTH(alternate_bases)) = alternate_bases THEN start_position+LENGTH(alternate_bases) " + 
+	"         ELSE start_position " + 
+	"         END start_position, " + 
+	"        end_position, " + 
+	"        CASE " + 
+	"          WHEN reference_bases = '.' THEN '' " + 
+	"          WHEN SUBSTR(alternate_bases, 0, LENGTH(reference_bases)) = reference_bases THEN '' " + 
+	"          WHEN SUBSTR(reference_bases, 0, LENGTH(alternate_bases)) = alternate_bases THEN  " + 
+	"          SUBSTR(reference_bases, LENGTH(alternate_bases)+1, LENGTH(reference_bases)-LENGTH(alternate_bases)+1) " + 
+	"        ELSE " + 
+	"        reference_bases " + 
+	"      END " + 
+	"        AS reference_bases, " + 
+	"        CASE " + 
+	"          WHEN LENGTH(alternate_bases)<=LENGTH(reference_bases) THEN CASE " + 
+	"          WHEN alternate_bases='.' THEN '' " + 
+	"          WHEN SUBSTR(reference_bases, 0, LENGTH(alternate_bases)) = alternate_bases THEN '' " + 
+	"        ELSE " + 
+	"        alternate_bases " + 
+	"      END " + 
+	"        ELSE " + 
+	"        CASE " + 
+	"          WHEN alternate_bases='.' THEN '' " + 
+	"          WHEN SUBSTR(alternate_bases, 0, LENGTH(reference_bases)) = reference_bases THEN SUBSTR(alternate_bases, LENGTH(reference_bases)+1, LENGTH(alternate_bases)-LENGTH(reference_bases)+1) " + 
+	"        ELSE " + 
+	"        alternate_bases " + 
+	"      END " + 
+	"      END " + 
+	"        AS alternate_bases " + 
+	"        FROM " + 
+	"        `"+ VCFTempTable +"`) AS SRC " + 
+	"    JOIN " + 
+	"       `gbsc-gcp-project-cba.annotation.hg19_refGene_Mrna_0base` AS DEST " + 
+	"    ON " + 
+	"      SRC.reference_name=DEST.reference_name AND SRC.start_position=DEST.start_position " + 
+	" ) AS GetCodon " + 
+	"  JOIN " + 
+	"    `gbsc-gcp-project-cba.annotation.AminoAcid` AS DEST " + 
+	"  ON " + 
+	"    GetCodon.codon=DEST.start_codon " + 
+	"  GROUP BY " + 
+	"    reference_name, " + 
+	"    start_position, " + 
+	"    end_position, " + 
+	"    reference_bases, " + 
+	"    alternate_bases, " + 
+	"    syn, " + 
+	"    codon, " + 
+	"    NewCodon " + 
+	"    ) " + 
+	"         " + 
+	"    GROUP BY " + 
+	"  reference_name, " + 
+	"  start_position, " + 
+	"  end_position, " + 
+	"  reference_bases, " + 
+	"  alternate_bases, " + 
+	"  codon, " + 
+	"  NewCodon " + 
+	"  )) AS DEST" + 
+	" ON" + 
+	"  DEST.reference_name=SRC.reference_name" + 
+	"  AND DEST.start_position=SRC.start_position" + 
+	"  AND DEST.end_position=SRC.end_position" + 
+	"  AND DEST.reference_bases= SRC.reference_bases" + 
+	"  AND DEST.alternate_bases= SRC.alternate_bases"  ;	
+	return tempQuery;
+}
     
 }
 
