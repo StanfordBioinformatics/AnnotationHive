@@ -5455,7 +5455,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	"        FROM " + 
 	"        `"+ VCFTempTable +"`) AS SRC " + 
 	"    JOIN " + 
-	"       `gbsc-gcp-project-cba.annotation.hg19_refGene_Mrna_0base` AS DEST " + 
+	"       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene_Mrna_0base` AS DEST " + 
 	"    ON " + 
 	"      SRC.reference_name=DEST.reference_name AND SRC.start_position=DEST.start_position " + 
 	" ) AS GetCodon " + 

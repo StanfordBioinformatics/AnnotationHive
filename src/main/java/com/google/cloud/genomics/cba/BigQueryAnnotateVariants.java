@@ -649,11 +649,11 @@ public final class BigQueryAnnotateVariants {
 				
 				//Find Exonic Regions
 //				String ExonincQuery = BigQueryFunctions.query.findExonic(options.getBuild(), 1,  true, false, false, 
-//						VCFQuery, 2500000, tempTable);	
+//						VCFQuery, options.getBinSize(), tempTable);	
 				
 				//Find Variant Gene Type: Intronic, Exonic, Intergeneic
 				String variantGeneTypeQuery = BigQueryFunctions.findVariantFunctionalityWRTGenes(options.getBuild(), 1,  true, false, false, 
-						VCFQuery, 2500000, tempTable);	
+						VCFQuery, options.getBinSize(), tempTable);	
 
 				LOG.info("Variant WRT Gene Type Query: " + variantGeneTypeQuery);
 
@@ -662,7 +662,7 @@ public final class BigQueryAnnotateVariants {
 				
 				//Find type of exonic variants: Synonymous, Nonsynonymous, etc. 
 				String ExonicVariantTypeQuery = BigQueryFunctions.findExonicVariantType(options.getBuild(), 1,  true, false, false, 
-						VCFQuery, 2500000, tempTable+"2");	
+						VCFQuery, options.getBinSize(), tempTable+"2");	
 				
 				LOG.info("Exonic Variant Type Query: " + ExonicVariantTypeQuery);
 
