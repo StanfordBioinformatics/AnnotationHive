@@ -383,7 +383,7 @@ public final class BigQueryAnnotateVariants {
 						+ "end_position, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
 						+ Google_VCF.split(":")[0] + "." + Google_VCF.split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases ";
 
-				options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
+				options.setVCFTables(options.getProjectId()  + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
 				
 				if (!checkTableExist(options.getBigQueryDatasetId(), 
 						Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" )) {
@@ -463,7 +463,7 @@ public final class BigQueryAnnotateVariants {
 //												+ "end_position as `END`, reference_bases, alternate_bases.alt as alternate_bases  FROM `"
 //												+ Google_VCF.split(":")[0] + "." + Google_VCF.split(":")[1]  +"`, unnest (alternate_bases) as alternate_bases ";
 //
-//										options.setVCFTables(options.getProject() + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
+//										options.setVCFTables(options.getProjectId()  + ":" +options.getBigQueryDatasetId() + "." + Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF");
 //										
 //										if (!checkTableExist(options.getBigQueryDatasetId(), 
 //												Google_VCF.split(":")[1].split("\\.")[1] + "_AnnotationHiveVCF" )) {
@@ -1221,14 +1221,14 @@ public final class BigQueryAnnotateVariants {
 			try {
 				
 				if (!options.getTableExists()) {
-					String queryStat = "UPDATE   " + "`" + options.getProject() + "."
+					String queryStat = "UPDATE   " + "`" + options.getProjectId()  + "."
 							+ options.getBigQueryDatasetId() + "." + options.getOutputBigQueryTable() + "` "
 							+ " SET start_position = start_position + 1 WHERE chrm <>\"\" ";
 					LOG.warning(queryStat);
 					 runQuery(queryStat, options.getBigQueryDatasetId(), options.getOutputBigQueryTable(), true,
 							options.getMaximumBillingTier(), false, true, false);				
 				}
-				BigQueryFunctions.sortByBin(options.getProject(), options.getBigQueryDatasetId(),
+				BigQueryFunctions.sortByBin(options.getProjectId() , options.getBigQueryDatasetId(),
 						options.getOutputBigQueryTable(), options.getLocalOutputFilePath(), options.getBinSize());
 				
 				LOG.info("");
