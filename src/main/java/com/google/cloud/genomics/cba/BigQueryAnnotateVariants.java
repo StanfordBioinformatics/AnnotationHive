@@ -96,7 +96,7 @@ import com.google.common.base.Function;
  *            region to any variant, they must set this parameter true (Default
  *            value is false).
  * @param bigQuerySort
- *            Users can choose BigQuery to sort the output. Note, ‘Order By’ has
+ *            Users can choose BigQuery to sort the output. Note, 'Order By' has
  *            an upper bound for the size of table it can sort, AnnotationHive
  *            dynamically partitions the output considering the number of
  *            annotated variants and then applies the Order By to each of those
@@ -208,7 +208,7 @@ public final class BigQueryAnnotateVariants {
 		int getProximityThreshold();
 		void setProximityThreshold(int ProximityThreshold);
 
-		@Description("The query pricing rate has levels called “billing tiers”.")
+		@Description("The query pricing rate has levels called 'billing tiers'.")
 		@Default.Integer(1)
 		int getMaximumBillingTier();
 		void setMaximumBillingTier(int MaximumBillingTier);
