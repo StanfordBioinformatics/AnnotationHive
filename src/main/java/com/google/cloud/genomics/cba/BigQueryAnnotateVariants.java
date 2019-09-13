@@ -687,9 +687,9 @@ public final class BigQueryAnnotateVariants {
 						options.getMaximumBillingTier(), false, false, true);
 				
 				//Remove the temp tables
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp");
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2");
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp3");
+				BigQueryFunctions.deleteTable(options.getProjectId(), options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp");
+				BigQueryFunctions.deleteTable(options.getProjectId(), options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp2");
+				BigQueryFunctions.deleteTable(options.getProjectId(), options.getBigQueryDatasetId(), options.getOutputBigQueryTable()+"_temp3");
 
 				
 			}
@@ -699,7 +699,7 @@ public final class BigQueryAnnotateVariants {
 			// Remove the temporarily VCF file created based on the input list of
 			// variants/regions
 			if (!options.getInputRegion().isEmpty() || !options.getInputVariant().isEmpty()) {
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable");
+				BigQueryFunctions.deleteTable(options.getProjectId(), options.getBigQueryDatasetId(), "AnnotationHiveTempVCFTable");
 			}
 	
 			if (options.getCreateVCF()) {
@@ -715,7 +715,7 @@ public final class BigQueryAnnotateVariants {
 				///////////////// Table///////////////////////////
 				// TODO: Add a new condition here
 				if(options.getDeleteOutputTable())
-					BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
+					BigQueryFunctions.deleteTable(options.getProjectId(), options.getBigQueryDatasetId(), options.getOutputBigQueryTable());
 			}
 			
 		}catch (Exception e) {			
@@ -816,7 +816,7 @@ public final class BigQueryAnnotateVariants {
 			boolean allowLargeResults, int maximumBillingTier, boolean LegacySql, boolean Update, boolean DDL) {
 
 		try {
-			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDatasetId, outputBigQueryTable,
+			BigQueryFunctions.runQueryPermanentTable(options.getProjectId(), queryString, bigQueryDatasetId, outputBigQueryTable,
 					allowLargeResults, maximumBillingTier, LegacySql, Update, DDL);
 			
 		} catch (TimeoutException e) {
@@ -1315,7 +1315,7 @@ public final class BigQueryAnnotateVariants {
 	}
 	
 	private static boolean checkTableExist(String _DatasetID, String _TableID) {
-	    BigQueryOptions.Builder optionsBuilder = BigQueryOptions.newBuilder();
+	    BigQueryOptions.Builder optionsBuilder = BigQueryOptions.newBuilder().setProjectId(options.getProjectId());
 	    BigQuery bigquery = optionsBuilder.build().getService();
 	    LOG.warning("DatasetId: " + _DatasetID +" TableId: " + _TableID);
 	    return bigquery.getDataset(_DatasetID).get(_TableID) != null;		    	    

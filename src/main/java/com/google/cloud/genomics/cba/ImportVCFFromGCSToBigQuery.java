@@ -112,6 +112,12 @@ public class ImportVCFFromGCSToBigQuery {
 		String getBigQueryVCFTableId();
 		void setBigQueryVCFTableId(String BigQueryVCFTableId);
 	
+		@Description("This provides the Project ID. ")
+		@Default.String("")
+		String getProjectId();
+
+		void setProjectId(String ProjectId);
+		
 		@Description("This provides the version VCF. This is a required field.")
 		@Default.String("")
 		String getVCFVersion();	
@@ -237,7 +243,7 @@ public class ImportVCFFromGCSToBigQuery {
 				LOG.severe(options.getBigQueryVCFTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
 				return;
 			}else {
-				BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryVCFTableId());
+				BigQueryFunctions.deleteTable(options.getProjectId(), options.getBigQueryDatasetId(), options.getBigQueryVCFTableId());
 			}
 		}
 		else{

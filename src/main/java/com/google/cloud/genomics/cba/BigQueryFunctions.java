@@ -247,7 +247,7 @@ public class BigQueryFunctions {
 		return bigquery.getQueryResults(jobId);
 	}
 
-	public static void runQueryPermanentTable(String queryString, String destinationDataset, String destinationTable,
+	public static void runQueryPermanentTable(String ProjectId, String queryString, String destinationDataset, String destinationTable,
 			boolean allowLargeResults, int MaximumBillingTier, boolean LegacySql, boolean Update, boolean DDL) throws TimeoutException, InterruptedException {
 		QueryJobConfiguration queryConfig;
 		
@@ -278,8 +278,10 @@ public class BigQueryFunctions {
 			}
 		}
 		queryConfig.allowLargeResults();
-		BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-
+		//BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+		//BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId("gbsc-gcp-project-annohive-dev").build().getService(); //.getDefaultInstance().getService();
+		BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId(ProjectId).build().getService(); 
+		
 		JobId jobId = JobId.of(UUID.randomUUID().toString());
 		Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
@@ -305,8 +307,10 @@ public class BigQueryFunctions {
 		
 
 	//TODO: for annotation tables, remove them from AnnotationList Table as well
-	public static void deleteTable(String destinationDataset, String destinationTable){
-		BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+	public static void deleteTable(String ProjectId, String destinationDataset, String destinationTable){
+		//BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+		BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId("gbsc-gcp-project-annohive-dev").build().getService(); //.getDefaultInstance().getService();
+
 		Boolean deleted = bigquery.delete( destinationDataset,  destinationTable);
 		if (deleted) {
 		  // the table was deleted
@@ -3501,7 +3505,7 @@ public class BigQueryFunctions {
 		LOG.info(queryString);		 
 		        
 		try {
-			BigQueryFunctions.runQueryPermanentTable(queryString, bigQueryDatasetId, outputBigQueryTable,
+			BigQueryFunctions.runQueryPermanentTable(project, queryString, bigQueryDatasetId, outputBigQueryTable,
 					allowLargeResults, maximumBillingTier, LegacySql, Update, DDL);
 		} catch (TimeoutException e) {
 			// TODO Auto-generated catch block

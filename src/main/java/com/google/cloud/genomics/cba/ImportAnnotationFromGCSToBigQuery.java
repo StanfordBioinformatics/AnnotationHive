@@ -270,7 +270,7 @@ public class ImportAnnotationFromGCSToBigQuery {
 					LOG.warning(options.getBigQueryAnnotationSetTableId() + "  table already exists! If want to replace it, please set the option forceUpdate");
 					return;
 				}else {
-					BigQueryFunctions.deleteTable(options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId());
+					BigQueryFunctions.deleteTable(options.getProject(),options.getBigQueryDatasetId(), options.getBigQueryAnnotationSetTableId());
 				}
 			}
 			
