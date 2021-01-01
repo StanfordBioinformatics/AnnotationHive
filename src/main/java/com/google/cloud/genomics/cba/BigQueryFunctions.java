@@ -309,7 +309,7 @@ public class BigQueryFunctions {
 	//TODO: for annotation tables, remove them from AnnotationList Table as well
 	public static void deleteTable(String ProjectId, String destinationDataset, String destinationTable){
 		//BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-		BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId("gbsc-gcp-project-annohive-dev").build().getService(); //.getDefaultInstance().getService();
+		BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId(ProjectId).build().getService(); //.getDefaultInstance().getService();
 
 		Boolean deleted = bigquery.delete( destinationDataset,  destinationTable);
 		if (deleted) {
@@ -4537,7 +4537,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    			+ "start_position,       `end_position`,       reference_bases,       alternate_bases     FROM       "
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   LEFT JOIN (     "
 	    			+ "SELECT       reference_name,       start_position,       `end_position`,       CAST(StartPoint AS INT64) StartPoint,      "
-	    			+ " CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       "
+	    			+ " CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t,       "
 	    			+ "UNNEST(SPLIT( exonStarts )) StartPoint     WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     "
 	    			+ "WITH     OFFSET       pos2     ON       pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   "
 	    			+ "ON     VCF.reference_name = AN.reference_name   AND ( DIV(VCF.start_position,2500000)=DIV(AN.start_position, 2500000))   "
@@ -4551,7 +4551,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    			+ "start_position,       `end_position`,       reference_bases,       alternate_bases     FROM       "
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   "
 	    			+ "LEFT JOIN (     SELECT       reference_name,       start_position,       `end_position`,       CAST(StartPoint AS INT64) StartPoint,       "
-	    			+ "CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       "
+	    			+ "CAST(EndPoint AS INT64) EndPoint     FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t,       "
 	    			+ "UNNEST(SPLIT( exonStarts )) StartPoint     WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint    "
 	    			+ " WITH     OFFSET       pos2     ON       pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     "
 	    			+ "VCF.reference_name = AN.reference_name   AND (DIV(VCF.start_position,2500000)=DIV(AN.end_position, 2500000)    )   GROUP BY    "
@@ -4565,7 +4565,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    			+ "`gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`"
 	    			+ ") AS VCF   LEFT JOIN (     SELECT       reference_name,       start_position,       `end_position`,       name,       name2,       "
 	    			+ "CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     FROM      "
-	    			+ " `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     "
+	    			+ " `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     "
 	    			+ "WITH     OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     WITH     OFFSET       pos2     ON       "
 	    			+ "pos1 = pos2     WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.reference_name   "
 	    			+ "AND (DIV(VCF.end_position,2500000)=DIV(AN.start_position, 2500000)   )   GROUP BY     VCF.reference_name,     "
@@ -4577,7 +4577,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    			+ "REPLACE(reference_name, '', '') AS reference_name,       start_position,       `end_position`,       reference_bases,       alternate_bases     "
 	    			+ "FROM       `gbsc-gcp-project-cba.cancer.LargeExperiment_1000Geneomes_Public_Final_DBs_t3`) AS VCF   LEFT JOIN (     SELECT       "
 	    			+ "reference_name,       start_position,       `end_position`,       CAST(StartPoint AS INT64) StartPoint,       CAST(EndPoint AS INT64) EndPoint     "
-	    			+ "FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     WITH     "
+	    			+ "FROM       `gbsc-gcp-project-cba.AnnotationHive_hg19.hg19_UCSC_refGene` t,       UNNEST(SPLIT( exonStarts )) StartPoint     WITH     "
 	    			+ "OFFSET       pos1     JOIN       UNNEST(SPLIT( exonEnds )) EndPoint     WITH     OFFSET       pos2     ON       pos1 = pos2     "
 	    			+ "WHERE       EndPoint<>\"\") AS AN   ON     VCF.reference_name = AN.reference_name   AND ( DIV(VCF.end_position,2500000)=DIV(AN.end_position, 2500000)   )   "
 	    			+ "GROUP BY     VCF.reference_name,     VCF.start_position,     VCF.end_position,     VCF.reference_bases,     VCF.alternate_bases,     Status    ) "
@@ -4597,7 +4597,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 	    		String GeneAnnotationTable;
 	    		//TODO: Dynamic system
 			if(build.equalsIgnoreCase("hg19"))
-				GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_refGene:Type";
+				GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_UCSC_refGene:Type";
 			else // if(build.equalsIgnoreCase("hg38"))
 				GeneAnnotationTable = "gbsc-gcp-project-cba:cba:AnnotationHive_hg19.hg38_refGene:Type";
 			
@@ -4906,7 +4906,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		String GeneAnnotationTable;
 		//TODO: Dynamic system
 	if(build.equalsIgnoreCase("hg19"))
-		GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_refGene:Type";
+		GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_UCSC_refGene:Type";
 	else // if(build.equalsIgnoreCase("hg38"))
 		GeneAnnotationTable = "gbsc-gcp-project-cba:cba:AnnotationHive_hg19.hg38_refGene:Type";
 	
@@ -5266,7 +5266,7 @@ public static String prepareAnnotateVariantQueryConcatFields_mVCF_StandardSQL_Co
 		String GeneAnnotationTable;
 		//TODO: Dynamic system
 	if(build.equalsIgnoreCase("hg19"))
-		GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_refGene:Type";
+		GeneAnnotationTable="gbsc-gcp-project-cba:AnnotationHive_hg19.hg19_UCSC_refGene:Type";
 	else // if(build.equalsIgnoreCase("hg38"))
 		GeneAnnotationTable = "gbsc-gcp-project-cba:cba:AnnotationHive_hg19.hg38_refGene:Type";
 	
