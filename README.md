@@ -39,6 +39,24 @@
 
 1. Install [Maven](http://maven.apache.org/).
 
+## Contaierized Version
+
+1. Create a container.
+
+   ```
+   docker run -it annotationhive/annotationhive_public:v1.5 bash
+   ```
+1. Create a container.
+
+   ```
+   gcloud auth application-default login
+   ```
+
+1. Create a container.
+
+   ```
+   gcloud config set project <PROJECT-ID>
+   ```
 
 ## Section 1: [Import VCF/mVCF/Annotation Files](./Import.md)
 This section explains how to import VCF, mVCF and annotation files to BigQuery.
