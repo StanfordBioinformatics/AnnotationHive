@@ -39,7 +39,7 @@
 
 1. Install [Maven](http://maven.apache.org/).
 
-## Contaierized Version
+## Containerized Version
 
 1. Create a container.
 
