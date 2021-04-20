@@ -46,13 +46,13 @@
    ```
    docker run -it annotationhive/annotationhive_public:v1.5 bash
    ```
-1. Create a container.
+1. Authentication
 
    ```
    gcloud auth application-default login
    ```
 
-1. Create a container.
+1. Set your GCP project
 
    ```
    gcloud config set project <PROJECT-ID>
