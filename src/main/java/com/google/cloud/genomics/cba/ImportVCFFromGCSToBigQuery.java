@@ -228,10 +228,10 @@ public class ImportVCFFromGCSToBigQuery {
 			throw new IllegalArgumentException("Base0 option must be either yes or no!");
 		}
 		
-		if(!checkVCFTableExist()) {
-			LOG.severe("Cannot Find VCFTable!");
-			return;
-		}
+		///if(!checkVCFTableExist()) {
+		///	LOG.severe("Cannot Find VCFTable!");
+		///	return;
+		///}
 	
 
 		if(!options.getColumnOrder().isEmpty()) {
@@ -336,7 +336,7 @@ public class ImportVCFFromGCSToBigQuery {
 	    BigQueryOptions.Builder optionsBuilder = BigQueryOptions.newBuilder();
 	    BigQuery bigquery = optionsBuilder.build().getService();
 
-	    Table existTable = bigquery.getTable(options.getBigQueryDatasetId(), "VCFList");
+	    Table existTable = null; ///bigquery.getTable(options.getBigQueryDatasetId(), "VCFList");
 
 	    if(existTable==null){	    	
 	    	List<Field> fields = new ArrayList<Field>();
