@@ -44,7 +44,7 @@
 1. Create a container.
 
    ```
-   docker run -it annotationhive/annotationhive_public:v1.5 bash
+   docker run -it annotationhive/annotationhive_public:v1.6 bash
    ```
 1. Authentication
 
